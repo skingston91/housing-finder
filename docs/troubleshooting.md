@@ -37,6 +37,12 @@ Add a dated entry when you hit a non-obvious issue and fix it. Short bullets are
 - **Cause:** `Handler` in `template.yaml` must match the **esbuild entry file** basename and exported name (`handler`).
 - **Fix:** See [infrastructure/aws-sam.md](./infrastructure/aws-sam.md); confirm `lambda/*.ts` uses `export const handler`.
 
+### 2026-03-28 — `Cannot find esbuild` (sam build)
+
+- **Symptom:** `sam build` fails at `NodejsNpmEsbuildBuilder:EsbuildBundle`.
+- **Cause:** SAM invokes **esbuild** from the host; it was not on `PATH` and not in the project.
+- **Fix:** Run `npm install` (this repo includes **`esbuild`** as a devDependency) or install esbuild globally.
+
 ### 2026-03-28 — `Unexpected token 'export'` / `Failed to load the ES module` (sam local)
 
 - **Symptom:** Invoke returns 500; logs show `SyntaxError: Unexpected token 'export'` for `*.js` in `/var/task`.

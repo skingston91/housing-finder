@@ -11,6 +11,7 @@ The API is **AWS Lambda** + **API Gateway HTTP API**, defined in [`template.yaml
 ## Prerequisites
 
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) on your `PATH` (`sam --version`). **`npm run verify` does not run `sam build`** — install SAM separately for API work.
+- **`esbuild`** — listed in this repo’s **devDependencies** so `sam build` (esbuild bundling) can find it after `npm install`. Global install on `PATH` also works.
 - **Docker** (required for `sam local start-api`)
 - AWS credentials configured when you deploy (`aws configure` or environment/SSO)
 
