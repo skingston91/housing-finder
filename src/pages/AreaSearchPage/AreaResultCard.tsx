@@ -1,11 +1,60 @@
 import { Badge, Box, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
 import type { RankedAreaDto } from '@shared/searchAreasContract';
 
+import { areaProvenanceDescription, hasCrimeMetadataDetails } from './searchResultsAttribution';
 import { ScoreBar } from './ScoreBar';
 
 export interface AreaResultCardProps {
   readonly area: RankedAreaDto;
 }
+
+const CrimeScoreDetails = ({ area }: { area: RankedAreaDto }) => {
+  const m = area.metadata;
+  if (!m || !hasCrimeMetadataDetails(m)) {
+    return null;
+  }
+  const rows: { label: string; value: string }[] = [];
+  if (typeof m.crimeMonthsRequested === 'number') {
+    rows.push({
+      label: 'Crime window requested',
+      value: `${String(m.crimeMonthsRequested)} months`,
+    });
+  }
+  if (typeof m.crimeMonthsUsed === 'number') {
+    rows.push({ label: 'Months used in score', value: String(m.crimeMonthsUsed) });
+  }
+  if (typeof m.crimeWeightedTotal === 'number') {
+    rows.push({
+      label: 'Weighted incidents (sum over months)',
+      value: String(m.crimeWeightedTotal),
+    });
+  }
+  if (m.policeUk === 'ok' || m.policeUk === 'error') {
+    rows.push({ label: 'Police.uk fetch', value: m.policeUk });
+  }
+  if (rows.length === 0) {
+    return null;
+  }
+  return (
+    <Box as="details" fontSize="sm" borderTopWidth="1px" borderColor="border.muted" pt={3}>
+      <Box as="summary" cursor="pointer" color="fg.muted" _hover={{ color: 'fg' }}>
+        Score details
+      </Box>
+      <Stack as="dl" gap={2} mt={3} pl={1}>
+        {rows.map((r) => (
+          <Box key={r.label}>
+            <Text as="dt" fontWeight="medium" color="fg.muted">
+              {r.label}
+            </Text>
+            <Text as="dd" ml={0} fontFamily="mono" fontSize="xs">
+              {r.value}
+            </Text>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+};
 
 export const AreaResultCard = ({ area }: AreaResultCardProps) => (
   <Card.Root variant="outline">
@@ -20,8 +69,8 @@ export const AreaResultCard = ({ area }: AreaResultCardProps) => (
           </Badge>
         </HStack>
         <Text fontSize="sm" color="fg.muted">
-          Composite is a stub until real signals are wired. Lat {area.centroidLatitude.toFixed(3)},
-          Lng {area.centroidLongitude.toFixed(3)}
+          {areaProvenanceDescription(area.metadata)} Lat {area.centroidLatitude.toFixed(3)}, Lng{' '}
+          {area.centroidLongitude.toFixed(3)}
         </Text>
         <Stack gap={3}>
           <ScoreBar label="Affordability" value={area.breakdown.affordability} />
@@ -29,11 +78,7 @@ export const AreaResultCard = ({ area }: AreaResultCardProps) => (
           <ScoreBar label="Schools" value={area.breakdown.schools} />
           <ScoreBar label="Crime (higher is better)" value={area.breakdown.crime} />
         </Stack>
-        {area.metadata && Object.keys(area.metadata).length > 0 ? (
-          <Box fontSize="xs" color="fg.muted" fontFamily="mono">
-            {JSON.stringify(area.metadata)}
-          </Box>
-        ) : null}
+        <CrimeScoreDetails area={area} />
       </Stack>
     </Card.Body>
   </Card.Root>

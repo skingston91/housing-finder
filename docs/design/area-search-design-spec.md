@@ -25,7 +25,7 @@
 1. User adjusts criteria (defaults pre-filled for London demo).
 2. **Search areas** → `POST /api/search-areas` with JSON body.
 3. **Loading:** spinner + “Ranking areas…”
-4. **Success:** results column lists cards (name, composite score badge, four subscore bars, stub metadata).
+4. **Success:** results column lists cards (name, composite score badge, four subscore bars, provenance copy, optional collapsible score details, and a shared data-source alert when police.uk attribution is present).
 5. **Error:** inline alert with server message or validation hint.
 6. **Empty (no search yet):** short copy explaining `sam local` + Vite proxy for local API.
 
@@ -40,7 +40,7 @@
 - **Typography:** large tight heading; **muted** secondary copy via `fg.muted` / `gray.600` where semantic token exists.
 - **Primary action:** blue **Search areas** button; full-width form column on mobile.
 - **Layout:** two-column **SimpleGrid** on `lg`: criteria left, results right; stack on small screens.
-- **Results:** outlined **Card** per area; **Badge** for composite score; monospace JSON snippet for stub metadata (temporary).
+- **Results:** outlined **Card** per area; **Badge** for composite score; human-readable provenance; **details/summary** for numeric score metadata when crime data is present; **info Alert** for shared attribution when results include `dataPoliceUk`.
 
 ## UI states
 

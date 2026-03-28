@@ -19,6 +19,6 @@
 
 1. Geocode workplace + define candidate area lattice inside London.
 2. Land Registry / open price paid–driven **affordability** proxy (see [data-sources.md](./data-sources.md)).
-3. Police.uk street crime API for **crime** subscore (category weights).
+3. Police.uk street crime API for **crime** subscore (category weights) — **wired** in Lambda + UI attribution and provenance copy.
 4. DfE or official open data for **school** proximity / performance.
 5. Commute: driving via cost-effective routing API; transit (TFL / Google) behind serverless with caching.

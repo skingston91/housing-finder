@@ -17,6 +17,7 @@ import { postSearchAreas } from '@/services/searchAreasClient';
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
 import { buildSearchAreasRequest, defaultFormState } from './buildSearchAreasRequest';
+import { firstDataPoliceUkAttribution } from './searchResultsAttribution';
 
 export const AreaSearchPage = () => {
   const [form, setForm] = useState(defaultFormState);
@@ -84,6 +85,7 @@ export const AreaSearchPage = () => {
 
             <Stack gap={4}>
               <Heading size="md">Results</Heading>
+              {!loading && areas.length > 0 ? <DataSourceAttribution areas={areas} /> : null}
               {loading ? <HStackSpinner /> : null}
               {error ? (
                 <Alert.Root status="error" variant="subtle">
@@ -136,3 +138,19 @@ const HStackSpinner = () => (
     </Text>
   </HStack>
 );
+
+const DataSourceAttribution = ({ areas }: { areas: readonly RankedAreaDto[] }) => {
+  const line = firstDataPoliceUkAttribution(areas);
+  if (!line) {
+    return null;
+  }
+  return (
+    <Alert.Root status="info" variant="subtle">
+      <Alert.Indicator />
+      <Alert.Content>
+        <Alert.Title>Data sources</Alert.Title>
+        <Alert.Description fontSize="sm">{line}</Alert.Description>
+      </Alert.Content>
+    </Alert.Root>
+  );
+};
