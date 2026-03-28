@@ -20,8 +20,21 @@ export const areaProvenanceDescription = (metadata: RankedAreaDto['metadata']): 
   if (metadata.stub === 1) {
     return 'Demo ranking: all dimensions use simple placeholders. Run the local API (see empty-state hint) for live crime-aware rankings.';
   }
+  if (metadata.candidateMode === 'fixed-london') {
+    if (metadata.policeUk === 'ok') {
+      return 'Crime uses anonymised data.police.uk data near each point. Your workplace is outside our Greater London preview box, so these are fixed London centroids—not a grid around work. Affordability, commute, and schools remain placeholders.';
+    }
+    if (metadata.policeUk === 'error') {
+      return 'Workplace is outside our Greater London preview box; we used fixed London centroids. Crime used a fallback after a police.uk error. Other dimensions remain placeholders.';
+    }
+    return 'Workplace is outside our Greater London preview box; candidate areas are fixed London centroids. Affordability, commute, and schools remain placeholders.';
+  }
   if (metadata.policeUk === 'ok') {
-    return 'Crime uses anonymised street-level data from data.police.uk near this point. Affordability, commute, and schools are still placeholders until those feeds are wired.';
+    const grid =
+      metadata.candidateMode === 'workplace-grid'
+        ? ' Candidates are sampled on a grid around your workplace (Greater London).'
+        : '';
+    return `Crime uses anonymised street-level data from data.police.uk near this point.${grid} Affordability, commute, and schools are still placeholders until those feeds are wired.`;
   }
   if (metadata.policeUk === 'error') {
     return 'Crime score used a fallback because the police.uk request failed. Affordability, commute, and schools remain placeholders.';

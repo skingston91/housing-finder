@@ -18,7 +18,7 @@
 | Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`          |
 | Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                |
 | Client API      | `src/services/searchAreasClient.ts`                    |
-| Server          | `api/search-areas.ts`, `shared/searchAreasContract.ts` |
+| Server          | `lambda/search-areas.ts`, `shared/searchAreasContract.ts` |
 
 ## User flow
 

@@ -34,6 +34,7 @@ describe('buildRankedAreas', () => {
     expect(first?.score).toBeTypeOf('number');
     expect(first?.displayName).toMatch(/.+/);
     expect(first?.metadata?.policeUk).toBe('ok');
-    expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
+    expect(first?.metadata?.candidateMode).toBe('workplace-grid');
+    expect(fetchImpl.mock.calls.length).toBe(12);
   });
 });

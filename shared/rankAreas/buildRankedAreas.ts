@@ -3,7 +3,7 @@ import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
 import { compositeScore } from '../scoring/compositeScore';
 import type { RankedAreaDto, SearchAreasRequestBody } from '../searchAreasContract';
-import { LONDON_AREA_CANDIDATES } from './candidates';
+import { resolveSearchCandidates } from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
 const MAX_CRIME_MONTHS = 6;
@@ -51,7 +51,7 @@ export const buildRankedAreas = async (
   fetchImpl: typeof fetch,
 ): Promise<readonly RankedAreaDto[]> => {
   const monthsYm = recentMonthsYm(body.crime.windowMonths, MAX_CRIME_MONTHS);
-  const candidates = LONDON_AREA_CANDIDATES.slice(0, 10);
+  const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
 
   const rows = await Promise.all(
     candidates.map(async (c, i) => {
@@ -80,6 +80,7 @@ export const buildRankedAreas = async (
           crimeMonthsUsed: monthsYm.length,
           policeUk: failed ? 'error' : 'ok',
           dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
+          candidateMode,
         },
       };
       return area;

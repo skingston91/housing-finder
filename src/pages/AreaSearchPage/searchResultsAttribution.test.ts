@@ -36,6 +36,12 @@ describe('searchResultsAttribution', () => {
   it('areaProvenanceDescription reflects stub and police.uk', () => {
     expect(areaProvenanceDescription({ stub: 1 })).toMatch(/Demo ranking/);
     expect(areaProvenanceDescription({ policeUk: 'ok' })).toMatch(/data\.police\.uk/);
+    expect(areaProvenanceDescription({ policeUk: 'ok', candidateMode: 'workplace-grid' })).toMatch(
+      /grid around your workplace/,
+    );
+    expect(areaProvenanceDescription({ policeUk: 'ok', candidateMode: 'fixed-london' })).toMatch(
+      /fixed London/,
+    );
     expect(areaProvenanceDescription({ policeUk: 'error' })).toMatch(/fallback/);
   });
 

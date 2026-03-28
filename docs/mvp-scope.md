@@ -17,7 +17,7 @@
 
 ## Near-term backlog (not committed to order)
 
-1. Geocode workplace + define candidate area lattice inside London.
+1. Geocode workplace + define candidate area lattice inside London — **partial:** grid around submitted workplace coordinates (manual lat/lng today); geocoding from label deferred.
 2. Land Registry / open price paid–driven **affordability** proxy (see [data-sources.md](./data-sources.md)).
 3. Police.uk street crime API for **crime** subscore (category weights) — **wired** in Lambda + UI attribution and provenance copy.
 4. DfE or official open data for **school** proximity / performance.

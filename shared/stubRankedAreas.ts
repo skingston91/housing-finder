@@ -1,16 +1,17 @@
 import type { RankedAreaDto, SearchAreasRequestBody } from './searchAreasContract';
 import { compositeScore } from './scoring/compositeScore';
-import { LONDON_AREA_CANDIDATES } from './rankAreas/candidates';
+import { resolveSearchCandidates } from './rankAreas/workplaceGridCandidates';
 
 /** Fully stubbed ranked areas (no external APIs). Prefer `buildRankedAreas` for Lambda. */
 export const generateStubRankedAreas = (
   body: SearchAreasRequestBody,
   count = 6,
 ): RankedAreaDto[] => {
-  const n = Math.min(count, LONDON_AREA_CANDIDATES.length);
+  const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
+  const n = Math.min(count, candidates.length);
   const seed = body.maxPriceGbp % 97;
   return Array.from({ length: n }, (_, i) => {
-    const c = LONDON_AREA_CANDIDATES[i];
+    const c = candidates[i];
     if (!c) {
       throw new Error('stub: index out of range');
     }
@@ -32,6 +33,7 @@ export const generateStubRankedAreas = (
       metadata: {
         stub: 1,
         maxPriceGbp: body.maxPriceGbp,
+        candidateMode,
       },
     };
   });

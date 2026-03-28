@@ -98,23 +98,27 @@ export const AreaSearchPage = () => {
               ) : null}
               {!loading && !error && areas.length === 0 ? (
                 <Text color="fg.muted" fontSize="sm">
-                  Run a search to see ranked areas. With{' '}
+                  Run a search to see ranked areas. For local API + Vite together, use{' '}
                   <Text as="span" fontWeight="medium">
-                    npm run dev
-                  </Text>
-                  , run{' '}
+                    npm run dev:stack
+                  </Text>{' '}
+                  (or run{' '}
                   <Text as="span" fontWeight="medium">
                     npm run sam:local
                   </Text>{' '}
-                  (after{' '}
+                  on port 3000 after{' '}
                   <Text as="span" fontWeight="medium">
                     npm run sam:build
                   </Text>
-                  ) on port 3000 so{' '}
+                  , plus{' '}
+                  <Text as="span" fontWeight="medium">
+                    npm run dev
+                  </Text>
+                  ). Then{' '}
                   <Text as="span" fontFamily="mono">
                     /api/search-areas
                   </Text>{' '}
-                  is available — see docs/infrastructure/aws-sam.md.
+                  proxies correctly — see docs/infrastructure/aws-sam.md.
                 </Text>
               ) : null}
               <SimpleGrid columns={1} gap={4}>
