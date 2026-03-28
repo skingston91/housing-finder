@@ -13,8 +13,8 @@
 
 ## Scoring (phase 1)
 
-- Subscores (0–100) per dimension: **affordability**, **commute**, **schools**, **crime** — populated by adapters (stubs initially).
-- **Composite** score: weighted average via `compositeScore()` in `src/domain/scoring/compositeScore.ts`. Tune weights in one place; document methodology here when we move beyond uniform defaults.
+- Subscores (0–100) per dimension: **affordability**, **commute**, **schools**, **crime** — populated by adapters (affordability/commute/schools still stubbed in the Lambda pipeline).
+- **Composite** score: weighted average via `compositeScore()` in [`shared/scoring/compositeScore.ts`](../shared/scoring/compositeScore.ts), re-exported from `src/domain/scoring/compositeScore.ts` for the app. Tune weights in one place; document methodology here when we move beyond uniform defaults.
 
 ## Multi–workplace (future)
 
@@ -22,7 +22,7 @@
 
 ## API
 
-- **`POST /api/search-areas`** — Types in `shared/searchAreasContract.ts`. Lambda: `lambda/search-areas.ts` (uses `shared/parseSearchAreasRequestBody.ts`, returns stubs via `shared/stubRankedAreas.ts`). Routed by **API Gateway HTTP API** in `template.yaml`.
+- **`POST /api/search-areas`** — Types in `shared/searchAreasContract.ts`. Lambda: `lambda/search-areas.ts` (validates with `shared/parseSearchAreasRequestBody.ts`, ranks via `shared/rankAreas/buildRankedAreas.ts` using **crime** from [data.police.uk](https://data.police.uk/) and stubbed other dimensions). Routed by **API Gateway HTTP API** in `template.yaml`.
 - **`GET /api/health`** — `lambda/health.ts`.
 - **Client:** `src/services/searchAreasClient.ts` calls relative `/api/*` (Vite proxy to `sam local` in development).
 

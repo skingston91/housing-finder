@@ -27,6 +27,7 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 
 - **URL:** [Street-level crimes](https://data.police.uk/docs/method/crime-street/)
 - **Use:** Approximate crime counts by category near a point or polygon; **not exact locations**.
+- **Implementation:** `shared/policeUk/streetCrimes.ts` and `shared/rankAreas/buildRankedAreas.ts` (called from `lambda/search-areas.ts`). Each ranked area uses a fixed candidate centroid; responses include `metadata.dataPoliceUk` for UI attribution.
 - **Attribution:** Follow [data.police.uk](https://data.police.uk/) terms; surface anonymisation caveats in UI help text.
 - **Caveat:** Scotland coverage differs (BTP-only nuance per their docs).
 

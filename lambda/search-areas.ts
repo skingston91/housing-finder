@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
 import { parseSearchAreasRequestBody } from '../shared/parseSearchAreasRequestBody';
-import { generateStubRankedAreas } from '../shared/stubRankedAreas';
+import { buildRankedAreas } from '../shared/rankAreas/buildRankedAreas';
 
 import { jsonResponse } from './http';
 
@@ -23,6 +23,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     return jsonResponse(400, { error: parsed.error });
   }
 
-  const areas = generateStubRankedAreas(parsed.value);
+  const areas = await buildRankedAreas(parsed.value, globalThis.fetch);
   return jsonResponse(200, { areas });
 };
