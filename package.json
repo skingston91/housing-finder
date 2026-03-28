@@ -1,0 +1,53 @@
+{
+  "name": "housing-finder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UK (London-first) area discovery from affordability, commute, schools, and crime signals",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"api/**/*.{ts,tsx}\" \"docs/**/*.md\" \"*.{json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"api/**/*.{ts,tsx}\" \"docs/**/*.md\" \"*.{json,md}\"",
+    "verify": "npm run lint && npm run format:check && tsc -b && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">= 22",
+    "npm": ">= 10"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^3.34.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.8.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vercel/node": "^5.5.16",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "jsdom": "^27.2.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.4",
+    "vitest": "^4.0.14"
+  }
+}

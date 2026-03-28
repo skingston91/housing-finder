@@ -1,0 +1,8 @@
+---
+description: Clean Code principles on every edit
+alwaysApply: true
+---
+
+# Clean Code
+
+Follow Robert C. Martin’s guidance: clear names, small functions, explicit errors, tests that read as spec. Prefer self-documenting code over comments that repeat the code.

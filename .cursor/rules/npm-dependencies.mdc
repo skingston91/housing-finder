@@ -1,0 +1,10 @@
+---
+description: Justify new npm dependencies
+alwaysApply: true
+---
+
+# npm dependencies
+
+Do not add packages by default. Prefer Web APIs, small owned modules under `src/` or `api/`, and existing deps.
+
+Add a dependency only when justified (maintained, licence OK, not a one-liner). Record notable adds in `docs/troubleshooting.md` or `docs/architecture.md` if it affects deployment.

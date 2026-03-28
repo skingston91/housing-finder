@@ -1,0 +1,1 @@
+export { AreaSearchPage } from './AreaSearchPage';

@@ -1,0 +1,25 @@
+---
+description: Feature workflow — designer, implementation, verifier; optional sdet for larger UX
+alwaysApply: true
+---
+
+# New features workflow
+
+## Order
+
+1. **designer** — New UX or flows: spec first (`.cursor/agents/designer.md`).
+2. **Implementation** — TDD where practical; update `docs/` when behaviour or integrations change.
+3. **sdet** — Larger features: Playwright / a11y as tooling is added.
+4. **verifier** — `npm run verify` or equivalent before done (`.cursor/agents/verifier.md`).
+
+## Advisory
+
+- **architect** — integration and layering questions (read-only).
+
+## Context for subagents
+
+Subagents may not see chat history. Pass: requirements, relevant paths (`src/domain/`, `api/`, `docs/`), and acceptance criteria.
+
+## Testing
+
+- Use **data generators** (`src/test/dataGenerators/`) instead of static fixtures when generating domain objects.
