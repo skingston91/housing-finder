@@ -39,9 +39,9 @@ Add a dated entry when you hit a non-obvious issue and fix it. Short bullets are
 
 ### 2026-03-28 — `Cannot find esbuild` (sam build)
 
-- **Symptom:** `sam build` fails at `NodejsNpmEsbuildBuilder:EsbuildBundle`.
-- **Cause:** SAM invokes **esbuild** from the host; it was not on `PATH` and not in the project.
-- **Fix:** Run `npm install` (this repo includes **`esbuild`** as a devDependency) or install esbuild globally.
+- **Symptom:** `sam build` fails at `NodejsNpmEsbuildBuilder:EsbuildBundle` even after `npm install`.
+- **Cause:** SAM copies `CodeUri` and runs **`npm install` without dev dependencies**. **`esbuild` in `devDependencies` is never installed** in that tree, so the bundler cannot find it.
+- **Fix:** Keep **`esbuild` in `dependencies`** (as in this repo) or install esbuild globally on `PATH`. Alternatively set `Metadata.BuildProperties.NpmInstallArguments` to include dev installs (heavier).
 
 ### 2026-03-28 — `Unexpected token 'export'` / `Failed to load the ES module` (sam local)
 
