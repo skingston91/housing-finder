@@ -32,7 +32,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - lambda/health.ts
-        Format: esm
+        # CJS so the Node 22 Lambda runtime loads the bundle without package.json "type": "module"
+        Format: cjs
         Target: es2022
         Sourcemap: true
     Properties:
@@ -54,7 +55,7 @@ Resources:
       BuildProperties:
         EntryPoints:
           - lambda/search-areas.ts
-        Format: esm
+        Format: cjs
         Target: es2022
         Sourcemap: true
     Properties:

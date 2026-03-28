@@ -36,3 +36,9 @@ Add a dated entry when you hit a non-obvious issue and fix it. Short bullets are
 - **Symptom:** Build fails or Lambda cannot find handler.
 - **Cause:** `Handler` in `template.yaml` must match the **esbuild entry file** basename and exported name (`handler`).
 - **Fix:** See [infrastructure/aws-sam.md](./infrastructure/aws-sam.md); confirm `lambda/*.ts` uses `export const handler`.
+
+### 2026-03-28 — `Unexpected token 'export'` / `Failed to load the ES module` (sam local)
+
+- **Symptom:** Invoke returns 500; logs show `SyntaxError: Unexpected token 'export'` for `*.js` in `/var/task`.
+- **Cause:** esbuild was emitting **ESM** while the Lambda loader treated the file as **CommonJS** (no `package.json` with `"type": "module"` in the artifact).
+- **Fix:** Use **`Format: cjs`** under `Metadata.BuildProperties` in `template.yaml`, then `sam build` again.

@@ -41,3 +41,5 @@ After deploy, get the **HTTP API** base URL from the CloudFormation stack output
 ## Node runtime
 
 Functions use **Node.js 22** on **arm64**. Change `Runtime` / `Architectures` in `template.yaml` if your account or region requires it.
+
+SAM **esbuild** bundles use **`Format: cjs`** so the runtime loads the handler as CommonJS. ESM-only bundles (`export` without `"type": "module"`) cause `Unexpected token 'export'` at invoke time.
