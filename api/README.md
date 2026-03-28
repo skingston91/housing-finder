@@ -9,6 +9,13 @@ Handlers in this folder are intended to run as **serverless functions** so API k
 
 The Vite-only command `npm run dev` does **not** expose these routes unless proxied; use `vercel dev` when working on API handlers.
 
+## Routes
+
+| File | Method | Path |
+|------|--------|------|
+| `health.ts` | GET | `/api/health` |
+| `search-areas.ts` | POST | `/api/search-areas` |
+
 ## Adding routes
 
 - One file per route, e.g. `api/health.ts` → `GET /api/health`

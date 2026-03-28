@@ -20,6 +20,9 @@
 
 - `AreaSearchCriteria` currently uses a single `workplace`; extend to `workplaces: WorkplaceAnchor[]` and aggregate commute (e.g. min or max of per-anchor times) without rewriting scoring entry points.
 
-## API shape (illustrative)
+## API
 
-Future `POST /api/search-areas` body should mirror `AreaSearchCriteria` (JSON). Version the DTO if the client and server evolve separately.
+- **`POST /api/search-areas`** — Request/response types in `shared/searchAreasContract.ts`. Handler: `api/search-areas.ts` (validates JSON, returns stub ranked areas via `shared/stubRankedAreas.ts`).
+- **Client:** `src/services/searchAreasClient.ts` uses relative `/api/search-areas` (same origin or Vite proxy).
+
+Version the DTO if the client and server evolve separately.

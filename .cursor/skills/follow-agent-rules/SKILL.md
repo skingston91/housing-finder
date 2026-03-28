@@ -1,15 +1,66 @@
 ---
 name: follow-agent-rules
-description: Checklist before finishing a task — verify script, lint, types, tests, docs.
+description: Ensures the agent follows project agent rules and development standards. Use before considering a task complete, when implementing features, when reviewing code, or when the user asks to verify or enforce rule compliance.
 ---
 
-# Follow agent rules
+# Follow Agent Rules
 
-Before marking work complete:
+Use this skill to **ensure the agent rules are followed**. Verify compliance with **Cursor rules** (`.cursor/rules/`) and **Development Standards** (`.agentrules/`). Run the checklist before marking any feature or refactor done.
 
-1. `npm run lint` — clean
-2. `tsc -b` — no errors
-3. `npm run test` — pass
-4. `npm run build` — pass (for UI changes)
-5. Updated `docs/` if product, data sources, or setup changed
-6. No `console.log` in production code paths
+## When to Apply
+
+- **Before considering a task complete** — Run the checklist.
+- **When implementing a new feature** — Follow the workflow and standards.
+- **When the user asks** — e.g. “check the rules”, “ensure compliance”.
+- **When reviewing code** — Use the checklist to validate changes.
+
+## Rule Sources
+
+| Source | Purpose |
+|--------|--------|
+| `.cursor/rules/new-features-workflow.mdc` | Subagent order; verifier for substantive changes |
+| `.cursor/rules/clean-code.mdc` | Clean Code on every edit |
+| `.agentrules/index.md` | TDD, testing, TypeScript, structure, before-commit |
+| `.cursor/skills/typescript/SKILL.md` | Strict typing, return types, `import type`, indexed access |
+
+See [reference.md](reference.md) for paths to all rule files.
+
+## Compliance Checklist
+
+### Workflow
+
+- [ ] **Designer first** — For new UX, a design spec exists under `docs/design/` (see `.cursor/agents/designer.md`) before large implementation swings.
+- [ ] **Verifier** — For substantive changes, run `npm run verify` or invoke verifier; fix failures before done.
+
+### Testing
+
+- [ ] **Data generators** — Prefer `src/test/dataGenerators/` (e.g. `createRankedArea`) over static fixtures; assert on generated values.
+- [ ] **New API routes** — Add serverless handlers under `api/` and test client integration; document env and local `vercel dev` in `docs/development.md`.
+
+### TypeScript and build
+
+- [ ] **No `any`** — Strict typing unless documented exception.
+- [ ] **`tsc -b` / `npm run build`** — Passes before calling work complete.
+
+### Clean Code
+
+- [ ] Names, small functions, explicit errors, readable tests (see `.cursor/skills/clean-code/SKILL.md`).
+
+### Before commit
+
+- [ ] Tests pass; ESLint clean; no `console.log` in production paths.
+- [ ] **`docs/`** updated when product decisions, data sources, or setup change.
+
+## Subagent context
+
+When invoking subagents, pass: requirements, relevant paths (`src/`, `shared/`, `api/`, `docs/`), data-generator rule, acceptance criteria.
+
+## Quick commands
+
+- `npm run verify` — lint, format, `tsc`, test, build
+- `npm run dev` — Vite on port 5173
+- `vercel dev` — API + optional full stack (see `docs/development.md`)
+
+## If something fails
+
+Fix build/tests/lint before considering complete; use **debugger** subagent for stubborn failures.

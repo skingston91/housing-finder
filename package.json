@@ -12,8 +12,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"api/**/*.{ts,tsx}\" \"docs/**/*.md\" \"*.{json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"api/**/*.{ts,tsx}\" \"docs/**/*.md\" \"*.{json,md}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"shared/**/*.ts\" \"api/**/*.{ts,tsx}\" \"docs/**/*.md\" \"*.{json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"shared/**/*.ts\" \"api/**/*.{ts,tsx}\" \"docs/**/*.md\" \"*.{json,md}\"",
     "verify": "npm run lint && npm run format:check && tsc -b && npm run test && npm run build"
   },
   "engines": {

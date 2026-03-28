@@ -13,7 +13,7 @@ Open [http://localhost:5173](http://localhost:5173).
 
 ## Documentation
 
-Start at [docs/README.md](./docs/README.md).
+Start at [docs/README.md](./docs/README.md). Design specs live under [docs/design/](docs/design/).
 
 ## Stack
 

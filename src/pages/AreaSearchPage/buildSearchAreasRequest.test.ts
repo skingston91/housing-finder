@@ -1,0 +1,25 @@
+import { describe, expect, it } from 'vitest';
+
+import { buildSearchAreasRequest, defaultFormState } from './buildSearchAreasRequest';
+
+describe('buildSearchAreasRequest', () => {
+  it('builds a valid body from defaults', () => {
+    const body = buildSearchAreasRequest(defaultFormState());
+    expect(body).not.toBeNull();
+    expect(body?.maxPriceGbp).toBe(450_000);
+    expect(body?.propertyTypes.length).toBeGreaterThan(0);
+    expect(body?.workplace.label).toBe('Old Street');
+  });
+
+  it('returns null when no property types selected', () => {
+    const form = defaultFormState();
+    form.propertyTypes = [];
+    expect(buildSearchAreasRequest(form)).toBeNull();
+  });
+
+  it('returns null when crime JSON is invalid', () => {
+    const form = defaultFormState();
+    form.crimeWeightsJson = '{';
+    expect(buildSearchAreasRequest(form)).toBeNull();
+  });
+});

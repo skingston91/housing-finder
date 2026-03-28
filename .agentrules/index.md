@@ -1,32 +1,72 @@
-# Agent rules — Housing Finder
+# Agent Rules — Housing Finder
 
 ## Required reading
 
-| Topic | Where |
-|-------|--------|
-| TypeScript | Strict mode; no `any`; run `tsc -b` before finishing |
-| Structure | Contextual folders; public API via `index.ts`; tests alongside code |
-| Testing | **Data generators** in `src/test/dataGenerators/` — avoid static fixtures where possible |
-| Dependencies | Prefer builtins and small owned modules; justify new npm packages |
+| Topic | Where | Summary |
+|-------|--------|---------|
+| **Folder structure** | [File structure](#file-structure) + `.agentrules/typescript/contextual-folders.md` | One folder per feature; tests alongside code; public API via `index.ts`. |
+| **TypeScript** | `.agentrules/typescript/` + `tsconfig.app.json` | Strict, `noUncheckedIndexedAccess`, no `any`; `tsc -b` before done. |
+| **React / testing / architecture** | `.agentrules/typescript/generic/` | Linked patterns for React, tests, architecture, quality, process. |
+| **Performance** | `.agentrules/typescript/generic/performance/` + `.cursor/skills/performance/SKILL.md` | Async, memoization, lists, bundle size. |
 
-## Stack
+## Overview
 
-- **Vite** + **React** + **Chakra UI v3**
-- **Vitest** + **Testing Library** (not Jest)
-- **Serverless** handlers in `api/` for secrets and heavy I/O
+TypeScript **React** app (Vite), **Chakra UI v3**, **Vitest**, serverless **`api/`** (Vercel-style). Domain types in `src/domain/`; HTTP DTOs shared with API via `shared/`.
 
 ## Development standards
 
-1. Clarify ambiguous requirements (update `docs/` when decisions change).
-2. **TDD** where practical: red → green → refactor.
-3. Domain logic stays **pure** in `src/domain/`; side effects at adapters / serverless edge.
-4. No `console.log` in production paths.
+### TDD (red / green / refactor)
+
+1. Clarify requirements; update `docs/` when decisions change.
+2. Implement with tests; red → green → refactor.
+3. Keep domain logic pure; I/O in services, hooks, and serverless handlers.
+
+### Testing
+
+- Prefer **data generators** in `src/test/dataGenerators/` over static fixtures.
+- New **API** routes: implement under `api/`, document local run (`vercel dev`), test client with mocked `fetch` where appropriate.
+
+### TypeScript
+
+- Strict typing, no `any`.
+- Before finishing: **`npm run build`** or **`tsc -b`**.
 
 ## Before committing
 
 - `npm run verify` passes
-- Attribution and data-use notes updated in `docs/data-sources.md` when integrations change
+- No `console.log` in production code
+- `docs/data-sources.md` and related docs updated when integrations or attribution change
+
+## File structure
+
+- **`src/`** — App, pages, components, domain, services, test utilities
+- **`shared/`** — DTOs and stubs shared by Vite app and `api/` (no React imports)
+- **`api/`** — Serverless handlers
+- **`docs/`** — Product, architecture, data sources, design specs, troubleshooting
+
+### Component pattern
+
+```
+ComponentName/
+├── ComponentName.tsx
+├── ComponentName.test.tsx
+└── index.ts   # re-exports only
+```
+
+Use **`.tsx`** only when the file contains JSX.
 
 ## Cursor workflow
 
-See `.cursor/rules/new-features-workflow.mdc` — designer first for new UX, verifier for substantive changes.
+See `.cursor/rules/new-features-workflow.mdc` — designer spec in `docs/design/` for new UX; **verifier** / `npm run verify` for substantive changes.
+
+## Skills (`.cursor/skills/`)
+
+| Skill | Use |
+|-------|-----|
+| `typescript` | Types, imports, naming, strict compiler compliance |
+| `clean-code` | Names, functions, comments, errors, tests |
+| `performance` | Re-renders, async, lists, bundle |
+| `playwright-cli` | Browser verification (`npx playwright-cli`) |
+| `follow-agent-rules` | Pre-completion checklist |
+| `architect` | Read-only system design |
+| `tpm` | Read-only product ideas |
