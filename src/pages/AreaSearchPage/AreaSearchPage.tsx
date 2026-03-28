@@ -12,6 +12,7 @@ import {
 import type { RankedAreaDto } from '@shared/searchAreasContract';
 import { useCallback, useState } from 'react';
 
+import { postGeocodeWorkplace } from '@/services/geocodeWorkplaceClient';
 import { postSearchAreas } from '@/services/searchAreasClient';
 
 import { AreaResultCard } from './AreaResultCard';
@@ -24,6 +25,30 @@ export const AreaSearchPage = () => {
   const [areas, setAreas] = useState<readonly RankedAreaDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [geocodePending, setGeocodePending] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
+
+  const handleGeocodeFromLabel = useCallback(async () => {
+    setGeocodeError(null);
+    const q = form.workplaceLabel.trim();
+    if (q.length < 2) {
+      setGeocodeError('Enter a workplace name (at least 2 characters).');
+      return;
+    }
+    setGeocodePending(true);
+    try {
+      const res = await postGeocodeWorkplace(q);
+      setForm((prev) => ({
+        ...prev,
+        workplaceLat: res.latitude,
+        workplaceLng: res.longitude,
+      }));
+    } catch (e) {
+      setGeocodeError(e instanceof Error ? e.message : 'Geocode failed');
+    } finally {
+      setGeocodePending(false);
+    }
+  }, [form.workplaceLabel]);
 
   const handleSearch = useCallback(async () => {
     setError(null);
@@ -80,6 +105,11 @@ export const AreaSearchPage = () => {
                   void handleSearch();
                 }}
                 isLoading={loading}
+                onGeocodeFromLabel={() => {
+                  void handleGeocodeFromLabel();
+                }}
+                geocodeFromLabelPending={geocodePending}
+                geocodeFromLabelError={geocodeError}
               />
             </Box>
 

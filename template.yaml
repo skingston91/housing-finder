@@ -69,3 +69,25 @@ Resources:
             ApiId: !Ref HousingHttpApi
             Path: /api/search-areas
             Method: POST
+
+  GeocodeWorkplaceFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - lambda/geocode-workplace.ts
+        Format: cjs
+        Target: es2022
+        Sourcemap: true
+    Properties:
+      CodeUri: ./
+      Handler: lambda/geocode-workplace.handler
+      Runtime: nodejs22.x
+      Events:
+        GeocodeWorkplace:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HousingHttpApi
+            Path: /api/geocode-workplace
+            Method: POST

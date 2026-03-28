@@ -3,23 +3,11 @@ import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
 import { compositeScore } from '../scoring/compositeScore';
 import type { RankedAreaDto, SearchAreasRequestBody } from '../searchAreasContract';
+import { scoreNonCrimeDimensions } from './areaDimensionScores';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
 const MAX_CRIME_MONTHS = 6;
-
-const stubDimensions = (
-  body: SearchAreasRequestBody,
-  index: number,
-): Pick<RankedAreaDto['breakdown'], 'affordability' | 'commute' | 'schools'> => {
-  const seed = body.maxPriceGbp % 97;
-  const base = 45 + ((seed + index * 7) % 40);
-  return {
-    affordability: Math.min(100, base + (index % 5)),
-    commute: Math.min(100, base + 3 - index),
-    schools: Math.min(100, base + (index % 8)),
-  };
-};
 
 const weightedCrimeForPoint = async (
   latitude: number,
@@ -43,8 +31,8 @@ const weightedCrimeForPoint = async (
 };
 
 /**
- * Rank candidate areas: **crime** from [data.police.uk](https://data.police.uk/) street-level API;
- * other dimensions remain stubs until Land Registry / routing / schools land.
+ * Rank candidate areas: **crime** from [data.police.uk](https://data.police.uk/);
+ * **affordability** vs indicative borough medians; **commute** straight-line time proxy; **schools** seed proximity.
  */
 export const buildRankedAreas = async (
   body: SearchAreasRequestBody,
@@ -54,7 +42,7 @@ export const buildRankedAreas = async (
   const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
 
   const rows = await Promise.all(
-    candidates.map(async (c, i) => {
+    candidates.map(async (c) => {
       const { total, months, failed } = await weightedCrimeForPoint(
         c.latitude,
         c.longitude,
@@ -64,8 +52,13 @@ export const buildRankedAreas = async (
       );
       const avg = months > 0 ? total / months : 0;
       const crime = failed ? 45 : crimeScoreFromWeightedMonthlyAvg(avg);
-      const stub = stubDimensions(body, i);
-      const breakdown = { ...stub, crime };
+      const dims = scoreNonCrimeDimensions(body, c.latitude, c.longitude);
+      const breakdown = {
+        affordability: dims.affordability,
+        commute: dims.commute,
+        schools: dims.schools,
+        crime,
+      };
       const score = compositeScore(breakdown);
       const area: RankedAreaDto = {
         id: c.id,
@@ -81,6 +74,12 @@ export const buildRankedAreas = async (
           policeUk: failed ? 'error' : 'ok',
           dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
           candidateMode,
+          affordabilityBorough: dims.affordabilityBoroughName,
+          affordabilityModel: 'borough-median-indicator',
+          landRegistryOgl:
+            'Indicative borough medians for discovery only — not transactional valuations. Contains public sector information licensed under the Open Government Licence v3.0.',
+          commuteModel: 'straight-line-time-estimate',
+          schoolsModel: 'seed-school-distance',
         },
       };
       return area;

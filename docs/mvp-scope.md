@@ -17,8 +17,8 @@
 
 ## Near-term backlog (not committed to order)
 
-1. Geocode workplace + define candidate area lattice inside London — **partial:** grid around submitted workplace coordinates (manual lat/lng today); geocoding from label deferred.
-2. Land Registry / open price paid–driven **affordability** proxy (see [data-sources.md](./data-sources.md)).
+1. Geocode workplace + define candidate area lattice inside London — **partial:** grid + **`POST /api/geocode-workplace`** (Nominatim) fills lat/lng from the label; production geocoder TBD.
+2. Land Registry / open price paid–driven **affordability** proxy — **partial:** indicative **borough median** table + nearest-borough match (see [data-sources.md](./data-sources.md)); SPARQL/live stats later.
 3. Police.uk street crime API for **crime** subscore (category weights) — **wired** in Lambda + UI attribution and provenance copy.
-4. DfE or official open data for **school** proximity / performance.
-5. Commute: driving via cost-effective routing API; transit (TFL / Google) behind serverless with caching.
+4. DfE or official open data for **school** proximity / performance — **partial:** seed-school distance proxy only (`shared/schools/`).
+5. Commute: driving via cost-effective routing API; transit (TFL / Google) behind serverless with caching — **partial:** straight-line time estimate by mode (`shared/commute/commuteScoreFromStraightLine.ts`).

@@ -24,7 +24,7 @@ npm run sam:build
 npm run sam:local
 ```
 
-This runs **`sam local start-api`** on port **3000** by default. **Vite** ([`vite.config.ts`](../../vite.config.ts)) proxies `/api/*` to that port, so `npm run dev` + `npm run sam:local` matches production paths (`/api/search-areas`, `/api/health`).
+This runs **`sam local start-api`** on port **3000** by default. **Vite** ([`vite.config.ts`](../../vite.config.ts)) proxies `/api/*` to that port, so `npm run dev` + `npm run sam:local` matches production paths (`/api/search-areas`, `/api/geocode-workplace`, `/api/health`).
 
 ## Build and deploy
 

@@ -16,6 +16,7 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 - **Use:** Sold prices, transaction history, area-level aggregates (not current listings).
 - **Licence:** Open Government Licence — [OGL](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
 - **Attribution (example):** Contains public sector information licensed under the Open Government Licence v3.0.
+- **Implementation (phase 1):** `shared/affordability/londonBoroughMedians.ts` supplies **indicative** borough medians for discovery scoring (nearest borough centroid). Replace with live SPARQL or official statistical tables when we harden the model; UI/metadata repeats an OGL-style line.
 
 ### HM Land Registry — Use land and property data API
 
@@ -44,8 +45,17 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 
 ### Routing and geocoding
 
+- **OpenStreetMap Nominatim** ([usage policy](https://operations.osmfoundation.org/policies/nominatim/)): forward geocoding from the workplace label via **`POST /api/geocode-workplace`** (`lambda/geocode-workplace.ts`, `shared/geocoding/nominatim.ts`). **Low volume only** — identify with `User-Agent`; do not bulk or scrape; consider a dedicated geocoder in production.
 - **Google Maps Platform** ([Directions](https://developers.google.com/maps/documentation/directions/), [@googlemaps/google-maps-services-js](https://github.com/googlemaps/google-maps-services-js)): server-side only; billing and key restriction policy TBD.
 - **Alternatives:** Open routing / OSM-based services may reduce cost; document choice when implemented.
+
+### Commute (phase 1 proxy)
+
+- **Straight-line heuristic:** `shared/commute/commuteScoreFromStraightLine.ts` — distance × assumed mode speed (not a routing engine). Documented in result metadata as `commuteModel: straight-line-time-estimate`.
+
+### Schools (phase 1 proxy)
+
+- **Seed proximity:** `shared/schools/londonSchoolSeeds.ts` — small reference coordinate set; `metadata.schoolsModel: seed-school-distance`. Not DfE performance data; replace with official open data when available.
 
 ### TfL
 

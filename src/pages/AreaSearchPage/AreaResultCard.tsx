@@ -29,6 +29,9 @@ const CrimeScoreDetails = ({ area }: { area: RankedAreaDto }) => {
       value: String(m.crimeWeightedTotal),
     });
   }
+  if (typeof m.affordabilityBorough === 'string') {
+    rows.push({ label: 'Affordability (borough median ref)', value: m.affordabilityBorough });
+  }
   if (m.policeUk === 'ok' || m.policeUk === 'error') {
     rows.push({ label: 'Police.uk fetch', value: m.policeUk });
   }

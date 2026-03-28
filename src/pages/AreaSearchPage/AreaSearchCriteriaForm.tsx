@@ -44,6 +44,9 @@ export interface AreaSearchCriteriaFormProps {
   readonly onSubmit: () => void;
   readonly isLoading: boolean;
   readonly disabled?: boolean;
+  readonly onGeocodeFromLabel?: () => void;
+  readonly geocodeFromLabelPending?: boolean;
+  readonly geocodeFromLabelError?: string | null;
 }
 
 export const AreaSearchCriteriaForm = ({
@@ -52,6 +55,9 @@ export const AreaSearchCriteriaForm = ({
   onSubmit,
   isLoading,
   disabled = false,
+  onGeocodeFromLabel,
+  geocodeFromLabelPending = false,
+  geocodeFromLabelError = null,
 }: AreaSearchCriteriaFormProps) => {
   const toggleProperty = (value: PropertyType, checked: boolean): void => {
     const next = new Set(form.propertyTypes);
@@ -153,6 +159,32 @@ export const AreaSearchCriteriaForm = ({
             }}
             aria-label="Workplace label"
           />
+          {onGeocodeFromLabel ? (
+            <Box>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={geocodeFromLabelPending}
+                disabled={disabled || isLoading || geocodeFromLabelPending}
+                onClick={() => {
+                  onGeocodeFromLabel();
+                }}
+              >
+                Fill coordinates from label
+              </Button>
+              {geocodeFromLabelError ? (
+                <Text fontSize="sm" color="red.600" mt={1}>
+                  {geocodeFromLabelError}
+                </Text>
+              ) : (
+                <Text fontSize="xs" color="fg.muted" mt={1}>
+                  Uses OpenStreetMap Nominatim (UK-biased) via the local API — be gentle with rate
+                  limits.
+                </Text>
+              )}
+            </Box>
+          ) : null}
         </Stack>
         <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4}>
           <Stack gap={1}>

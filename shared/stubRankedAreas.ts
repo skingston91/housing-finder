@@ -1,8 +1,9 @@
 import type { RankedAreaDto, SearchAreasRequestBody } from './searchAreasContract';
 import { compositeScore } from './scoring/compositeScore';
+import { scoreNonCrimeDimensions } from './rankAreas/areaDimensionScores';
 import { resolveSearchCandidates } from './rankAreas/workplaceGridCandidates';
 
-/** Fully stubbed ranked areas (no external APIs). Prefer `buildRankedAreas` for Lambda. */
+/** Fully stubbed crime; non-crime dimensions match the live ranking heuristics (no police.uk). */
 export const generateStubRankedAreas = (
   body: SearchAreasRequestBody,
   count = 6,
@@ -15,12 +16,14 @@ export const generateStubRankedAreas = (
     if (!c) {
       throw new Error('stub: index out of range');
     }
+    const dims = scoreNonCrimeDimensions(body, c.latitude, c.longitude);
     const base = 45 + ((seed + i * 7) % 40);
+    const crime = Math.min(100, base + 10 - (i % 6));
     const breakdown = {
-      affordability: Math.min(100, base + (i % 5)),
-      commute: Math.min(100, base + 3 - i),
-      schools: Math.min(100, base + (i % 8)),
-      crime: Math.min(100, base + 10 - (i % 6)),
+      affordability: dims.affordability,
+      commute: dims.commute,
+      schools: dims.schools,
+      crime,
     };
     const score = compositeScore(breakdown);
     return {
@@ -34,6 +37,10 @@ export const generateStubRankedAreas = (
         stub: 1,
         maxPriceGbp: body.maxPriceGbp,
         candidateMode,
+        affordabilityBorough: dims.affordabilityBoroughName,
+        affordabilityModel: 'borough-median-indicator',
+        commuteModel: 'straight-line-time-estimate',
+        schoolsModel: 'seed-school-distance',
       },
     };
   });
