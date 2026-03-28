@@ -16,7 +16,7 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 - **Use:** Sold prices, transaction history, area-level aggregates (not current listings).
 - **Licence:** Open Government Licence — [OGL](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
 - **Attribution (example):** Contains public sector information licensed under the Open Government Licence v3.0.
-- **Implementation (phase 1):** `shared/affordability/londonBoroughMedians.ts` supplies **indicative** borough medians for discovery scoring (nearest borough centroid). Replace with live SPARQL or official statistical tables when we harden the model; UI/metadata repeats an OGL-style line.
+- **Implementation (phase 1):** `shared/affordability/londonBoroughMedians.ts` supplies **indicative** borough medians for discovery scoring (nearest borough centroid). Optional **max £/m²** is blended with the total-budget score in `affordabilityScoreForAreaSearch` (not a per-property floor-area model). Replace with live SPARQL or official statistical tables when we harden the model; UI/metadata repeats an OGL-style line.
 
 ### HM Land Registry — Use land and property data API
 

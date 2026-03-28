@@ -3,8 +3,8 @@
 ## In scope
 
 - Web app shell (Vite + React + TypeScript + Chakra UI).
-- Domain types for **search criteria** and **ranked areas**; pure **composite scoring** stub (weights documented in [architecture.md](./architecture.md)).
-- **AWS Lambda** + API Gateway HTTP API (`template.yaml`, `lambda/`) — health + `search-areas` stub; local run via SAM (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
+- Domain types for **search criteria** and **ranked areas**; **composite scoring** with documented weights ([architecture.md](./architecture.md)).
+- **AWS Lambda** + API Gateway HTTP API (`template.yaml`, `lambda/`) — **health**, **`POST /api/search-areas`**, **`POST /api/geocode-workplace`**; local run via SAM ([infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
 - Documentation: product decisions, data sources, architecture, dev setup, troubleshooting.
 - Cursor **agents/rules** aligned with game-collection-ts workflow (designer → implement → verify), adapted for this repo.
 
@@ -15,10 +15,37 @@
 - Full National Rail / OJP SOAP integration (heavy licence/onboarding).
 - Production-grade calibrated scoring models (start with transparent weighted sums).
 
-## Near-term backlog (not committed to order)
+## Phase 1 status — **feature-complete** (discovery prototype)
 
-1. Geocode workplace + define candidate area lattice inside London — **partial:** grid + **`POST /api/geocode-workplace`** (Nominatim) fills lat/lng from the label; production geocoder TBD.
-2. Land Registry / open price paid–driven **affordability** proxy — **partial:** indicative **borough median** table + nearest-borough match (see [data-sources.md](./data-sources.md)); SPARQL/live stats later.
-3. Police.uk street crime API for **crime** subscore (category weights) — **wired** in Lambda + UI attribution and provenance copy.
-4. DfE or official open data for **school** proximity / performance — **partial:** seed-school distance proxy only (`shared/schools/`).
-5. Commute: driving via cost-effective routing API; transit (TFL / Google) behind serverless with caching — **partial:** straight-line time estimate by mode (`shared/commute/commuteScoreFromStraightLine.ts`).
+The following is **implemented and documented** for anonymous London-first area discovery:
+
+| Area              | Status                                                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **UI**            | Criteria form, results, loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label          |
+| **API**           | `GET /api/health`, `POST /api/search-areas`, `POST /api/geocode-workplace`                                                    |
+| **Affordability** | Nearest-borough indicative median + optional **max £/m²** blend (`shared/affordability/`); OGL attribution in metadata and UI |
+| **Commute**       | Straight-line time estimate by mode (`shared/commute/`)                                                                       |
+| **Schools**       | Phase-aware distance to seed schools (`shared/schools/`)                                                                      |
+| **Crime**         | data.police.uk street-level, weighted categories (`shared/policeUk/`, `shared/rankAreas/buildRankedAreas.ts`)                 |
+| **Candidates**    | Workplace grid inside London bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                |
+| **Quality**       | `npm run verify` (lint, format, tsc, tests, Vite build); SAM build separate (`npm run sam:build`)                             |
+
+Phase 1 is **not** a substitute for conveyancing, school admissions, or routing; it is a **transparent composite** for exploration.
+
+## Phase 2 backlog (future)
+
+1. **Production geocoder** — Replace or supplement Nominatim with a hosted geocoder, quotas, and abuse protection.
+2. **Land Registry** — Live **SPARQL** or official statistical feeds instead of static borough medians; refresh pipeline.
+3. **Schools** — DfE or official open data (performance, proximity) instead of seed-only distance.
+4. **Commute** — TFL / Google Directions (or OSM routing) behind Lambda with caching and keys in Secrets Manager.
+5. **Maps** — MapLibre (or similar) with list + map parity and attribution.
+
+## Near-term backlog (legacy list — superseded by Phase 2 above)
+
+The numbered items below are **historical**; see **Phase 1 status** and **Phase 2 backlog** for current truth.
+
+1. Geocode workplace + lattice — **done** for phase 1 (Nominatim + grid).
+2. Land Registry affordability — **proxy done**; live SPARQL/stats → phase 2.
+3. Police.uk — **done** for phase 1.
+4. DfE schools — **proxy done**; official data → phase 2.
+5. Commute routing API — **proxy done**; real routing → phase 2.

@@ -10,17 +10,17 @@
 
 ## Structure
 
-| Area            | Location                                                  |
-| --------------- | --------------------------------------------------------- |
-| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`             |
-| Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`     |
-| Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts`     |
-| Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`             |
-| Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                   |
-| Client API      | `src/services/searchAreasClient.ts`                       |
-| Geocode client  | `src/services/geocodeWorkplaceClient.ts`                    |
-| Server          | `lambda/search-areas.ts`, `lambda/geocode-workplace.ts`     |
-| Shared contract | `shared/searchAreasContract.ts`                             |
+| Area            | Location                                                |
+| --------------- | ------------------------------------------------------- |
+| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`           |
+| Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`   |
+| Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts`   |
+| Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`           |
+| Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                 |
+| Client API      | `src/services/searchAreasClient.ts`                     |
+| Geocode client  | `src/services/geocodeWorkplaceClient.ts`                |
+| Server          | `lambda/search-areas.ts`, `lambda/geocode-workplace.ts` |
+| Shared contract | `shared/searchAreasContract.ts`                         |
 
 ## User flow
 

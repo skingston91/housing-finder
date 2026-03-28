@@ -12,17 +12,18 @@ npm install
 
 ## Scripts
 
-| Script              | Purpose                                                                                                                                                  |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`       | Vite only ([http://localhost:5173](http://localhost:5173)); proxies `/api/*` → port **3000** — **fails with `ECONNREFUSED` if SAM local is not running** |
-| `npm run dev:stack` | **SAM local API (3000) + Vite (5173)** in one terminal (needs `sam build` + Docker first)                                                                |
-| `npm run sam:build` | `sam build` — bundle Lambdas (run after handler changes)                                                                                                 |
-| `npm run sam:local` | API Gateway + Lambda emulation on [http://127.0.0.1:3000](http://127.0.0.1:3000)                                                                         |
-| `npm run build`     | Typecheck + production bundle to `dist/`                                                                                                                 |
-| `npm run preview`   | Serve `dist/` locally                                                                                                                                    |
-| `npm run test`      | Vitest (unit/component)                                                                                                                                  |
-| `npm run lint`      | ESLint                                                                                                                                                   |
-| `npm run verify`    | Lint, format check, `tsc`, tests, build                                                                                                                  |
+| Script               | Purpose                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`        | Vite only ([http://localhost:5173](http://localhost:5173)); proxies `/api/*` → port **3000** — **fails with `ECONNREFUSED` if SAM local is not running** |
+| `npm run dev:stack`  | **SAM local API (3000) + Vite (5173)** in one terminal (needs `sam build` + Docker first)                                                                |
+| `npm run sam:build`  | `sam build` — bundle Lambdas (run after handler changes)                                                                                                 |
+| `npm run sam:local`  | API Gateway + Lambda emulation on [http://127.0.0.1:3000](http://127.0.0.1:3000)                                                                         |
+| `npm run build`      | Typecheck + production bundle to `dist/`                                                                                                                 |
+| `npm run preview`    | Serve `dist/` locally                                                                                                                                    |
+| `npm run test`       | Vitest (unit/component)                                                                                                                                  |
+| `npm run lint`       | ESLint                                                                                                                                                   |
+| `npm run verify`     | Lint, format check, `tsc`, tests, build                                                                                                                  |
+| `npm run verify:sam` | Same as `verify`, then **`sam build`** (requires SAM CLI; use after Lambda or `template.yaml` changes)                                                   |
 
 ## Environment variables
 

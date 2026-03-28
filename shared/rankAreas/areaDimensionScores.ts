@@ -1,4 +1,4 @@
-import { affordabilityScoreFromMedian } from '../affordability/affordabilityScoreFromMedian';
+import { affordabilityScoreForAreaSearch } from '../affordability/affordabilityScoreFromMedian';
 import { nearestBoroughMedian } from '../affordability/nearestBoroughMedian';
 import { commuteScoreFromStraightLine } from '../commute/commuteScoreFromStraightLine';
 import type { AreaScoreBreakdownDto, SearchAreasRequestBody } from '../searchAreasContract';
@@ -15,7 +15,11 @@ export const scoreNonCrimeDimensions = (
   candidateLng: number,
 ): Pick<AreaScoreBreakdownDto, 'affordability' | 'commute' | 'schools'> & DimensionContext => {
   const borough = nearestBoroughMedian(candidateLat, candidateLng);
-  const affordability = affordabilityScoreFromMedian(body.maxPriceGbp, borough.medianPriceGbp);
+  const affordability = affordabilityScoreForAreaSearch(
+    body.maxPriceGbp,
+    borough.medianPriceGbp,
+    body.maxPricePerM2Gbp,
+  );
   const commute = commuteScoreFromStraightLine(
     body.workplace.latitude,
     body.workplace.longitude,

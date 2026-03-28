@@ -18,7 +18,10 @@ import { postSearchAreas } from '@/services/searchAreasClient';
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
 import { buildSearchAreasRequest, defaultFormState } from './buildSearchAreasRequest';
-import { firstDataPoliceUkAttribution } from './searchResultsAttribution';
+import {
+  firstDataPoliceUkAttribution,
+  firstLandRegistryOglAttribution,
+} from './searchResultsAttribution';
 
 export const AreaSearchPage = () => {
   const [form, setForm] = useState(defaultFormState);
@@ -174,8 +177,9 @@ const HStackSpinner = () => (
 );
 
 const DataSourceAttribution = ({ areas }: { areas: readonly RankedAreaDto[] }) => {
-  const line = firstDataPoliceUkAttribution(areas);
-  if (!line) {
+  const policeUk = firstDataPoliceUkAttribution(areas);
+  const landRegistry = firstLandRegistryOglAttribution(areas);
+  if (!policeUk && !landRegistry) {
     return null;
   }
   return (
@@ -183,7 +187,10 @@ const DataSourceAttribution = ({ areas }: { areas: readonly RankedAreaDto[] }) =
       <Alert.Indicator />
       <Alert.Content>
         <Alert.Title>Data sources</Alert.Title>
-        <Alert.Description fontSize="sm">{line}</Alert.Description>
+        <Stack gap={2} fontSize="sm">
+          {policeUk ? <Text>{policeUk}</Text> : null}
+          {landRegistry ? <Text>{landRegistry}</Text> : null}
+        </Stack>
       </Alert.Content>
     </Alert.Root>
   );

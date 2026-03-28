@@ -16,6 +16,19 @@ export const firstDataPoliceUkAttribution = (
   return undefined;
 };
 
+/** First non-empty `landRegistryOgl` string across results (shared OGL line for affordability proxy). */
+export const firstLandRegistryOglAttribution = (
+  areas: readonly RankedAreaDto[],
+): string | undefined => {
+  for (const a of areas) {
+    const v = a.metadata?.landRegistryOgl;
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v;
+    }
+  }
+  return undefined;
+};
+
 export const areaProvenanceDescription = (metadata: RankedAreaDto['metadata']): string => {
   if (!metadata) {
     return 'Scores combine multiple signals; more detail will appear as data sources are connected.';

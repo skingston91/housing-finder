@@ -5,6 +5,7 @@ import type { RankedAreaDto } from '@shared/searchAreasContract';
 import {
   areaProvenanceDescription,
   firstDataPoliceUkAttribution,
+  firstLandRegistryOglAttribution,
   hasCrimeMetadataDetails,
 } from './searchResultsAttribution';
 
@@ -31,6 +32,12 @@ describe('searchResultsAttribution', () => {
         area({ dataPoliceUk: 'Contains police.uk' }),
       ]),
     ).toBe('Contains police.uk');
+  });
+
+  it('firstLandRegistryOglAttribution returns first string', () => {
+    expect(
+      firstLandRegistryOglAttribution([area({ foo: 1 }), area({ landRegistryOgl: 'OGL line' })]),
+    ).toBe('OGL line');
   });
 
   it('areaProvenanceDescription reflects stub and police.uk', () => {

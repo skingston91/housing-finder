@@ -3,7 +3,7 @@
 | Document                                                 | Purpose                                                      |
 | -------------------------------------------------------- | ------------------------------------------------------------ |
 | [product-decisions.md](./product-decisions.md)           | Locked product answers (geo, MVP, constraints)               |
-| [mvp-scope.md](./mvp-scope.md)                           | Phase 1 deliverables and explicit non-goals                  |
+| [mvp-scope.md](./mvp-scope.md)                           | Phase 1 deliverables (complete), Phase 2 backlog, non-goals  |
 | [data-sources.md](./data-sources.md)                     | External data, licensing, **attribution**, integration notes |
 | [architecture.md](./architecture.md)                     | Layers, serverless boundaries, scoring outline               |
 | [development.md](./development.md)                       | Setup, scripts, env vars, API local dev                      |
