@@ -5,7 +5,7 @@ Paths to all project agent rules. Read the relevant file when you need exact wor
 ## Always-Applied Cursor Rules
 
 - **New features workflow** — `.cursor/rules/new-features-workflow.mdc`  
-  **Designer first** (new features): UX spec under `docs/design/` per `.cursor/agents/designer.md`. Then TDD + `.agentrules`, **verifier** for substantive changes. Data generators; app runtime **5173** (Vite) and **`vercel dev`** for `/api/*` (see `docs/development.md`).
+  **Designer first** (new features): UX spec under `docs/design/` per `.cursor/agents/designer.md`. Then TDD + `.agentrules`, **verifier** for substantive changes. Data generators; app runtime **5173** (Vite) and **`sam local`** for `/api/*` (see `docs/infrastructure/aws-sam.md`).
 
 - **Clean Code** — `.cursor/rules/clean-code.mdc`  
   Apply Clean Code on every edit. Full guidance: `.cursor/skills/clean-code/SKILL.md`.

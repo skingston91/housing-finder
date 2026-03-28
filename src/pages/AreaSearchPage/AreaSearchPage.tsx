@@ -100,15 +100,19 @@ export const AreaSearchPage = () => {
                   <Text as="span" fontWeight="medium">
                     npm run dev
                   </Text>
-                  , start{' '}
+                  , run{' '}
                   <Text as="span" fontWeight="medium">
-                    vercel dev
+                    npm run sam:local
                   </Text>{' '}
-                  on port 3000 so{' '}
+                  (after{' '}
+                  <Text as="span" fontWeight="medium">
+                    npm run sam:build
+                  </Text>
+                  ) on port 3000 so{' '}
                   <Text as="span" fontFamily="mono">
                     /api/search-areas
                   </Text>{' '}
-                  is available (see docs/development.md).
+                  is available — see docs/infrastructure/aws-sam.md.
                 </Text>
               ) : null}
               <SimpleGrid columns={1} gap={4}>

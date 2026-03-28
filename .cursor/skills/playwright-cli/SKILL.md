@@ -14,8 +14,8 @@ description: Token-efficient browser automation via Playwright CLI. Use when ver
 
 ## Project context
 
-- **Base URL**: `http://localhost:5173` (Vite) or `http://localhost:3000` when using `vercel dev` alone
-- **Start dev server first**: `npm run dev` (and `vercel dev` on port 3000 if testing `/api/*` via Vite proxy)
+- **Base URL**: `http://localhost:5173` (Vite) or `http://localhost:3000` when hitting the API directly with `sam local` alone
+- **Start dev server first**: `npm run dev` (and `npm run sam:local` on port 3000 if testing `/api/*` via Vite proxy)
 - **Invoke via**: `npx playwright-cli` (add as devDependency if not installed) or global `playwright-cli`
 
 ## Quick workflow

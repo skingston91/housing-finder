@@ -3,7 +3,7 @@
 ## High level
 
 - **SPA** (Vite + React) for anonymous UX.
-- **Serverless functions** (`api/`) for geocoding, routing, crime/school/price aggregation, and anything requiring secrets or heavy CPU.
+- **AWS Lambda** (sources in [`lambda/`](../lambda/), packaged by **SAM**) for geocoding, routing, crime/school/price aggregation, and anything requiring secrets or heavy CPU.
 - **Clean Architecture** direction: domain and pure scoring in `src/domain/`; **ports** in `src/adapters/ports.ts`; infrastructure implementations call out to HTTP/DB from serverless (and later `src/adapters/*` if any browser-safe reads are needed).
 
 ## Dependency rule
@@ -22,7 +22,8 @@
 
 ## API
 
-- **`POST /api/search-areas`** — Request/response types in `shared/searchAreasContract.ts`. Handler: `api/search-areas.ts` (validates JSON, returns stub ranked areas via `shared/stubRankedAreas.ts`).
-- **Client:** `src/services/searchAreasClient.ts` uses relative `/api/search-areas` (same origin or Vite proxy).
+- **`POST /api/search-areas`** — Types in `shared/searchAreasContract.ts`. Lambda: `lambda/search-areas.ts` (uses `shared/parseSearchAreasRequestBody.ts`, returns stubs via `shared/stubRankedAreas.ts`). Routed by **API Gateway HTTP API** in `template.yaml`.
+- **`GET /api/health`** — `lambda/health.ts`.
+- **Client:** `src/services/searchAreasClient.ts` calls relative `/api/*` (Vite proxy to `sam local` in development).
 
 Version the DTO if the client and server evolve separately.

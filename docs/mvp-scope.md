@@ -4,7 +4,7 @@
 
 - Web app shell (Vite + React + TypeScript + Chakra UI).
 - Domain types for **search criteria** and **ranked areas**; pure **composite scoring** stub (weights documented in [architecture.md](./architecture.md)).
-- **Serverless** health route and pattern for future `search-areas` (or similar).
+- **AWS Lambda** + API Gateway HTTP API (`template.yaml`, `lambda/`) — health + `search-areas` stub; local run via SAM (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
 - Documentation: product decisions, data sources, architecture, dev setup, troubleshooting.
 - Cursor **agents/rules** aligned with game-collection-ts workflow (designer → implement → verify), adapted for this repo.
 

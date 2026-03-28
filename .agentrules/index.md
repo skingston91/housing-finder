@@ -11,7 +11,7 @@
 
 ## Overview
 
-TypeScript **React** app (Vite), **Chakra UI v3**, **Vitest**, serverless **`api/`** (Vercel-style). Domain types in `src/domain/`; HTTP DTOs shared with API via `shared/`.
+TypeScript **React** app (Vite), **Chakra UI v3**, **Vitest**, **AWS Lambda** sources in **`lambda/`** (SAM + API Gateway). Domain types in `src/domain/`; HTTP DTOs shared with Lambda via `shared/`.
 
 ## Development standards
 
@@ -24,7 +24,7 @@ TypeScript **React** app (Vite), **Chakra UI v3**, **Vitest**, serverless **`api
 ### Testing
 
 - Prefer **data generators** in `src/test/dataGenerators/` over static fixtures.
-- New **API** routes: implement under `api/`, document local run (`vercel dev`), test client with mocked `fetch` where appropriate.
+- New **API** routes: add Lambda handlers under `lambda/`, wire routes in `template.yaml`, document `sam local` in `docs/infrastructure/aws-sam.md`, test client with mocked `fetch` where appropriate.
 
 ### TypeScript
 
@@ -41,7 +41,8 @@ TypeScript **React** app (Vite), **Chakra UI v3**, **Vitest**, serverless **`api
 
 - **`src/`** — App, pages, components, domain, services, test utilities
 - **`shared/`** — DTOs and stubs shared by Vite app and `api/` (no React imports)
-- **`api/`** — Serverless handlers
+- **`lambda/`** — Lambda handler sources (SAM)
+- **`template.yaml`** — SAM / CloudFormation template
 - **`docs/`** — Product, architecture, data sources, design specs, troubleshooting
 
 ### Component pattern

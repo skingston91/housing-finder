@@ -35,7 +35,7 @@ See [reference.md](reference.md) for paths to all rule files.
 ### Testing
 
 - [ ] **Data generators** — Prefer `src/test/dataGenerators/` (e.g. `createRankedArea`) over static fixtures; assert on generated values.
-- [ ] **New API routes** — Add serverless handlers under `api/` and test client integration; document env and local `vercel dev` in `docs/development.md`.
+- [ ] **New API routes** — Add Lambda handlers under `lambda/`, update `template.yaml`, document local `sam local` in `docs/infrastructure/aws-sam.md`, test client integration.
 
 ### TypeScript and build
 
@@ -59,7 +59,7 @@ When invoking subagents, pass: requirements, relevant paths (`src/`, `shared/`, 
 
 - `npm run verify` — lint, format, `tsc`, test, build
 - `npm run dev` — Vite on port 5173
-- `vercel dev` — API + optional full stack (see `docs/development.md`)
+- `npm run sam:local` — Local API Gateway + Lambda (see `docs/infrastructure/aws-sam.md`)
 
 ## If something fails
 

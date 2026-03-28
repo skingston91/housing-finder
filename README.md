@@ -18,7 +18,7 @@ Start at [docs/README.md](./docs/README.md). Design specs live under [docs/desig
 ## Stack
 
 - React 19, TypeScript, Vite, Chakra UI v3, Vitest + Testing Library
-- Serverless API stubs under [`api/`](./api/) (run with `vercel dev`)
+- AWS Lambda API under [`lambda/`](./lambda/) — local run with **SAM** (`npm run sam:local`; see [docs/infrastructure/aws-sam.md](./docs/infrastructure/aws-sam.md))
 
 ## Agents / standards
 

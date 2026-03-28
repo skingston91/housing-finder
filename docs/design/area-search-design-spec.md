@@ -27,7 +27,7 @@
 3. **Loading:** spinner + “Ranking areas…”
 4. **Success:** results column lists cards (name, composite score badge, four subscore bars, stub metadata).
 5. **Error:** inline alert with server message or validation hint.
-6. **Empty (no search yet):** short copy explaining `vercel dev` + proxy for local API.
+6. **Empty (no search yet):** short copy explaining `sam local` + Vite proxy for local API.
 
 ## Data and state
 

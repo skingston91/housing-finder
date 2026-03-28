@@ -1,12 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 import type {
   CommuteModeDto,
   PropertyTypeDto,
   SchoolPhaseDto,
   SearchAreasRequestBody,
-} from '../shared/searchAreasContract';
-import { generateStubRankedAreas } from '../shared/stubRankedAreas';
+} from './searchAreasContract';
 
 const PROPERTY_TYPES: readonly PropertyTypeDto[] = [
   'flat',
@@ -40,12 +37,12 @@ const parsePositiveNumber = (v: unknown, _field: string): number | null => {
   return v;
 };
 
-const parseOptionalPositiveNumber = (v: unknown, field: string): number | undefined | null => {
+const parseOptionalPositiveNumber = (v: unknown, _field: string): number | undefined | null => {
   if (v === undefined) {
     return undefined;
   }
-  const n = parsePositiveNumber(v, field);
-  return n === null ? null : n;
+  const n = parsePositiveNumber(v, _field);
+  return n ?? null;
 };
 
 const parseCategoryWeights = (v: unknown): Record<string, number> | null => {
@@ -62,7 +59,7 @@ const parseCategoryWeights = (v: unknown): Record<string, number> | null => {
   return out;
 };
 
-const parseBody = (
+export const parseSearchAreasRequestBody = (
   raw: unknown,
 ): { ok: true; value: SearchAreasRequestBody } | { ok: false; error: string } => {
   if (!isRecord(raw)) {
@@ -158,27 +155,3 @@ const parseBody = (
   };
   return { ok: true, value };
 };
-
-export default function handler(req: VercelRequest, res: VercelResponse): void {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  let raw: unknown;
-  try {
-    raw = typeof req.body === 'string' ? (JSON.parse(req.body) as unknown) : req.body;
-  } catch {
-    res.status(400).json({ error: 'Invalid JSON body' });
-    return;
-  }
-
-  const parsed = parseBody(raw);
-  if (!parsed.ok) {
-    res.status(400).json({ error: parsed.error });
-    return;
-  }
-
-  const areas = generateStubRankedAreas(parsed.value);
-  res.status(200).json({ areas });
-}

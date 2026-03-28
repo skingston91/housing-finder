@@ -22,7 +22,7 @@ Decisions below drive the first implementation pass. Change this file when requi
 ## Technical
 
 - **React** with **Vite** (not webpack).
-- **Serverless-first** — Business-sensitive calls and aggregation in **serverless functions** (`api/`); see [development.md](./development.md).
+- **AWS serverless-first** — Business-sensitive calls and aggregation in **Lambda** (`lambda/`, SAM — [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)); see [development.md](./development.md).
 - **Maps / routing:** optimise for **quality vs cost** (document chosen stack in [data-sources.md](./data-sources.md) when implemented); no requirement to use Google for maps if a cheaper stack suffices.
 - **Attribution:** apply **source attribution** wherever licences require it; centralise copy in [data-sources.md](./data-sources.md).
 

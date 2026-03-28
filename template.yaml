@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Housing Finder — Lambda + API Gateway HTTP API
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - arm64
+
+Resources:
+  HousingHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - http://localhost:5173
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+          - authorization
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - lambda/health.ts
+        Format: esm
+        Target: es2022
+        Sourcemap: true
+    Properties:
+      CodeUri: ./
+      Handler: lambda/health.handler
+      Runtime: nodejs22.x
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HousingHttpApi
+            Path: /api/health
+            Method: GET
+
+  SearchAreasFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - lambda/search-areas.ts
+        Format: esm
+        Target: es2022
+        Sourcemap: true
+    Properties:
+      CodeUri: ./
+      Handler: lambda/search-areas.handler
+      Runtime: nodejs22.x
+      Events:
+        SearchAreas:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HousingHttpApi
+            Path: /api/search-areas
+            Method: POST

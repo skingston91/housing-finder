@@ -23,7 +23,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ['api/**/*.ts', '**/*.{config.js,mjs,cjs}'],
+    files: [
+      'api/**/*.ts',
+      'lambda/**/*.ts',
+      'vite.config.ts',
+      'vitest.config.ts',
+      '**/*.{config.js,mjs,cjs}',
+    ],
     ...tseslint.configs.disableTypeChecked,
   },
   {

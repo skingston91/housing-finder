@@ -24,18 +24,19 @@ npm install
 ## Environment variables
 
 - Copy `.env.example` to `.env.local` for Vite. **Only** variables prefixed with `VITE_` are exposed to the browser.
-- **Secrets** (routing APIs, TfL keys, etc.) belong in the **serverless** host (e.g. Vercel project settings), not in `VITE_*`.
+- **Secrets** (routing APIs, TfL keys, etc.) belong in **Lambda environment variables** or **AWS Secrets Manager**, not in `VITE_*`.
 
-## Serverless API locally
+## Serverless API locally (AWS SAM)
 
-Handlers live in [`api/`](../api/). Recommended:
+Handlers live in [`lambda/`](../lambda/) and deploy via **AWS SAM** ([`template.yaml`](../template.yaml)).
 
-1. Terminal A: `vercel dev` (often [http://localhost:3000](http://localhost:3000) — serves API and can serve the front end depending on project config).
-2. Terminal B: `npm run dev` — Vite proxies `/api/*` to port **3000** so `postSearchAreas` can call `/api/search-areas`.
+1. Install [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) and **Docker**.
+2. Terminal A: `npm run sam:build` then `npm run sam:local` — emulates API Gateway + Lambda on port **3000**.
+3. Terminal B: `npm run dev` — Vite proxies `/api/*` to port **3000**.
 
-If only Vite runs, search will fail until `vercel dev` is up (or change proxy target).
+If only Vite runs, search will fail until `sam local` is up.
 
-See [api/README.md](../api/README.md).
+Full detail: [infrastructure/aws-sam.md](./infrastructure/aws-sam.md).
 
 ## Path aliases
 

@@ -1,6 +1,6 @@
 /**
  * HTTP contract for POST /api/search-areas.
- * Shared between Vite client and Vercel serverless handlers (no imports from `src/` in `api/`).
+ * Shared between the Vite client and Lambda handlers (no imports from `src/` in `lambda/`).
  */
 
 export type PropertyTypeDto =
