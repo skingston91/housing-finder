@@ -6,10 +6,13 @@ London-first **area discovery** for buying a home: combine affordability (price 
 
 ```bash
 npm install
-npm run dev
+sam build
+npm run dev:stack
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+Open [http://localhost:5173](http://localhost:5173). (`dev:stack` runs the **SAM local API** on port 3000 and **Vite** together; Docker + [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) required.)
+
+Front-end only (no `/api`): `npm run dev` — you will see proxy errors for search until `npm run sam:local` is running separately.
 
 ## Documentation
 

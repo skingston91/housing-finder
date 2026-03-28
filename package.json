@@ -6,6 +6,7 @@
   "description": "UK (London-first) area discovery from affordability, commute, schools, and crime signals",
   "scripts": {
     "dev": "vite",
+    "dev:stack": "concurrently -k -n api,web -c cyan,green \"npm run sam:local\" \"npm run dev\"",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
@@ -40,6 +41,7 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",

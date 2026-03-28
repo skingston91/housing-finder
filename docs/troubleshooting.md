@@ -37,6 +37,12 @@ Add a dated entry when you hit a non-obvious issue and fix it. Short bullets are
 - **Cause:** `Handler` in `template.yaml` must match the **esbuild entry file** basename and exported name (`handler`).
 - **Fix:** See [infrastructure/aws-sam.md](./infrastructure/aws-sam.md); confirm `lambda/*.ts` uses `export const handler`.
 
+### 2026-03-28 — Vite `http proxy error` / `ECONNREFUSED 127.0.0.1:3000`
+
+- **Symptom:** Browser or Vite log shows proxy failure for `/api/search-areas`.
+- **Cause:** [`vite.config.ts`](../vite.config.ts) proxies `/api` to **port 3000**. Nothing is listening there until **`sam local start-api`** is running.
+- **Fix:** In another terminal (after `sam build`): `npm run sam:local`, or use **`npm run dev:stack`** to run API + Vite together. Requires **Docker** for SAM local.
+
 ### 2026-03-28 — `Cannot find esbuild` (sam build)
 
 - **Symptom:** `sam build` fails at `NodejsNpmEsbuildBuilder:EsbuildBundle` even after `npm install`.

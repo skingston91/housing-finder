@@ -12,14 +12,17 @@ npm install
 
 ## Scripts
 
-| Script            | Purpose                                                                                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`     | Vite ([http://localhost:5173](http://localhost:5173)); proxies `/api/*` → [http://127.0.0.1:3000](http://127.0.0.1:3000) when a backend listens there |
-| `npm run build`   | Typecheck + production bundle to `dist/`                                                                                                              |
-| `npm run preview` | Serve `dist/` locally                                                                                                                                 |
-| `npm run test`    | Vitest (unit/component)                                                                                                                               |
-| `npm run lint`    | ESLint                                                                                                                                                |
-| `npm run verify`  | Lint, format check, `tsc`, tests, build                                                                                                               |
+| Script              | Purpose                                                                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`       | Vite only ([http://localhost:5173](http://localhost:5173)); proxies `/api/*` → port **3000** — **fails with `ECONNREFUSED` if SAM local is not running** |
+| `npm run dev:stack` | **SAM local API (3000) + Vite (5173)** in one terminal (needs `sam build` + Docker first)                                                                |
+| `npm run sam:build` | `sam build` — bundle Lambdas (run after handler changes)                                                                                                 |
+| `npm run sam:local` | API Gateway + Lambda emulation on [http://127.0.0.1:3000](http://127.0.0.1:3000)                                                                         |
+| `npm run build`     | Typecheck + production bundle to `dist/`                                                                                                                 |
+| `npm run preview`   | Serve `dist/` locally                                                                                                                                    |
+| `npm run test`      | Vitest (unit/component)                                                                                                                                  |
+| `npm run lint`      | ESLint                                                                                                                                                   |
+| `npm run verify`    | Lint, format check, `tsc`, tests, build                                                                                                                  |
 
 ## Environment variables
 
@@ -31,10 +34,12 @@ npm install
 Handlers live in [`lambda/`](../lambda/) and deploy via **AWS SAM** ([`template.yaml`](../template.yaml)).
 
 1. Install [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) and **Docker**.
-2. Terminal A: `npm run sam:build` then `npm run sam:local` — emulates API Gateway + Lambda on port **3000**.
-3. Terminal B: `npm run dev` — Vite proxies `/api/*` to port **3000**.
+2. **`sam build`** once (or when Lambda code changes).
+3. Either:
+   - **One terminal:** `npm run dev:stack` — starts **`sam local`** on **3000** and **Vite** on **5173**, or
+   - **Two terminals:** `npm run sam:local` then `npm run dev`.
 
-If only Vite runs, search will fail until `sam local` is up.
+If you only run **`npm run dev`**, Vite will log **`ECONNREFUSED 127.0.0.1:3000`** for `/api/*` until SAM local is listening.
 
 Full detail: [infrastructure/aws-sam.md](./infrastructure/aws-sam.md).
 
