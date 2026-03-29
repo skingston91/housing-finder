@@ -10,7 +10,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { httpAreaDiscoveryAdapter } from '@/adapters/httpAreaDiscovery';
 import { httpWorkplaceGeocodeAdapter } from '@/adapters/httpWorkplaceGeocode';
@@ -19,6 +19,7 @@ import type { AreaSelectionSource } from './ResultsMap';
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
 import { buildAreaSearchCriteria, defaultFormState } from './buildSearchAreasRequest';
+import { getSelectionAnnouncement } from './selectionAnnouncement';
 import {
   firstDataPoliceUkAttribution,
   firstLandRegistryOglAttribution,
@@ -37,7 +38,22 @@ export const AreaSearchPage = () => {
   const [geocodePending, setGeocodePending] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [selectionLiveMessage, setSelectionLiveMessage] = useState('');
+  const previousSelectionRef = useRef<string | null | undefined>(undefined);
   const cardAnchorRefs = useRef(new Map<string, HTMLElement>());
+
+  useEffect(() => {
+    if (areas.length === 0) {
+      previousSelectionRef.current = undefined;
+      setSelectionLiveMessage('');
+      return;
+    }
+    const msg = getSelectionAnnouncement(previousSelectionRef.current, selectedAreaId, areas);
+    previousSelectionRef.current = selectedAreaId;
+    if (msg !== null) {
+      setSelectionLiveMessage(msg);
+    }
+  }, [selectedAreaId, areas]);
 
   const setCardAnchorEl = useCallback((id: string, el: HTMLElement | null) => {
     const m = cardAnchorRefs.current;
@@ -154,7 +170,23 @@ export const AreaSearchPage = () => {
               />
             </Box>
 
-            <Stack gap={4}>
+            <Stack gap={4} position="relative">
+              <Box
+                as="span"
+                aria-live="polite"
+                aria-atomic="true"
+                position="absolute"
+                w="1px"
+                h="1px"
+                p={0}
+                m="-1px"
+                overflow="hidden"
+                whiteSpace="nowrap"
+                borderWidth={0}
+                style={{ clip: 'rect(0, 0, 0, 0)' }}
+              >
+                {selectionLiveMessage}
+              </Box>
               <Heading size="md">Results</Heading>
               {!loading && areas.length > 0 ? <DataSourceAttribution areas={areas} /> : null}
               {loading ? <HStackSpinner /> : null}

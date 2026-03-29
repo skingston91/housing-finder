@@ -63,6 +63,7 @@
 - **Forms:** submit button `type="submit"`; prevent default on container `form`.
 - **Alerts:** use Chakra `Alert` with indicator for error recognition.
 - **Focus:** native focus order follows visual order; map is a focusable `application` region with instructions; keyboard changes selection in sync with the list.
+- **Live region:** `aria-live="polite"` announces the highlighted result (name, rank, score) and when selection is cleared (`selectionAnnouncement.ts`).
 
 ## Acceptance criteria
 
