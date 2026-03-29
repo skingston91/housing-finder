@@ -3,7 +3,8 @@ import type { RankedArea } from '@/domain/area/types';
 import type { Feature, FeatureCollection } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -98,6 +99,8 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelectArea);
   const selectedRef = useRef(selectedAreaId);
+  const areasRef = useRef(areas);
+  const mapInstructionsId = useId();
 
   useEffect(() => {
     onSelectRef.current = onSelectArea;
@@ -106,6 +109,56 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
   useEffect(() => {
     selectedRef.current = selectedAreaId;
   }, [selectedAreaId]);
+
+  useEffect(() => {
+    areasRef.current = areas;
+  }, [areas]);
+
+  const handleMapKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    const list = areasRef.current;
+    if (list.length === 0) {
+      return;
+    }
+
+    const moveKeys = new Set([
+      'ArrowDown',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowLeft',
+      'Home',
+      'End',
+      'Escape',
+    ]);
+    if (!moveKeys.has(e.key)) {
+      return;
+    }
+
+    e.preventDefault();
+    const selectedId = selectedRef.current;
+
+    if (e.key === 'Escape') {
+      onSelectRef.current(null, 'map');
+      return;
+    }
+
+    const currentIdx = selectedId === null ? -1 : list.findIndex((a) => a.id === selectedId);
+
+    let nextIdx = currentIdx;
+    if (e.key === 'Home') {
+      nextIdx = 0;
+    } else if (e.key === 'End') {
+      nextIdx = list.length - 1;
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      nextIdx = currentIdx < 0 ? 0 : Math.min(currentIdx + 1, list.length - 1);
+    } else {
+      nextIdx = currentIdx <= 0 ? list.length - 1 : currentIdx - 1;
+    }
+
+    const next = list[nextIdx];
+    if (next !== undefined) {
+      onSelectRef.current(next.id, 'map');
+    }
+  }, []);
 
   const searchFingerprint = useMemo(() => {
     const ids = areas.map((a) => a.id).join('|');
@@ -327,11 +380,23 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
         borderWidth="1px"
         borderColor="gray.200"
         bg="gray.100"
+        tabIndex={0}
+        role="application"
+        aria-label="Ranked area centroids and workplace on a map"
+        aria-describedby={mapInstructionsId}
+        onKeyDown={handleMapKeyDown}
+        outline="none"
+        _focusVisible={{
+          outline: '2px solid',
+          outlineColor: 'blue.500',
+          outlineOffset: '2px',
+        }}
       />
-      <Text fontSize="xs" color="fg.muted" mt={2}>
+      <Text id={mapInstructionsId} fontSize="xs" color="fg.muted" mt={2}>
         Basemap © OpenStreetMap contributors © CARTO · Click a dot for scores (areas) or the commute
-        anchor (workplace); click the map background to close the popup. Result cards still sync
-        highlight with the map.
+        anchor (workplace); click the map background to close the popup. When the map is focused,
+        use arrow keys to move the selection (same order as the list), Home and End for first and
+        last area, Escape to clear selection. Result cards stay in sync.
       </Text>
     </Box>
   );

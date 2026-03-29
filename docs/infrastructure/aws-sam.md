@@ -8,6 +8,10 @@ The API is **AWS Lambda** + **API Gateway HTTP API**, defined in [`template.yaml
 - Fits **London-first** growth (IAM, VPC, RDS, etc.) on one cloud.
 - **SAM** gives repeatable **local** API emulation and **deploy** to your account.
 
+## CORS (browser → API)
+
+[`template.yaml`](../../template.yaml) **Parameters** include **`CorsAdditionalOrigin`**. **http://localhost:5173** is always allowed for Vite. Set **`CorsAdditionalOrigin`** to your deployed site origin (e.g. `https://housing.example.com`) on **`sam deploy --parameter-overrides`** so the hosted front end can call the API cross-origin. Empty string = localhost only.
+
 ## Prerequisites
 
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) on your `PATH` (`sam --version`). **`npm run verify` does not run `sam build`** — install SAM separately for API work.

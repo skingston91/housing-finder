@@ -21,6 +21,14 @@ Parameters:
     Description: Optional OpenRouteService API key for driving/cycling/walking commute directions (transit still uses TfL).
     NoEcho: true
 
+  CorsAdditionalOrigin:
+    Type: String
+    Default: ''
+    Description: Optional extra browser origin allowed by API Gateway CORS (e.g. https://your-app.pages.dev). http://localhost:5173 is always allowed. Leave empty for local-only.
+
+Conditions:
+  HasCorsAdditionalOrigin: !Not [!Equals [!Ref CorsAdditionalOrigin, '']]
+
 Globals:
   Function:
     Timeout: 30
@@ -34,8 +42,11 @@ Resources:
     Properties:
       StageName: $default
       CorsConfiguration:
-        AllowOrigins:
-          - http://localhost:5173
+        AllowOrigins: !If
+          - HasCorsAdditionalOrigin
+          - - http://localhost:5173
+            - !Ref CorsAdditionalOrigin
+          - - http://localhost:5173
         AllowMethods:
           - GET
           - POST

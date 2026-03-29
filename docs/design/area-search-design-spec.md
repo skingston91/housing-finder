@@ -10,27 +10,27 @@
 
 ## Structure
 
-| Area            | Location                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------ |
-| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`                                              |
-| Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`                                      |
-| Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts` (`buildAreaSearchCriteria` → domain) |
-| Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`                                              |
-| Results map     | `src/pages/AreaSearchPage/ResultsMap.tsx` (list ↔ map highlight, centroid popups)          |
-| Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                                                    |
-| Ports           | `src/adapters/ports.ts` (`AreaDiscoveryPort`, `WorkplaceGeocodePort`)                      |
-| HTTP adapters   | `src/adapters/httpAreaDiscovery.ts`, `httpWorkplaceGeocode.ts`                             |
-| DTO ↔ domain    | `src/adapters/mapSearchAreasContract.ts`                                                   |
-| Client fetch    | `src/services/searchAreasClient.ts`, `geocodeWorkplaceClient.ts`                           |
-| Server          | `lambda/search-areas.ts`, `lambda/geocode-workplace.ts`                                    |
-| Shared contract | `shared/searchAreasContract.ts`                                                            |
+| Area            | Location                                                                                     |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`                                                |
+| Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`                                        |
+| Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts` (`buildAreaSearchCriteria` → domain)   |
+| Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`                                                |
+| Results map     | `src/pages/AreaSearchPage/ResultsMap.tsx` (list ↔ map highlight, popups, keyboard selection) |
+| Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                                                      |
+| Ports           | `src/adapters/ports.ts` (`AreaDiscoveryPort`, `WorkplaceGeocodePort`)                        |
+| HTTP adapters   | `src/adapters/httpAreaDiscovery.ts`, `httpWorkplaceGeocode.ts`                               |
+| DTO ↔ domain    | `src/adapters/mapSearchAreasContract.ts`                                                     |
+| Client fetch    | `src/services/searchAreasClient.ts`, `geocodeWorkplaceClient.ts`                             |
+| Server          | `lambda/search-areas.ts`, `lambda/geocode-workplace.ts`                                      |
+| Shared contract | `shared/searchAreasContract.ts`                                                              |
 
 ## User flow
 
 1. User adjusts criteria (defaults pre-filled for London demo).
 2. **Search areas** → `POST /api/search-areas` with JSON body.
 3. **Loading:** spinner + “Ranking areas…”
-4. **Success:** results column shows a **map** (workplace + centroids) and **cards**; selecting a card or a map point **highlights** the same area (ring on card, larger/darker circle on map). Picking an area **on the map** **scrolls** the corresponding card into view when it is off-screen. **Clicking a centroid** opens a **popup** (name, overall score, dimension breakdown); **workplace** dot shows anchor copy; **click outside** closes the popup.
+4. **Success:** results column shows a **map** (workplace + centroids) and **cards**; selecting a card or a map point **highlights** the same area (ring on card, larger/darker circle on map). Picking an area **on the map** **scrolls** the corresponding card into view when it is off-screen. **Clicking a centroid** opens a **popup** (name, overall score, dimension breakdown); **workplace** dot shows anchor copy; **click outside** closes the popup. **Keyboard:** focus the map (`tab` to the map region), then **arrow keys** move selection in list order; **Home** / **End** first/last; **Escape** clears selection.
 5. **Error:** inline alert with server message or validation hint.
 6. **Empty (no search yet):** short copy explaining `npm run dev:stack` or `sam local` + Vite proxy for local API.
 7. **Optional:** **Fill coordinates from label** → `POST /api/geocode-workplace` (Nominatim; low volume).
@@ -62,7 +62,7 @@
 - **Labels:** `aria-label` on inputs; section **Headings** (`h1` page, `h3` per result).
 - **Forms:** submit button `type="submit"`; prevent default on container `form`.
 - **Alerts:** use Chakra `Alert` with indicator for error recognition.
-- **Focus:** native focus order follows visual order; future map must have text alternative.
+- **Focus:** native focus order follows visual order; map is a focusable `application` region with instructions; keyboard changes selection in sync with the list.
 
 ## Acceptance criteria
 

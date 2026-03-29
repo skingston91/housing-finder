@@ -57,7 +57,7 @@ Rough guide for **non-commercial / hobby** vs **commercial or restricted** sourc
 - **URL:** [Compare school performance](https://www.compare-school-performance.service.gov.uk/) (human-facing); prefer **official open data** downloads/APIs where available for automation.
 - **Use:** Distance to good schools, phase filters, performance bands.
 - **Risk:** Scraping the website is fragile; plan ingestion from **published open data** files or APIs only.
-- **Implementation (phase 2 partial):** `shared/schools/londonSchoolPointsForRanking.ts` combines original seeds with `londonStateSchoolEstablishmentSample.ts` (extra London coordinates in the **GIAS / DfE open-data family**, OGL). Scoring: `schoolsScoreFromEstablishmentPoints` (distance + phase match). Metadata `schoolsModel: gias-open-data-sample`. Ingest the full **Get Information about Schools** CSV when you need exhaustive coverage.
+- **Implementation (phase 2 partial):** `shared/schools/londonSchoolPointsForRanking.ts` combines original seeds with `londonStateSchoolEstablishmentSample.ts` (extra London coordinates in the **GIAS / DfE open-data family**, OGL). Scoring: `schoolsScoreFromEstablishmentPoints` (distance + phase match). Metadata `schoolsModel: gias-open-data-sample`. Maintainer notes for replacing the sample with a CSV extract: [`scripts/README.md`](../../scripts/README.md).
 - **Alternatives (commercial):** third-party education data products; **official:** GIAS, DfE statistical releases.
 
 ### Property listings (Zoopla, Rightmove, etc.)
