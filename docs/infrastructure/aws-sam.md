@@ -28,19 +28,13 @@ npm run sam:build
 npm run sam:local
 ```
 
-This runs **`sam local start-api`** on port **3000** by default. **Vite** ([`vite.config.ts`](../../vite.config.ts)) proxies `/api/*` to that port, so `npm run dev` + `npm run sam:local` matches production paths (`/api/search-areas`, `/api/geocode-workplace`, `/api/health`).
+This runs **`sam local start-api`** on port **3000** via [`scripts/sam-local.mjs`](../../scripts/sam-local.mjs), which merges **`sam/env.json.example`** + repo **`.env`** (`TFL_APP_KEY`, `ORS_API_KEY`, …) + optional **`sam/env.json`**, then passes **`--env-vars`** to SAM. **Vite** ([`vite.config.ts`](../../vite.config.ts)) proxies `/api/*` to that port, so `npm run dev` + `npm run sam:local` matches production paths (`/api/search-areas`, `/api/geocode-workplace`, `/api/health`).
 
 ### TfL keys (transit commute)
 
 `SearchAreasFunction` reads **`TFL_APP_KEY`** only (see [`template.yaml`](../../template.yaml) **Parameters**). TfL’s current guidance: append **`app_key`** as a query parameter; **ignore `app_id`** (no longer required). Register at [TfL Open Data](https://api.tfl.gov.uk/).
 
-**Local SAM:** copy [`sam/env.json.example`](../../sam/env.json.example) to **`sam/env.json`** (gitignored), fill keys, then:
-
-```bash
-sam local start-api --port 3000 --env-vars sam/env.json
-```
-
-Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
+**Local SAM:** set **`TFL_APP_KEY`** in the repo **`.env`** (same name as the Lambda env var) or copy [`sam/env.json.example`](../../sam/env.json.example) to **`sam/env.json`** and fill keys — then run **`npm run sam:local`** (see above). Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
 
 ### OpenRouteService (optional drive / cycle / walk commute)
 

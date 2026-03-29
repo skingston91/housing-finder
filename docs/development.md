@@ -25,12 +25,13 @@ npm install
 | `npm run verify`     | Lint, format check, `tsc`, tests, build                                                                                                                  |
 | `npm run verify:sam` | Same as `verify`, then **`sam build`** (requires SAM CLI; use after Lambda or `template.yaml` changes)                                                   |
 
-For **TfL-backed transit commute** locally, copy [`sam/env.json.example`](../sam/env.json.example) to **`sam/env.json`** and run `sam local start-api --env-vars sam/env.json` (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
+For **TfL / ORS / Mapbox** on Lambdas locally, put **`TFL_APP_KEY`**, **`ORS_API_KEY`**, etc. in the repo **`.env`** (same names as Lambda env vars) **or** copy [`sam/env.json.example`](../sam/env.json.example) to **`sam/env.json`**. **`npm run sam:local`** merges example + `.env` + optional `sam/env.json` and passes them to SAM (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
 
 ## Environment variables
 
 - Copy `.env.example` to `.env.local` for Vite. **Only** variables prefixed with `VITE_` are exposed to the browser.
-- **Secrets** (routing APIs, TfL keys, etc.) belong in **Lambda environment variables** or **AWS Secrets Manager**, not in `VITE_*`.
+- **`TFL_APP_KEY` / `ORS_API_KEY` / `MAPBOX_ACCESS_TOKEN`** in **`.env`** (not `VITE_*`) are picked up by **`npm run sam:local`** for local Lambda emulation — they never reach the browser.
+- For production, use **SAM deploy parameters**, **AWS console env**, or **Secrets Manager**, not only a checked-in `.env`.
 
 ## Serverless API locally (AWS SAM)
 
