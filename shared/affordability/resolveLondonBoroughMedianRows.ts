@@ -1,6 +1,7 @@
 import type { LondonBoroughMedianRow } from './londonBoroughMedians';
 import { LONDON_BOROUGH_MEDIANS } from './londonBoroughMedians';
 import { fetchLatestAveragePriceForUkhpiSlug } from './ukhpiLinkedDataApi';
+import { fetchLondonBoroughUkhpiPricesViaSparql } from './ukhpiSparql';
 import { UKHPI_REGION_SLUG_BY_BOROUGH_ID } from './ukhpiRegionSlugByBoroughId';
 
 export type AffordabilityMedianPriceSource =
@@ -45,8 +46,8 @@ const mapInBatches = async <T, R>(
 
 /**
  * Optionally refreshes borough **median price** fields from HM Land Registry **UK HPI** linked-data
- * JSON (latest published month per borough). Names and centroids stay on the static London table.
- * Cached **6 hours** per Lambda instance. On total failure, returns static table only.
+ * Prefer one **SPARQL** request for all boroughs; fall back to per-borough linked-data JSON GETs
+ * for gaps or if SPARQL fails. Cached **6 hours** per Lambda instance. On total failure, returns static table only.
  */
 export const resolveLondonBoroughMedianRows = async (
   fetchImpl: typeof fetch,
@@ -64,7 +65,39 @@ export const resolveLondonBoroughMedianRows = async (
     return cache.payload;
   }
 
-  const results = await mapInBatches(LONDON_BOROUGH_MEDIANS, 8, async (row) => {
+  const merged: LondonBoroughMedianRow[] = LONDON_BOROUGH_MEDIANS.map((row) => ({ ...row }));
+  let successCount = 0;
+  let failCount = 0;
+  let refMonthMax: string | undefined;
+
+  const applyPrice = (boroughId: string, priceGbp: number, refMonth: string): boolean => {
+    const idx = merged.findIndex((x) => x.id === boroughId);
+    if (idx === -1) {
+      return false;
+    }
+    const row = merged[idx];
+    if (row === undefined) {
+      return false;
+    }
+    successCount += 1;
+    merged[idx] = { ...row, medianPriceGbp: priceGbp };
+    refMonthMax = refMonthMax === undefined ? refMonth : maxRefMonth(refMonthMax, refMonth);
+    return true;
+  };
+
+  const sparqlMap = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl);
+  const resolvedFromSparql = new Set<string>();
+  if (sparqlMap !== null) {
+    for (const [boroughId, live] of sparqlMap) {
+      if (applyPrice(boroughId, live.averagePriceGbp, live.refMonth)) {
+        resolvedFromSparql.add(boroughId);
+      }
+    }
+  }
+
+  const needJsonFetch = LONDON_BOROUGH_MEDIANS.filter((row) => !resolvedFromSparql.has(row.id));
+
+  const jsonResults = await mapInBatches(needJsonFetch, 8, async (row) => {
     const slug = UKHPI_REGION_SLUG_BY_BOROUGH_ID[row.id];
     if (slug === undefined) {
       return { id: row.id, live: null };
@@ -73,31 +106,12 @@ export const resolveLondonBoroughMedianRows = async (
     return { id: row.id, live };
   });
 
-  let successCount = 0;
-  let failCount = 0;
-  let refMonthMax: string | undefined;
-  const merged: LondonBoroughMedianRow[] = LONDON_BOROUGH_MEDIANS.map((row) => ({ ...row }));
-
-  for (const r of results) {
+  for (const r of jsonResults) {
     if (r.live === null) {
       failCount += 1;
       continue;
     }
-    const idx = merged.findIndex((x) => x.id === r.id);
-    if (idx === -1) {
-      continue;
-    }
-    successCount += 1;
-    const row = merged[idx];
-    if (row === undefined) {
-      continue;
-    }
-    merged[idx] = {
-      ...row,
-      medianPriceGbp: r.live.averagePriceGbp,
-    };
-    refMonthMax =
-      refMonthMax === undefined ? r.live.refMonth : maxRefMonth(refMonthMax, r.live.refMonth);
+    void applyPrice(r.id, r.live.averagePriceGbp, r.live.refMonth);
   }
 
   let priceSource: AffordabilityMedianPriceSource;
