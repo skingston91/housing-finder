@@ -5,6 +5,7 @@ import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
 import type { OrsApiCredentials } from '../commute/orsDirections';
 import type { TflApiCredentials } from '../commute/tflJourney';
+import { createAsyncLimiter, type AsyncLimiter } from '../async/createAsyncLimiter';
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
 import { compositeScore } from '../scoring/compositeScore';
 import type { RankedAreaDto, SearchAreasRequestBody } from '../searchAreasContract';
@@ -13,6 +14,9 @@ import { resolveSearchCandidates } from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
 const MAX_CRIME_MONTHS = 6;
+
+/** data.police.uk rate-limits bursts; keep concurrent street-crime fetches low across all candidates. */
+const POLICE_UK_MAX_CONCURRENT = 3;
 
 export interface BuildRankedAreasOptions {
   /** When set, **transit** commute uses TfL Journey Planner. */
@@ -32,12 +36,15 @@ const weightedCrimeForPoint = async (
   monthsYm: readonly string[],
   categoryWeights: Readonly<Record<string, number>>,
   fetchImpl: typeof fetch,
+  limitPoliceUk: AsyncLimiter,
 ): Promise<{ total: number; months: number; failed: boolean }> => {
   let total = 0;
   let failed = false;
   for (const ym of monthsYm) {
     try {
-      const crimes = await fetchStreetCrimes(latitude, longitude, ym, fetchImpl);
+      const crimes = await limitPoliceUk(() =>
+        fetchStreetCrimes(latitude, longitude, ym, fetchImpl),
+      );
       total += sumWeightedCrimeCount(crimes, categoryWeights, 1);
     } catch {
       failed = true;
@@ -64,6 +71,8 @@ export const buildRankedAreas = async (
     propertyTypes: body.propertyTypes,
   });
 
+  const limitPoliceUk = createAsyncLimiter(POLICE_UK_MAX_CONCURRENT);
+
   const rows = await Promise.all(
     candidates.map(async (c) => {
       const { total, months, failed } = await weightedCrimeForPoint(
@@ -72,6 +81,7 @@ export const buildRankedAreas = async (
         monthsYm,
         body.crime.categoryWeights,
         fetchImpl,
+        limitPoliceUk,
       );
       const avg = months > 0 ? total / months : 0;
       const crime = failed ? 45 : crimeScoreFromWeightedMonthlyAvg(avg);
@@ -103,6 +113,7 @@ export const buildRankedAreas = async (
           crimeWeightedTotal: total,
           crimeMonthsRequested: body.crime.windowMonths,
           crimeMonthsUsed: monthsYm.length,
+          crimeWindowCapMonths: MAX_CRIME_MONTHS,
           policeUk: failed ? 'error' : 'ok',
           dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
           candidateMode,

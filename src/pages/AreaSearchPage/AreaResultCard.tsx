@@ -27,7 +27,17 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
       });
     }
     if (typeof m.crimeMonthsUsed === 'number') {
-      rows.push({ label: 'Months used in score', value: String(m.crimeMonthsUsed) });
+      const cap = typeof m.crimeWindowCapMonths === 'number' ? m.crimeWindowCapMonths : undefined;
+      const requested =
+        typeof m.crimeMonthsRequested === 'number' ? m.crimeMonthsRequested : undefined;
+      const suffix =
+        cap !== undefined && requested !== undefined && requested > cap
+          ? ` (max ${String(cap)} per search)`
+          : '';
+      rows.push({
+        label: 'Months used in score',
+        value: `${String(m.crimeMonthsUsed)}${suffix}`,
+      });
     }
     if (typeof m.crimeWeightedTotal === 'number') {
       rows.push({

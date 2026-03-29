@@ -30,6 +30,11 @@ export const parseStreetCrimesResponse = (data: unknown): PoliceStreetCrimeRow[]
   return out;
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 export const fetchStreetCrimes = async (
   lat: number,
   lng: number,
@@ -37,15 +42,34 @@ export const fetchStreetCrimes = async (
   fetchImpl: typeof fetch,
   timeoutMs = 15_000,
 ): Promise<PoliceStreetCrimeRow[]> => {
-  const res = await fetchImpl(buildStreetCrimesUrl(lat, lng, dateYm), {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!res.ok) {
-    throw new Error(`police.uk HTTP ${String(res.status)}`);
+  const url = buildStreetCrimesUrl(lat, lng, dateYm);
+  const headers: HeadersInit = {
+    Accept: 'application/json',
+    'User-Agent': 'housing-finder/0.1 (data.police.uk consumer)',
+  };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetchImpl(url, {
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (res.status === 429) {
+      if (attempt < 2) {
+        await sleep(400 * (attempt + 1) + Math.floor(Math.random() * 250));
+        continue;
+      }
+      throw new Error('police.uk HTTP 429');
+    }
+    if (res.status === 404) {
+      return [];
+    }
+    if (!res.ok) {
+      throw new Error(`police.uk HTTP ${String(res.status)}`);
+    }
+    const json: unknown = await res.json();
+    return parseStreetCrimesResponse(json);
   }
-  const json: unknown = await res.json();
-  return parseStreetCrimesResponse(json);
+  throw new Error('police.uk: retries exhausted');
 };
 
 /** Sum weights for each incident; categories not in the map use defaultWeight (usually 1). */
