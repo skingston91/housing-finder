@@ -9,4 +9,5 @@ coverage
 *.tsbuildinfo
 .vercel
 .aws-sam
+sam/env.json
 samconfig.toml.bak

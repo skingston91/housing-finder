@@ -25,6 +25,8 @@ npm install
 | `npm run verify`     | Lint, format check, `tsc`, tests, build                                                                                                                  |
 | `npm run verify:sam` | Same as `verify`, then **`sam build`** (requires SAM CLI; use after Lambda or `template.yaml` changes)                                                   |
 
+For **TfL-backed transit commute** locally, copy [`sam/env.json.example`](../sam/env.json.example) to **`sam/env.json`** and run `sam local start-api --env-vars sam/env.json` (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
+
 ## Environment variables
 
 - Copy `.env.example` to `.env.local` for Vite. **Only** variables prefixed with `VITE_` are exposed to the browser.

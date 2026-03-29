@@ -1,13 +1,20 @@
 import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
+import { resolveCommuteScore } from '../commute/resolveCommuteScore';
+import type { TflApiCredentials } from '../commute/tflJourney';
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
 import { compositeScore } from '../scoring/compositeScore';
 import type { RankedAreaDto, SearchAreasRequestBody } from '../searchAreasContract';
-import { scoreNonCrimeDimensions } from './areaDimensionScores';
+import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
 const MAX_CRIME_MONTHS = 6;
+
+export interface BuildRankedAreasOptions {
+  /** When set, **transit** commute uses TfL Journey Planner; other modes stay straight-line. */
+  readonly tfl?: TflApiCredentials;
+}
 
 const weightedCrimeForPoint = async (
   latitude: number,
@@ -32,11 +39,12 @@ const weightedCrimeForPoint = async (
 
 /**
  * Rank candidate areas: **crime** from [data.police.uk](https://data.police.uk/);
- * **affordability** vs indicative borough medians; **commute** straight-line time proxy; **schools** seed proximity.
+ * **affordability** vs indicative borough medians; **commute** TfL (transit + keys) or straight-line proxy; **schools** seed proximity.
  */
 export const buildRankedAreas = async (
   body: SearchAreasRequestBody,
   fetchImpl: typeof fetch,
+  options?: BuildRankedAreasOptions,
 ): Promise<readonly RankedAreaDto[]> => {
   const monthsYm = recentMonthsYm(body.crime.windowMonths, MAX_CRIME_MONTHS);
   const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
@@ -52,11 +60,18 @@ export const buildRankedAreas = async (
       );
       const avg = months > 0 ? total / months : 0;
       const crime = failed ? 45 : crimeScoreFromWeightedMonthlyAvg(avg);
-      const dims = scoreNonCrimeDimensions(body, c.latitude, c.longitude);
+      const base = scoreAffordabilitySchoolsDimensions(body, c.latitude, c.longitude);
+      const commuteRes = await resolveCommuteScore(
+        body,
+        c.latitude,
+        c.longitude,
+        fetchImpl,
+        options?.tfl,
+      );
       const breakdown = {
-        affordability: dims.affordability,
-        commute: dims.commute,
-        schools: dims.schools,
+        affordability: base.affordability,
+        commute: commuteRes.score,
+        schools: base.schools,
         crime,
       };
       const score = compositeScore(breakdown);
@@ -74,11 +89,14 @@ export const buildRankedAreas = async (
           policeUk: failed ? 'error' : 'ok',
           dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
           candidateMode,
-          affordabilityBorough: dims.affordabilityBoroughName,
+          affordabilityBorough: base.affordabilityBoroughName,
           affordabilityModel: 'borough-median-indicator',
           landRegistryOgl:
             'Indicative borough medians for discovery only — not transactional valuations. Contains public sector information licensed under the Open Government Licence v3.0.',
-          commuteModel: 'straight-line-time-estimate',
+          commuteModel: commuteRes.model,
+          ...(commuteRes.journeyMinutes !== undefined
+            ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
+            : {}),
           schoolsModel: 'seed-school-distance',
         },
       };

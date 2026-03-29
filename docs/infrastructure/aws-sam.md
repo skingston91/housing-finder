@@ -26,6 +26,18 @@ npm run sam:local
 
 This runs **`sam local start-api`** on port **3000** by default. **Vite** ([`vite.config.ts`](../../vite.config.ts)) proxies `/api/*` to that port, so `npm run dev` + `npm run sam:local` matches production paths (`/api/search-areas`, `/api/geocode-workplace`, `/api/health`).
 
+### TfL keys (transit commute)
+
+`SearchAreasFunction` reads **`TFL_APP_ID`** and **`TFL_APP_KEY`** (see [`template.yaml`](../../template.yaml) **Parameters**). Register at [TfL Open Data](https://api.tfl.gov.uk/).
+
+**Local SAM:** copy [`sam/env.json.example`](../../sam/env.json.example) to **`sam/env.json`** (gitignored), fill keys, then:
+
+```bash
+sam local start-api --port 3000 --env-vars sam/env.json
+```
+
+Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
+
 ## Build and deploy
 
 ```bash

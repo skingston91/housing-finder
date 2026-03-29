@@ -49,9 +49,10 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 - **Google Maps Platform** ([Directions](https://developers.google.com/maps/documentation/directions/), [@googlemaps/google-maps-services-js](https://github.com/googlemaps/google-maps-services-js)): server-side only; billing and key restriction policy TBD.
 - **Alternatives:** Open routing / OSM-based services may reduce cost; document choice when implemented.
 
-### Commute (phase 1 proxy)
+### Commute (phase 1 proxy + TfL)
 
-- **Straight-line heuristic:** `shared/commute/commuteScoreFromStraightLine.ts` — distance × assumed mode speed (not a routing engine). Documented in result metadata as `commuteModel: straight-line-time-estimate`.
+- **Straight-line heuristic:** `shared/commute/commuteScoreFromStraightLine.ts` — distance × assumed mode speed when not using TfL. Metadata: `commuteModel: straight-line-time-estimate`.
+- **Transport for London (transit):** [Unified API](https://api.tfl.gov.uk/) — `shared/commute/tflJourney.ts` calls **Journey Planner** when commute mode is **transit** and `TFL_APP_ID` / `TFL_APP_KEY` are set on the search Lambda. Metadata: `commuteModel: tfl-unified-api` or `tfl-fallback-straight-line`. Follow TfL registration and fair-use terms; keys are server-side only.
 
 ### Schools (phase 1 proxy)
 

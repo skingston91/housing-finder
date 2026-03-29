@@ -27,7 +27,7 @@ describe('buildRankedAreas', () => {
       ),
     );
 
-    const areas = await buildRankedAreas(minimalBody, fetchImpl);
+    const areas = await buildRankedAreas(minimalBody, fetchImpl, undefined);
     expect(areas.length).toBeGreaterThan(0);
     const first = areas[0];
     expect(first).toBeDefined();
@@ -36,5 +36,49 @@ describe('buildRankedAreas', () => {
     expect(first?.metadata?.policeUk).toBe('ok');
     expect(first?.metadata?.candidateMode).toBe('workplace-grid');
     expect(fetchImpl.mock.calls.length).toBe(12);
+  });
+
+  it('uses TfL for transit when credentials provided', async () => {
+    const body: SearchAreasRequestBody = {
+      ...minimalBody,
+      commute: { maxMinutes: 60, mode: 'transit' },
+    };
+    const requestToUrl = (input: RequestInfo | URL): string => {
+      if (typeof input === 'string') {
+        return input;
+      }
+      if (input instanceof URL) {
+        return input.href;
+      }
+      return input.url;
+    };
+
+    const fetchImpl = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = requestToUrl(input);
+      if (url.includes('data.police.uk')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ category: 'burglary' }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.includes('api.tfl.gov.uk')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ journeys: [{ duration: 1800 }] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }) as typeof fetch;
+
+    const areas = await buildRankedAreas(body, fetchImpl, {
+      tfl: { appId: 'test-id', appKey: 'test-key' },
+    });
+    expect(areas.length).toBeGreaterThan(0);
+    expect(areas[0]?.metadata?.commuteModel).toBe('tfl-unified-api');
+    expect(areas[0]?.metadata?.commuteJourneyMinutes).toBe(30);
   });
 });

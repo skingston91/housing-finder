@@ -19,16 +19,16 @@
 
 The following is **implemented and documented** for anonymous London-first area discovery:
 
-| Area              | Status                                                                                                                        |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **UI**            | Criteria form, results, loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label          |
-| **API**           | `GET /api/health`, `POST /api/search-areas`, `POST /api/geocode-workplace`                                                    |
-| **Affordability** | Nearest-borough indicative median + optional **max £/m²** blend (`shared/affordability/`); OGL attribution in metadata and UI |
-| **Commute**       | Straight-line time estimate by mode (`shared/commute/`)                                                                       |
-| **Schools**       | Phase-aware distance to seed schools (`shared/schools/`)                                                                      |
-| **Crime**         | data.police.uk street-level, weighted categories (`shared/policeUk/`, `shared/rankAreas/buildRankedAreas.ts`)                 |
-| **Candidates**    | Workplace grid inside London bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                |
-| **Quality**       | `npm run verify` (lint, format, tsc, tests, Vite build); SAM build separate (`npm run sam:build`)                             |
+| Area              | Status                                                                                                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **UI**            | Criteria form, results, loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label                                                         |
+| **API**           | `GET /api/health`, `POST /api/search-areas`, `POST /api/geocode-workplace`                                                                                                   |
+| **Affordability** | Nearest-borough indicative median + optional **max £/m²** blend (`shared/affordability/`); OGL attribution in metadata and UI                                                |
+| **Commute**       | Straight-line proxy by mode; **transit** can use **TfL Journey Planner** when `TFL_APP_ID` / `TFL_APP_KEY` are set on `SearchAreasFunction` (`shared/commute/tflJourney.ts`) |
+| **Schools**       | Phase-aware distance to seed schools (`shared/schools/`)                                                                                                                     |
+| **Crime**         | data.police.uk street-level, weighted categories (`shared/policeUk/`, `shared/rankAreas/buildRankedAreas.ts`)                                                                |
+| **Candidates**    | Workplace grid inside London bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                                                               |
+| **Quality**       | `npm run verify` (lint, format, tsc, tests, Vite build); SAM build separate (`npm run sam:build`)                                                                            |
 
 Phase 1 is **not** a substitute for conveyancing, school admissions, or routing; it is a **transparent composite** for exploration.
 
@@ -37,7 +37,7 @@ Phase 1 is **not** a substitute for conveyancing, school admissions, or routing;
 1. **Production geocoder** — Replace or supplement Nominatim with a hosted geocoder, quotas, and abuse protection.
 2. **Land Registry** — Live **SPARQL** or official statistical feeds instead of static borough medians; refresh pipeline.
 3. **Schools** — DfE or official open data (performance, proximity) instead of seed-only distance.
-4. **Commute** — TFL / Google Directions (or OSM routing) behind Lambda with caching and keys in Secrets Manager.
+4. **Commute** — **Partial:** TfL Unified API for **transit** mode (template parameters + env). **Next:** driving/cycling OSRM or Google Directions, caching, Secrets Manager, rate limits.
 5. **Maps** — MapLibre (or similar) with list + map parity and attribution.
 
 ## Near-term backlog (legacy list — superseded by Phase 2 above)

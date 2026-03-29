@@ -2,6 +2,8 @@ import type { CommuteModeDto } from '../searchAreasContract';
 
 import { haversineKm } from '../rankAreas/geo';
 
+import { commuteScoreFromDurationEstimate } from './commuteScoreFromDurationEstimate';
+
 const ASSUMED_SPEED_KMH: Readonly<Record<CommuteModeDto, number>> = {
   driving: 22,
   transit: 16,
@@ -28,17 +30,7 @@ export const commuteScoreFromStraightLine = (
   mode: CommuteModeDto,
   maxMinutes: number,
 ): number => {
-  if (maxMinutes <= 0) {
-    return 0;
-  }
   const km = haversineKm(workplaceLat, workplaceLng, candidateLat, candidateLng);
   const est = estimatedMinutes(km, mode);
-  const r = est / maxMinutes;
-  if (r <= 0.75) {
-    return 100;
-  }
-  if (r >= 1.5) {
-    return 0;
-  }
-  return Math.round(100 - ((r - 0.75) / 0.75) * 100);
+  return commuteScoreFromDurationEstimate(est, maxMinutes);
 };

@@ -23,6 +23,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     return jsonResponse(400, { error: parsed.error });
   }
 
-  const areas = await buildRankedAreas(parsed.value, globalThis.fetch);
+  const tflAppId = process.env.TFL_APP_ID?.trim();
+  const tflAppKey = process.env.TFL_APP_KEY?.trim();
+  const areas = await buildRankedAreas(
+    parsed.value,
+    globalThis.fetch,
+    tflAppId && tflAppKey ? { tfl: { appId: tflAppId, appKey: tflAppKey } } : undefined,
+  );
   return jsonResponse(200, { areas });
 };
