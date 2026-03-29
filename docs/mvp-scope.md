@@ -38,7 +38,7 @@ Phase 1 is **not** a substitute for conveyancing, school admissions, or routing;
 2. **Land Registry** — Live **SPARQL** or official statistical feeds instead of static borough medians; refresh pipeline.
 3. **Schools** — DfE or official open data (performance, proximity) instead of seed-only distance.
 4. **Commute** — **Partial:** TfL Unified API for **transit** mode; **in-memory journey cache** (warm Lambda, TTL, capped size) in `shared/commute/tflJourney.ts`. **Next:** driving/cycling OSRM or Google Directions, Secrets Manager, stricter rate limits.
-5. **Maps** — **Partial:** **MapLibre** results map (workplace + ranked centroids), Carto **Positron** basemap, lazy-loaded chunk (`src/pages/AreaSearchPage/ResultsMap.tsx`). **Next:** list ↔ map interaction, optional paid tiles, popups.
+5. **Maps** — **Partial:** **MapLibre** results map (workplace + ranked centroids), Carto **Positron** basemap, lazy-loaded chunk (`src/pages/AreaSearchPage/ResultsMap.tsx`). **List ↔ map:** selecting a result card or a map point highlights both (shared `selectedAreaId`). **Next:** optional paid tiles, richer popups, scroll-into-view on map pick.
 
 ## Near-term backlog (legacy list — superseded by Phase 2 above)
 

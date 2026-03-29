@@ -9,31 +9,33 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react';
-import type { RankedAreaDto } from '@shared/searchAreasContract';
+import type { RankedArea } from '@/domain/area/types';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 
-import { postGeocodeWorkplace } from '@/services/geocodeWorkplaceClient';
-import { postSearchAreas } from '@/services/searchAreasClient';
+import { httpAreaDiscoveryAdapter } from '@/adapters/httpAreaDiscovery';
+import { httpWorkplaceGeocodeAdapter } from '@/adapters/httpWorkplaceGeocode';
 
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
-const ResultsMapLazy = lazy(async () => {
-  const m = await import('./ResultsMap');
-  return { default: m.ResultsMap };
-});
-import { buildSearchAreasRequest, defaultFormState } from './buildSearchAreasRequest';
+import { buildAreaSearchCriteria, defaultFormState } from './buildSearchAreasRequest';
 import {
   firstDataPoliceUkAttribution,
   firstLandRegistryOglAttribution,
 } from './searchResultsAttribution';
 
+const ResultsMapLazy = lazy(async () => {
+  const m = await import('./ResultsMap');
+  return { default: m.ResultsMap };
+});
+
 export const AreaSearchPage = () => {
   const [form, setForm] = useState(defaultFormState);
-  const [areas, setAreas] = useState<readonly RankedAreaDto[]>([]);
+  const [areas, setAreas] = useState<readonly RankedArea[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [geocodePending, setGeocodePending] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
 
   const handleGeocodeFromLabel = useCallback(async () => {
     setGeocodeError(null);
@@ -44,7 +46,7 @@ export const AreaSearchPage = () => {
     }
     setGeocodePending(true);
     try {
-      const res = await postGeocodeWorkplace(q);
+      const res = await httpWorkplaceGeocodeAdapter.geocodeFromLabel(q);
       setForm((prev) => ({
         ...prev,
         workplaceLat: res.latitude,
@@ -66,8 +68,9 @@ export const AreaSearchPage = () => {
 
   const handleSearch = useCallback(async () => {
     setError(null);
-    const body = buildSearchAreasRequest(form);
-    if (!body) {
+    setSelectedAreaId(null);
+    const criteria = buildAreaSearchCriteria(form);
+    if (!criteria) {
       setError(
         'Check your inputs — property types, workplace, schools, and crime JSON must be valid.',
       );
@@ -75,8 +78,8 @@ export const AreaSearchPage = () => {
     }
     setLoading(true);
     try {
-      const res = await postSearchAreas(body);
-      setAreas(res.areas);
+      const ranked = await httpAreaDiscoveryAdapter.findRankedAreas(criteria);
+      setAreas(ranked);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Search failed';
       setError(msg);
@@ -148,7 +151,14 @@ export const AreaSearchPage = () => {
                     </Text>
                   }
                 >
-                  <ResultsMapLazy workplace={workplaceForMap} areas={areas} />
+                  <ResultsMapLazy
+                    workplace={workplaceForMap}
+                    areas={areas}
+                    selectedAreaId={selectedAreaId}
+                    onSelectArea={(id) => {
+                      setSelectedAreaId(id);
+                    }}
+                  />
                 </Suspense>
               ) : null}
               {!loading && !error && areas.length === 0 ? (
@@ -178,7 +188,14 @@ export const AreaSearchPage = () => {
               ) : null}
               <SimpleGrid columns={1} gap={4}>
                 {areas.map((a) => (
-                  <AreaResultCard key={a.id} area={a} />
+                  <AreaResultCard
+                    key={a.id}
+                    area={a}
+                    isSelected={selectedAreaId === a.id}
+                    onSelectArea={(id) => {
+                      setSelectedAreaId(id);
+                    }}
+                  />
                 ))}
               </SimpleGrid>
             </Stack>
@@ -198,7 +215,7 @@ const HStackSpinner = () => (
   </HStack>
 );
 
-const DataSourceAttribution = ({ areas }: { areas: readonly RankedAreaDto[] }) => {
+const DataSourceAttribution = ({ areas }: { areas: readonly RankedArea[] }) => {
   const policeUk = firstDataPoliceUkAttribution(areas);
   const landRegistry = firstLandRegistryOglAttribution(areas);
   if (!policeUk && !landRegistry) {

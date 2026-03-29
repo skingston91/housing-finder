@@ -10,31 +10,34 @@
 
 ## Structure
 
-| Area            | Location                                                |
-| --------------- | ------------------------------------------------------- |
-| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`           |
-| Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`   |
-| Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts`   |
-| Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`           |
-| Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                 |
-| Client API      | `src/services/searchAreasClient.ts`                     |
-| Geocode client  | `src/services/geocodeWorkplaceClient.ts`                |
-| Server          | `lambda/search-areas.ts`, `lambda/geocode-workplace.ts` |
-| Shared contract | `shared/searchAreasContract.ts`                         |
+| Area            | Location                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`                                              |
+| Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`                                      |
+| Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts` (`buildAreaSearchCriteria` → domain) |
+| Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`                                              |
+| Results map     | `src/pages/AreaSearchPage/ResultsMap.tsx` (list ↔ map highlight)                           |
+| Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                                                    |
+| Ports           | `src/adapters/ports.ts` (`AreaDiscoveryPort`, `WorkplaceGeocodePort`)                      |
+| HTTP adapters   | `src/adapters/httpAreaDiscovery.ts`, `httpWorkplaceGeocode.ts`                             |
+| DTO ↔ domain    | `src/adapters/mapSearchAreasContract.ts`                                                   |
+| Client fetch    | `src/services/searchAreasClient.ts`, `geocodeWorkplaceClient.ts`                           |
+| Server          | `lambda/search-areas.ts`, `lambda/geocode-workplace.ts`                                    |
+| Shared contract | `shared/searchAreasContract.ts`                                                            |
 
 ## User flow
 
 1. User adjusts criteria (defaults pre-filled for London demo).
 2. **Search areas** → `POST /api/search-areas` with JSON body.
 3. **Loading:** spinner + “Ranking areas…”
-4. **Success:** results column lists cards (name, composite score badge, four subscore bars, provenance copy, optional collapsible score details, and a shared data-source alert when police.uk attribution is present).
+4. **Success:** results column shows a **map** (workplace + centroids) and **cards**; selecting a card or a map point **highlights** the same area (ring on card, larger/darker circle on map).
 5. **Error:** inline alert with server message or validation hint.
 6. **Empty (no search yet):** short copy explaining `npm run dev:stack` or `sam local` + Vite proxy for local API.
 7. **Optional:** **Fill coordinates from label** → `POST /api/geocode-workplace` (Nominatim; low volume).
 
 ## Data and state
 
-- **Local React state** only (no auth): form state (`AreaSearchFormState`), `areas`, `loading`, `error`.
+- **Local React state** only (no auth): form state (`AreaSearchFormState`), `areas` (domain `RankedArea[]`), `loading`, `error`, `selectedAreaId` (list ↔ map).
 - **URL state:** deferred (could sync criteria later for shareable links).
 
 ## Visual and UX consistency (Jitty-inspired, light)

@@ -1,9 +1,9 @@
 import { Box, Text } from '@chakra-ui/react';
-import type { RankedAreaDto } from '@shared/searchAreasContract';
+import type { RankedArea } from '@/domain/area/types';
 import type { Feature, FeatureCollection } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -11,13 +11,54 @@ maplibregl.setWorkerUrl(maplibreglWorkerUrl);
 
 const BASE_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
+const NO_SELECTION = '__no_selection__';
+
+const syncResultsLayerSelection = (map: maplibregl.Map, selectedAreaId: string | null): void => {
+  if (!map.getLayer('results-circles')) {
+    return;
+  }
+  const key = selectedAreaId ?? NO_SELECTION;
+  map.setPaintProperty('results-circles', 'circle-radius', [
+    'case',
+    ['all', ['==', ['get', 'kind'], 'area'], ['==', ['get', 'areaId'], key]],
+    12,
+    ['match', ['get', 'kind'], 'workplace', 10, 7],
+  ]);
+  map.setPaintProperty('results-circles', 'circle-color', [
+    'case',
+    ['all', ['==', ['get', 'kind'], 'area'], ['==', ['get', 'areaId'], key]],
+    '#1a365d',
+    ['match', ['get', 'kind'], 'workplace', '#c53030', '#2b6cb0'],
+  ]);
+};
+
 export interface ResultsMapProps {
   readonly workplace: { readonly latitude: number; readonly longitude: number } | null;
-  readonly areas: readonly RankedAreaDto[];
+  readonly areas: readonly RankedArea[];
+  readonly selectedAreaId: string | null;
+  readonly onSelectArea: (id: string | null) => void;
 }
 
-export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
+export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: ResultsMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const onSelectRef = useRef(onSelectArea);
+  const selectedRef = useRef(selectedAreaId);
+
+  useEffect(() => {
+    onSelectRef.current = onSelectArea;
+  }, [onSelectArea]);
+
+  useEffect(() => {
+    selectedRef.current = selectedAreaId;
+  }, [selectedAreaId]);
+
+  const searchFingerprint = useMemo(() => {
+    const ids = areas.map((a) => a.id).join('|');
+    const w =
+      workplace === null ? 'none' : `${String(workplace.latitude)},${String(workplace.longitude)}`;
+    return `${ids}#${w}`;
+  }, [areas, workplace]);
 
   useEffect(() => {
     if (areas.length === 0 || containerRef.current === null) {
@@ -36,6 +77,8 @@ export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
       return;
     }
 
+    mapRef.current = map;
+
     const features: Feature[] = areas.map((a) => ({
       type: 'Feature',
       geometry: {
@@ -44,6 +87,7 @@ export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
       },
       properties: {
         kind: 'area',
+        areaId: a.id,
         name: a.displayName,
         score: Math.round(a.score),
       },
@@ -56,7 +100,7 @@ export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
           type: 'Point',
           coordinates: [workplace.longitude, workplace.latitude],
         },
-        properties: { kind: 'workplace', name: 'Workplace', score: 0 },
+        properties: { kind: 'workplace', areaId: '__workplace__', name: 'Workplace', score: 0 },
       });
     }
 
@@ -66,7 +110,11 @@ export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
     };
 
     const onLoad = () => {
-      map.addSource('results', { type: 'geojson', data: collection });
+      map.addSource('results', {
+        type: 'geojson',
+        data: collection,
+        promoteId: 'areaId',
+      });
       map.addLayer({
         id: 'results-circles',
         type: 'circle',
@@ -90,14 +138,50 @@ export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
       if (!bounds.isEmpty()) {
         map.fitBounds(bounds, { padding: 56, maxZoom: 13, duration: 0 });
       }
+
+      syncResultsLayerSelection(map, selectedRef.current);
+
+      map.on('click', 'results-circles', (e) => {
+        const f = e.features?.[0];
+        if (f === undefined) {
+          return;
+        }
+        const raw: unknown = f.properties;
+        if (typeof raw !== 'object' || raw === null) {
+          return;
+        }
+        const rec = raw as Record<string, unknown>;
+        const kind = rec.kind;
+        const id = rec.areaId;
+        if (kind === 'area' && typeof id === 'string' && id.length > 0) {
+          onSelectRef.current(id);
+        }
+      });
+
+      map.on('mouseenter', 'results-circles', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', 'results-circles', () => {
+        map.getCanvas().style.cursor = '';
+      });
     };
 
     void map.once('load', onLoad);
 
     return () => {
       map.remove();
+      mapRef.current = null;
     };
-  }, [workplace, areas]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchFingerprint encodes areas + workplace
+  }, [searchFingerprint]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.getLayer('results-circles')) {
+      return;
+    }
+    syncResultsLayerSelection(map, selectedAreaId);
+  }, [selectedAreaId]);
 
   if (areas.length === 0) {
     return null;
@@ -119,7 +203,8 @@ export const ResultsMap = ({ workplace, areas }: ResultsMapProps) => {
         bg="gray.100"
       />
       <Text fontSize="xs" color="fg.muted" mt={2}>
-        Basemap © OpenStreetMap contributors © CARTO · Workplace (red) and ranked areas (blue).
+        Basemap © OpenStreetMap contributors © CARTO · Click a blue dot or a result card to
+        highlight an area.
       </Text>
     </Box>
   );

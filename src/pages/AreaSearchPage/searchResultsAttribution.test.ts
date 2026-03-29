@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RankedAreaDto } from '@shared/searchAreasContract';
+import type { RankedArea } from '@/domain/area/types';
 
 import {
   areaProvenanceDescription,
@@ -9,7 +9,7 @@ import {
   hasCrimeMetadataDetails,
 } from './searchResultsAttribution';
 
-const area = (metadata: RankedAreaDto['metadata']): RankedAreaDto => ({
+const area = (metadata: RankedArea['metadata']): RankedArea => ({
   id: 'a',
   displayName: 'Test',
   centroidLatitude: 51.5,

@@ -4,12 +4,13 @@
 
 - **SPA** (Vite + React) for anonymous UX.
 - **AWS Lambda** (sources in [`lambda/`](../lambda/), packaged by **SAM**) for geocoding, routing, crime/school/price aggregation, and anything requiring secrets or heavy CPU.
-- **Clean Architecture** direction: domain and pure scoring in `src/domain/`; **ports** in `src/adapters/ports.ts`; infrastructure implementations call out to HTTP/DB from serverless (and later `src/adapters/*` if any browser-safe reads are needed).
+- **Clean Architecture** direction: domain and pure scoring in `src/domain/`; **ports** in `src/adapters/ports.ts` (see `.cursor/agents/architect.md`); **browser adapters** in `src/adapters/*` implement those ports and call `src/services/*` (HTTP to `/api/*`). **Lambda** remains the server-side composition root for ranking; shared DTOs live in `shared/*` and are mapped to domain types at the SPA adapter boundary (`src/adapters/mapSearchAreasContract.ts`).
 
 ## Dependency rule
 
 - Inner layers **do not** import framework or I/O.
-- Outer layers (API handlers, future adapter modules) depend inward on **types** and **port interfaces**.
+- Outer layers (API handlers, `src/adapters/*`) depend inward on **types** and **port interfaces**.
+- The area search page depends on **`AreaDiscoveryPort`** and **`WorkplaceGeocodePort`** via **`httpAreaDiscoveryAdapter`** and **`httpWorkplaceGeocodeAdapter`**, not on `postSearchAreas` / `postGeocodeWorkplace` directly.
 
 ## Scoring (phase 1)
 

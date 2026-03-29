@@ -1,9 +1,9 @@
-import type { RankedAreaDto } from '@shared/searchAreasContract';
+import type { RankedArea } from '@/domain/area/types';
 
 const affordabilitySchoolsSummary =
   'Affordability compares your budget to an indicative median for the nearest London borough (OGL-style disclosure). Schools use distance to a small reference seed set.';
 
-const commuteSummary = (metadata: RankedAreaDto['metadata']): string => {
+const commuteSummary = (metadata: RankedArea['metadata']): string => {
   if (!metadata || metadata.stub === 1) {
     return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
   }
@@ -16,13 +16,11 @@ const commuteSummary = (metadata: RankedAreaDto['metadata']): string => {
   return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
 };
 
-const proxyBlock = (metadata: RankedAreaDto['metadata']): string =>
+const proxyBlock = (metadata: RankedArea['metadata']): string =>
   `${affordabilitySchoolsSummary}${commuteSummary(metadata)}`;
 
 /** First non-empty `dataPoliceUk` string across results (shared attribution line). */
-export const firstDataPoliceUkAttribution = (
-  areas: readonly RankedAreaDto[],
-): string | undefined => {
+export const firstDataPoliceUkAttribution = (areas: readonly RankedArea[]): string | undefined => {
   for (const a of areas) {
     const v = a.metadata?.dataPoliceUk;
     if (typeof v === 'string' && v.trim().length > 0) {
@@ -34,7 +32,7 @@ export const firstDataPoliceUkAttribution = (
 
 /** First non-empty `landRegistryOgl` string across results (shared OGL line for affordability proxy). */
 export const firstLandRegistryOglAttribution = (
-  areas: readonly RankedAreaDto[],
+  areas: readonly RankedArea[],
 ): string | undefined => {
   for (const a of areas) {
     const v = a.metadata?.landRegistryOgl;
@@ -45,7 +43,7 @@ export const firstLandRegistryOglAttribution = (
   return undefined;
 };
 
-export const areaProvenanceDescription = (metadata: RankedAreaDto['metadata']): string => {
+export const areaProvenanceDescription = (metadata: RankedArea['metadata']): string => {
   if (!metadata) {
     return 'Scores combine multiple signals; more detail will appear as data sources are connected.';
   }
@@ -74,7 +72,7 @@ export const areaProvenanceDescription = (metadata: RankedAreaDto['metadata']): 
   return `Composite combines multiple dimensions. ${proxyBlock(metadata)}`;
 };
 
-export const hasCrimeMetadataDetails = (metadata: RankedAreaDto['metadata']): boolean =>
+export const hasCrimeMetadataDetails = (metadata: RankedArea['metadata']): boolean =>
   Boolean(
     metadata &&
     metadata.stub !== 1 &&

@@ -10,9 +10,7 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react';
-import type { CommuteModeDto } from '@shared/searchAreasContract';
-
-import type { PropertyType } from '@/domain/criteria/types';
+import type { CommuteConstraints, PropertyType } from '@/domain/criteria/types';
 
 import type { AreaSearchFormState } from './buildSearchAreasRequest';
 
@@ -25,7 +23,7 @@ const PROPERTY_OPTIONS: readonly { value: PropertyType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ] as const;
 
-const COMMUTE_OPTIONS: readonly { value: CommuteModeDto; label: string }[] = [
+const COMMUTE_OPTIONS: readonly { value: CommuteConstraints['mode']; label: string }[] = [
   { value: 'driving', label: 'Driving' },
   { value: 'transit', label: 'Transit (tube/train/bus proxy)' },
   { value: 'cycling', label: 'Cycling' },
@@ -235,7 +233,7 @@ export const AreaSearchCriteriaForm = ({
               <NativeSelect.Field
                 value={form.commuteMode}
                 onChange={(e) => {
-                  onChange({ ...form, commuteMode: e.target.value as CommuteModeDto });
+                  onChange({ ...form, commuteMode: e.target.value as CommuteConstraints['mode'] });
                 }}
                 aria-label="Commute mode"
               >

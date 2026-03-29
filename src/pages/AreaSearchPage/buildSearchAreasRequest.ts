@@ -1,6 +1,6 @@
+import { areaSearchCriteriaToRequestBody } from '@/adapters/mapSearchAreasContract';
+import type { AreaSearchCriteria, CommuteConstraints, PropertyType } from '@/domain/criteria/types';
 import type { SearchAreasRequestBody } from '@shared/searchAreasContract';
-
-import type { PropertyType } from '@/domain/criteria/types';
 
 export interface AreaSearchFormState {
   maxPriceGbp: number;
@@ -10,7 +10,7 @@ export interface AreaSearchFormState {
   workplaceLat: number | '';
   workplaceLng: number | '';
   commuteMaxMinutes: number;
-  commuteMode: SearchAreasRequestBody['commute']['mode'];
+  commuteMode: CommuteConstraints['mode'];
   schoolPhases: Set<'primary' | 'secondary' | 'sixth_form'>;
   schoolMaxMinutes: number | '';
   crimeWindowMonths: number;
@@ -41,9 +41,8 @@ export const defaultFormState = (): AreaSearchFormState => ({
   crimeWeightsJson: JSON.stringify(defaultCrimeWeights(), null, 2),
 });
 
-export const buildSearchAreasRequest = (
-  form: AreaSearchFormState,
-): SearchAreasRequestBody | null => {
+/** Validates the area-search form and returns domain criteria (inner model). */
+export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCriteria | null => {
   if (form.propertyTypes.length === 0) {
     return null;
   }
@@ -101,4 +100,11 @@ export const buildSearchAreasRequest = (
       categoryWeights,
     },
   };
+};
+
+export const buildSearchAreasRequest = (
+  form: AreaSearchFormState,
+): SearchAreasRequestBody | null => {
+  const criteria = buildAreaSearchCriteria(form);
+  return criteria === null ? null : areaSearchCriteriaToRequestBody(criteria);
 };
