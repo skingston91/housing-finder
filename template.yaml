@@ -3,14 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: Housing Finder — Lambda + API Gateway HTTP API
 
 Parameters:
-  TflAppId:
-    Type: String
-    Default: ''
-    Description: TfL Unified API app_id (optional; enables journey-based transit commute)
   TflAppKey:
     Type: String
     Default: ''
-    Description: TfL Unified API app_key (optional)
+    Description: TfL Unified API app_key only (optional; app_id is not used). Enables journey-based transit commute.
     NoEcho: true
 
 Globals:
@@ -75,7 +71,6 @@ Resources:
       Runtime: nodejs22.x
       Environment:
         Variables:
-          TFL_APP_ID: !Ref TflAppId
           TFL_APP_KEY: !Ref TflAppKey
       Events:
         SearchAreas:

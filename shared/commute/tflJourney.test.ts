@@ -13,7 +13,6 @@ describe('fetchTflTransitJourneyMinutes', () => {
       ),
     );
     const mins = await fetchTflTransitJourneyMinutes(51.5, -0.1, 51.52, -0.08, fetchImpl, {
-      appId: 'id',
       appKey: 'key',
     });
     expect(mins).toBe(45);
@@ -26,7 +25,6 @@ describe('fetchTflTransitJourneyMinutes', () => {
     );
     expect(
       await fetchTflTransitJourneyMinutes(51, -0.1, 51.02, -0.1, fetchImpl, {
-        appId: 'id',
         appKey: 'key',
       }),
     ).toBeNull();

@@ -26,7 +26,7 @@ export const resolveCommuteScore = async (
   const { workplace, commute } = body;
   const maxM = commute.maxMinutes;
 
-  if (commute.mode === 'transit' && tfl !== undefined && tfl.appId !== '' && tfl.appKey !== '') {
+  if (commute.mode === 'transit' && tfl !== undefined && tfl.appKey !== '') {
     const mins = await fetchTflTransitJourneyMinutes(
       workplace.latitude,
       workplace.longitude,

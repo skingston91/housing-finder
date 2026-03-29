@@ -28,7 +28,7 @@ This runs **`sam local start-api`** on port **3000** by default. **Vite** ([`vit
 
 ### TfL keys (transit commute)
 
-`SearchAreasFunction` reads **`TFL_APP_ID`** and **`TFL_APP_KEY`** (see [`template.yaml`](../../template.yaml) **Parameters**). Register at [TfL Open Data](https://api.tfl.gov.uk/).
+`SearchAreasFunction` reads **`TFL_APP_KEY`** only (see [`template.yaml`](../../template.yaml) **Parameters**). TfL’s current guidance: append **`app_key`** as a query parameter; **ignore `app_id`** (no longer required). Register at [TfL Open Data](https://api.tfl.gov.uk/).
 
 **Local SAM:** copy [`sam/env.json.example`](../../sam/env.json.example) to **`sam/env.json`** (gitignored), fill keys, then:
 

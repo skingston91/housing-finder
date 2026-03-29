@@ -8,6 +8,22 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 - Centralise **attribution** strings the UI or “About data” panel can render.
 - Serverless functions hold **secrets** (API keys); never expose in `VITE_*` unless the provider explicitly allows public keys with domain restrictions.
 
+## Access model & alternatives (summary)
+
+Rough guide for **non-commercial / hobby** vs **commercial or restricted** sources and what to use instead. **Always confirm** current terms on the provider’s site.
+
+| Integration                                     | Typical access                                                                                                                               | Notes                                                                   | Alternatives if this doesn’t fit                                                                                                                                                                                                                 |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **TfL Unified API** (transit commute)           | **Free** registration; use **`app_key`** as the **only** query parameter on requests (**do not send `app_id`** — TfL no longer requires it). | Fair-use / terms apply; not “unlimited enterprise”.                     | **Commercial / other routing:** Google Maps Platform (Directions), Mapbox Directions, HERE Routing; **self-host / OSS:** OSRM, Valhalla (you operate infra). **National rail:** National Rail OJP feeds (licensed onboarding, not drop-in free). |
+| **data.police.uk** (crime)                      | **Open** data API; no key.                                                                                                                   | Rate responsibly; anonymised locations.                                 | No equivalent single UK-wide free API for the same thing; bespoke police force APIs vary.                                                                                                                                                        |
+| **Nominatim** (geocode workplace)               | **Not** a commercial “free tier” — **usage policy** (low volume, identify app).                                                              | Heavy or production traffic should **not** rely on the public instance. | **Hosted geocoders (often freemium then paid):** OpenCage, LocationIQ, Geoapify. **Major cloud (paid):** Google Geocoding, Mapbox Geocoding, AWS Location Service. **Self-host:** Nominatim, Pelias (your servers).                              |
+| **Borough median table** (affordability proxy)  | **No live API** in app — static indicative numbers in repo.                                                                                  | Not Land Registry transactional data.                                   | **Free / OGL:** Land Registry linked data / stats publications, ONS house price outputs (ingest & cache). **Paid:** commercial indices, AVM vendors.                                                                                             |
+| **School seeds** (schools proxy)                | **No API** — small static coordinate set.                                                                                                    | Illustrative only.                                                      | **Free / official:** DfE open data, Get Information about Schools (GIAS) exports. **Paid:** education data vendors.                                                                                                                              |
+| **Straight-line commute**                       | **Local** geometry; no provider.                                                                                                             | Crude vs real networks.                                                 | **Free tier varies:** OpenRouteService (check ToS); **paid:** Google, Mapbox, HERE; **self-host:** OSRM, Valhalla.                                                                                                                               |
+| **Property listings** (Zoopla, Rightmove, etc.) | **Commercial** APIs / licences.                                                                                                              | Not used in phase 1.                                                    | **Free-ish for research:** Land Registry **sold prices** (not live listings); portal sites manually.                                                                                                                                             |
+| **Google Maps Platform**                        | **Commercial** (billing account; credits may apply for new accounts).                                                                        | Not wired in this repo yet.                                             | Mapbox, HERE, TomTom, Apple MapKit (where licensed), OSM-based stacks above.                                                                                                                                                                     |
+| **Map tiles (future)**                          | **Varies** — many are **free within limits** or **commercial**.                                                                              | Pick before shipping a map.                                             | **Free / open:** OS OpenData-style tiles where licence allows, Protomaps, some MapTiler/Stadia tiers. **Paid:** Mapbox, Google, MapTiler, Esri.                                                                                                  |
+
 ## Sources under consideration
 
 ### HM Land Registry (linked data / SPARQL)
@@ -17,12 +33,14 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 - **Licence:** Open Government Licence — [OGL](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
 - **Attribution (example):** Contains public sector information licensed under the Open Government Licence v3.0.
 - **Implementation (phase 1):** `shared/affordability/londonBoroughMedians.ts` supplies **indicative** borough medians for discovery scoring (nearest borough centroid). Optional **max £/m²** is blended with the total-budget score in `affordabilityScoreForAreaSearch` (not a per-property floor-area model). Replace with live SPARQL or official statistical tables when we harden the model; UI/metadata repeats an OGL-style line.
+- **Alternatives (commercial):** paid property analytics / AVM feeds; portal APIs where licensed.
 
 ### HM Land Registry — Use land and property data API
 
 - **URL:** [API documentation](https://use-land-property-data.service.gov.uk/api-documentation)
 - **Use:** Bulk datasets (e.g. corporate ownership) — may be secondary to MVP; account + dataset licence required.
 - **Note:** Download URLs are short-lived; batch jobs belong in serverless/cron, not the browser.
+- **Alternatives:** OGL bulk downloads without this API where sufficient; commercial data vendors for curated packs.
 
 ### Police.uk — Street-level crime
 
@@ -31,45 +49,49 @@ Keep this file updated whenever we add or change an integration. **Do not ship w
 - **Implementation:** `shared/policeUk/streetCrimes.ts` and `shared/rankAreas/buildRankedAreas.ts` (called from `lambda/search-areas.ts`). Each ranked area uses a fixed candidate centroid; responses include `metadata.dataPoliceUk` for UI attribution.
 - **Attribution:** Follow [data.police.uk](https://data.police.uk/) terms; surface anonymisation caveats in UI help text.
 - **Caveat:** Scotland coverage differs (BTP-only nuance per their docs).
+- **Alternatives:** None universal and free in the same shape; local force open data where published.
 
 ### Department for Education — School performance
 
 - **URL:** [Compare school performance](https://www.compare-school-performance.service.gov.uk/) (human-facing); prefer **official open data** downloads/APIs where available for automation.
 - **Use:** Distance to good schools, phase filters, performance bands.
 - **Risk:** Scraping the website is fragile; plan ingestion from **published open data** files or APIs only.
+- **Alternatives (commercial):** third-party education data products; **official:** GIAS, DfE statistical releases.
 
 ### Property listings (Zoopla, Rightmove, etc.)
 
 - **Status:** **Not used** until commercial/developer access is approved.
 - **URL (reference):** [Zoopla developers](https://developers.zoopla.co.uk/)
+- **Alternatives:** Land Registry sold prices (OGL) for history; manual research; licensed listing feeds when approved.
 
 ### Routing and geocoding
 
-- **OpenStreetMap Nominatim** ([usage policy](https://operations.osmfoundation.org/policies/nominatim/)): forward geocoding from the workplace label via **`POST /api/geocode-workplace`** (`lambda/geocode-workplace.ts`, `shared/geocoding/nominatim.ts`). **Low volume only** — identify with `User-Agent`; do not bulk or scrape; consider a dedicated geocoder in production.
-- **Google Maps Platform** ([Directions](https://developers.google.com/maps/documentation/directions/), [@googlemaps/google-maps-services-js](https://github.com/googlemaps/google-maps-services-js)): server-side only; billing and key restriction policy TBD.
-- **Alternatives:** Open routing / OSM-based services may reduce cost; document choice when implemented.
+- **OpenStreetMap Nominatim** ([usage policy](https://operations.osmfoundation.org/policies/nominatim/)): forward geocoding from the workplace label via **`POST /api/geocode-workplace`** (`lambda/geocode-workplace.ts`, `shared/geocoding/nominatim.ts`). **Low volume only** — identify with `User-Agent`; do not bulk or scrape.
+- **Alternatives (geocoding):** see table above (LocationIQ, Mapbox, Google, self-hosted Nominatim/Pelias, etc.).
+- **Google Maps Platform** ([Directions](https://developers.google.com/maps/documentation/directions/), [@googlemaps/google-maps-services-js](https://github.com/googlemaps/google-maps-services-js)): **commercial**; server-side only if adopted.
+- **Alternatives (routing):** TfL (London transit, free key), OSRM, Valhalla, OpenRouteService (check ToS), Mapbox, HERE, Google.
 
-### Commute (phase 1 proxy + TfL)
+### Commute (straight-line proxy + TfL)
 
 - **Straight-line heuristic:** `shared/commute/commuteScoreFromStraightLine.ts` — distance × assumed mode speed when not using TfL. Metadata: `commuteModel: straight-line-time-estimate`.
-- **Transport for London (transit):** [Unified API](https://api.tfl.gov.uk/) — `shared/commute/tflJourney.ts` calls **Journey Planner** when commute mode is **transit** and `TFL_APP_ID` / `TFL_APP_KEY` are set on the search Lambda. Metadata: `commuteModel: tfl-unified-api` or `tfl-fallback-straight-line`. Follow TfL registration and fair-use terms; keys are server-side only.
+- **Transport for London (transit):** [Unified API](https://api.tfl.gov.uk/) — `shared/commute/tflJourney.ts` calls **Journey Planner** when commute mode is **transit** and **`TFL_APP_KEY`** is set on the search Lambda. Requests append **`app_key`** as a query parameter only (**ignore `app_id`**; TfL no longer requires it). Metadata: `commuteModel: tfl-unified-api` or `tfl-fallback-straight-line`. Follow TfL registration and fair-use terms; keys are server-side only.
+- **Alternatives:** see summary table (paid global routing APIs; self-hosted OSRM/Valhalla; licensed national-rail feeds).
 
 ### Schools (phase 1 proxy)
 
 - **Seed proximity:** `shared/schools/londonSchoolSeeds.ts` — small reference coordinate set; `metadata.schoolsModel: seed-school-distance`. Not DfE performance data; replace with official open data when available.
-
-### TfL
-
-- **Reference:** [example API requests (PDF)](https://content.tfl.gov.uk/example-api-requests.pdf)
-- **Use:** Tube / bus–oriented journey proxies for London; usually requires an **app key** (serverless env).
+- **Alternatives:** DfE open data, GIAS; commercial school-location products.
 
 ### National Rail — OJP / RTJP
 
 - **URL:** [Online Journey Planner data feeds](https://www.nationalrail.co.uk/developers/online-journey-planner-data-feeds/)
 - **Use:** National rail journey planning (SOAP, formal licence, batch onboarding).
 - **MVP:** Likely **deferred** in favour of simpler commute proxies.
+- **Alternatives:** TfL + straight-line for London-first; commercial journey APIs for national multi-modal.
 
 ## Maps (display)
 
 - Choice TBD for **cost vs quality** (e.g. MapLibre + raster/vector tiles with required attribution vs Google Maps JS).
+- **Free / low-cost tile options:** OS-derived schemes where licence permits, Protomaps, some provider free tiers (verify attribution).
+- **Commercial:** Mapbox, Google, MapTiler, Esri, etc.
 - When we pick a stack, record **tile provider attribution** here and render it in the map UI.

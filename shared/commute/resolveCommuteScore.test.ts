@@ -21,7 +21,6 @@ describe('resolveCommuteScore', () => {
       ),
     );
     const r = await resolveCommuteScore(transitBody(45), 51.52, -0.08, fetchImpl, {
-      appId: 'x',
       appKey: 'y',
     });
     expect(r.model).toBe('tfl-unified-api');
@@ -34,7 +33,6 @@ describe('resolveCommuteScore', () => {
       Promise.resolve(new Response(JSON.stringify({ journeys: [] }), { status: 200 })),
     );
     const r = await resolveCommuteScore(transitBody(45), 51.52, -0.08, fetchImpl, {
-      appId: 'x',
       appKey: 'y',
     });
     expect(r.model).toBe('tfl-fallback-straight-line');
@@ -48,7 +46,6 @@ describe('resolveCommuteScore', () => {
       commute: { maxMinutes: 45, mode: 'driving' },
     };
     const r = await resolveCommuteScore(body, 51.5001, -0.1001, fetchImpl, {
-      appId: 'x',
       appKey: 'y',
     });
     expect(r.model).toBe('straight-line-time-estimate');

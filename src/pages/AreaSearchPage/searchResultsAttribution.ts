@@ -8,7 +8,7 @@ const commuteSummary = (metadata: RankedAreaDto['metadata']): string => {
     return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
   }
   if (metadata.commuteModel === 'tfl-unified-api') {
-    return ' Commute (transit) uses Transport for London journey planning (TFL_APP_ID / TFL_APP_KEY on the search Lambda).';
+    return ' Commute (transit) uses Transport for London journey planning (TFL_APP_KEY on the search Lambda; TfL requires app_key only).';
   }
   if (metadata.commuteModel === 'tfl-fallback-straight-line') {
     return ' Commute (transit) fell back to straight-line time after TfL returned no journey.';

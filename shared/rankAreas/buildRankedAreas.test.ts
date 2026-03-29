@@ -75,7 +75,7 @@ describe('buildRankedAreas', () => {
     }) as typeof fetch;
 
     const areas = await buildRankedAreas(body, fetchImpl, {
-      tfl: { appId: 'test-id', appKey: 'test-key' },
+      tfl: { appKey: 'test-key' },
     });
     expect(areas.length).toBeGreaterThan(0);
     expect(areas[0]?.metadata?.commuteModel).toBe('tfl-unified-api');

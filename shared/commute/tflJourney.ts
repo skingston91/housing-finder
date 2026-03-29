@@ -1,13 +1,13 @@
 const TFL_ORIGIN = 'https://api.tfl.gov.uk';
 
+/** TfL only requires **`app_key`** as a query parameter; do not send `app_id` (deprecated per TfL). */
 export interface TflApiCredentials {
-  readonly appId: string;
   readonly appKey: string;
 }
 
 /**
  * Best public-transit journey duration in **minutes** (first “least time” journey), or null if unavailable.
- * @see https://api.tfl.gov.uk/ — register for `app_id` / `app_key`.
+ * @see https://api.tfl.gov.uk/ — register for an **app key** only.
  */
 export const fetchTflTransitJourneyMinutes = async (
   fromLat: number,
@@ -20,7 +20,6 @@ export const fetchTflTransitJourneyMinutes = async (
 ): Promise<number | null> => {
   const u = new URL(TFL_ORIGIN);
   u.pathname = `/Journey/JourneyResults/${String(fromLat)},${String(fromLng)}/to/${String(toLat)},${String(toLng)}`;
-  u.searchParams.set('app_id', creds.appId);
   u.searchParams.set('app_key', creds.appKey);
   u.searchParams.set('journeyPreference', 'LeastTime');
   u.searchParams.set('mode', 'tube,bus,dlr,tram,overground,tflrail,elizabeth-line,walking');
