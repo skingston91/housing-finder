@@ -32,11 +32,14 @@ const syncResultsLayerSelection = (map: maplibregl.Map, selectedAreaId: string |
   ]);
 };
 
+export type AreaSelectionSource = 'map' | 'list';
+
 export interface ResultsMapProps {
   readonly workplace: { readonly latitude: number; readonly longitude: number } | null;
   readonly areas: readonly RankedArea[];
   readonly selectedAreaId: string | null;
-  readonly onSelectArea: (id: string | null) => void;
+  /** `source` is `'map'` when the user picked a centroid on the map (used to scroll the list). */
+  readonly onSelectArea: (id: string | null, source?: AreaSelectionSource) => void;
 }
 
 export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: ResultsMapProps) => {
@@ -154,7 +157,7 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
         const kind = rec.kind;
         const id = rec.areaId;
         if (kind === 'area' && typeof id === 'string' && id.length > 0) {
-          onSelectRef.current(id);
+          onSelectRef.current(id, 'map');
         }
       });
 

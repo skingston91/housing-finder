@@ -103,6 +103,7 @@ Resources:
       Environment:
         Variables:
           MAPBOX_ACCESS_TOKEN: !Ref MapboxAccessToken
+          GEOCODE_RATE_LIMIT_PER_MINUTE: '30'
       Events:
         GeocodeWorkplace:
           Type: HttpApi

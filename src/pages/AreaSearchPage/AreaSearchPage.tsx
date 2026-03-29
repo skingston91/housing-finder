@@ -10,11 +10,12 @@ import {
   Text,
 } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 
 import { httpAreaDiscoveryAdapter } from '@/adapters/httpAreaDiscovery';
 import { httpWorkplaceGeocodeAdapter } from '@/adapters/httpWorkplaceGeocode';
 
+import type { AreaSelectionSource } from './ResultsMap';
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
 import { buildAreaSearchCriteria, defaultFormState } from './buildSearchAreasRequest';
@@ -36,6 +37,29 @@ export const AreaSearchPage = () => {
   const [geocodePending, setGeocodePending] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const cardAnchorRefs = useRef(new Map<string, HTMLElement>());
+
+  const setCardAnchorEl = useCallback((id: string, el: HTMLElement | null) => {
+    const m = cardAnchorRefs.current;
+    if (el === null) {
+      m.delete(id);
+    } else {
+      m.set(id, el);
+    }
+  }, []);
+
+  const handleSelectArea = useCallback((id: string | null, source?: AreaSelectionSource) => {
+    setSelectedAreaId(id);
+    if (source === 'map' && id !== null) {
+      requestAnimationFrame(() => {
+        cardAnchorRefs.current.get(id)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'nearest',
+        });
+      });
+    }
+  }, []);
 
   const handleGeocodeFromLabel = useCallback(async () => {
     setGeocodeError(null);
@@ -68,7 +92,7 @@ export const AreaSearchPage = () => {
 
   const handleSearch = useCallback(async () => {
     setError(null);
-    setSelectedAreaId(null);
+    handleSelectArea(null);
     const criteria = buildAreaSearchCriteria(form);
     if (!criteria) {
       setError(
@@ -87,7 +111,7 @@ export const AreaSearchPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [form]);
+  }, [form, handleSelectArea]);
 
   return (
     <Box minH="100dvh" bg="gray.50" color="fg">
@@ -155,9 +179,7 @@ export const AreaSearchPage = () => {
                     workplace={workplaceForMap}
                     areas={areas}
                     selectedAreaId={selectedAreaId}
-                    onSelectArea={(id) => {
-                      setSelectedAreaId(id);
-                    }}
+                    onSelectArea={handleSelectArea}
                   />
                 </Suspense>
               ) : null}
@@ -188,14 +210,20 @@ export const AreaSearchPage = () => {
               ) : null}
               <SimpleGrid columns={1} gap={4}>
                 {areas.map((a) => (
-                  <AreaResultCard
+                  <Box
                     key={a.id}
-                    area={a}
-                    isSelected={selectedAreaId === a.id}
-                    onSelectArea={(id) => {
-                      setSelectedAreaId(id);
+                    ref={(el: HTMLElement | null) => {
+                      setCardAnchorEl(a.id, el);
                     }}
-                  />
+                  >
+                    <AreaResultCard
+                      area={a}
+                      isSelected={selectedAreaId === a.id}
+                      onSelectArea={(id) => {
+                        handleSelectArea(id, 'list');
+                      }}
+                    />
+                  </Box>
                 ))}
               </SimpleGrid>
             </Stack>

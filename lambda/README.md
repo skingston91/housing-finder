@@ -8,6 +8,6 @@ TypeScript sources for **AWS Lambda** behind **API Gateway HTTP API**, built wit
 | `search-areas.ts`      | `/api/search-areas`      | POST   |
 | `geocode-workplace.ts` | `/api/geocode-workplace` | POST   |
 
-`geocode-workplace.ts` uses `shared/geocoding/geocodeUkWorkplace.ts` (optional Mapbox via `MAPBOX_ACCESS_TOKEN`, else Nominatim). Shared validation lives in `shared/` (e.g. `parseSearchAreasRequestBody.ts`, `parseGeocodeRequestBody.ts`).
+`geocode-workplace.ts` uses `shared/geocoding/geocodeUkWorkplace.ts` (optional Mapbox via `MAPBOX_ACCESS_TOKEN`, else Nominatim) and `shared/geocoding/geocodeRateLimit.ts` (per-IP limit via `GEOCODE_RATE_LIMIT_PER_MINUTE`). Shared validation lives in `shared/` (e.g. `parseSearchAreasRequestBody.ts`, `parseGeocodeRequestBody.ts`).
 
 See [docs/infrastructure/aws-sam.md](../docs/infrastructure/aws-sam.md) for local and deployed workflows.

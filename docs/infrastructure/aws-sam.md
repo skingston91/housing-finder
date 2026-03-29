@@ -44,6 +44,10 @@ Or pass the same parameters on **`sam deploy`** so production Lambdas receive th
 
 **Local SAM:** add `GeocodeWorkplaceFunction` → `MAPBOX_ACCESS_TOKEN` in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
 
+### Geocode rate limit
+
+`GeocodeWorkplaceFunction` enforces **`GEOCODE_RATE_LIMIT_PER_MINUTE`** (default **30** per client IP per rolling minute in [`template.yaml`](../../template.yaml)). Counts are **in-memory per Lambda instance** (warm-container only). **`0`** disables limiting. On exceed, the API returns **429** with **`Retry-After`** and JSON **`retryAfterSeconds`**.
+
 ## Build and deploy
 
 ```bash
