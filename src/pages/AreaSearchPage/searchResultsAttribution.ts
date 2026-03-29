@@ -13,6 +13,12 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
   if (metadata.commuteModel === 'tfl-fallback-straight-line') {
     return ' Commute (transit) fell back to straight-line time after TfL returned no journey.';
   }
+  if (metadata.commuteModel === 'openrouteservice-directions') {
+    return ' Commute (drive/cycle/walk) uses OpenRouteService directions (ORS_API_KEY on the search Lambda).';
+  }
+  if (metadata.commuteModel === 'openrouteservice-fallback-straight-line') {
+    return ' Commute (drive/cycle/walk) fell back to straight-line time after OpenRouteService returned no route.';
+  }
   return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
 };
 

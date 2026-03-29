@@ -24,10 +24,14 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   }
 
   const tflAppKey = process.env.TFL_APP_KEY?.trim();
-  const areas = await buildRankedAreas(
-    parsed.value,
-    globalThis.fetch,
-    tflAppKey ? { tfl: { appKey: tflAppKey } } : undefined,
-  );
+  const orsApiKey = process.env.ORS_API_KEY?.trim();
+  const routing =
+    (tflAppKey !== undefined && tflAppKey !== '') || (orsApiKey !== undefined && orsApiKey !== '')
+      ? {
+          ...(tflAppKey ? { tfl: { appKey: tflAppKey } as const } : {}),
+          ...(orsApiKey ? { openRouteService: { apiKey: orsApiKey } as const } : {}),
+        }
+      : undefined;
+  const areas = await buildRankedAreas(parsed.value, globalThis.fetch, routing);
   return jsonResponse(200, { areas });
 };

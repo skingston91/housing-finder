@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { clearOrsDirectionsCache } from '../commute/orsDirections';
 import { clearTflJourneyCache } from '../commute/tflJourney';
 import type { SearchAreasRequestBody } from '../searchAreasContract';
 
@@ -17,6 +18,7 @@ const minimalBody: SearchAreasRequestBody = {
 describe('buildRankedAreas', () => {
   beforeEach(() => {
     clearTflJourneyCache();
+    clearOrsDirectionsCache();
   });
 
   it('ranks areas using mocked police.uk responses', async () => {
@@ -85,5 +87,48 @@ describe('buildRankedAreas', () => {
     expect(areas.length).toBeGreaterThan(0);
     expect(areas[0]?.metadata?.commuteModel).toBe('tfl-unified-api');
     expect(areas[0]?.metadata?.commuteJourneyMinutes).toBe(30);
+  });
+
+  it('uses OpenRouteService for driving when credentials provided', async () => {
+    const requestToUrl = (input: RequestInfo | URL): string => {
+      if (typeof input === 'string') {
+        return input;
+      }
+      if (input instanceof URL) {
+        return input.href;
+      }
+      return input.url;
+    };
+
+    const fetchImpl = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = requestToUrl(input);
+      if (url.includes('data.police.uk')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ category: 'burglary' }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.includes('openrouteservice.org')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ routes: [{ summary: { duration: 1200, distance: 3000 } }] }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }) as typeof fetch;
+
+    const areas = await buildRankedAreas(minimalBody, fetchImpl, {
+      openRouteService: { apiKey: 'ors-test' },
+    });
+    expect(areas.length).toBeGreaterThan(0);
+    expect(areas[0]?.metadata?.commuteModel).toBe('openrouteservice-directions');
+    expect(areas[0]?.metadata?.commuteJourneyMinutes).toBe(20);
   });
 });

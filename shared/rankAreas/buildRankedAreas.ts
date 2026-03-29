@@ -1,6 +1,7 @@
 import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
+import type { OrsApiCredentials } from '../commute/orsDirections';
 import type { TflApiCredentials } from '../commute/tflJourney';
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
 import { compositeScore } from '../scoring/compositeScore';
@@ -12,8 +13,10 @@ import { resolveSearchCandidates } from './workplaceGridCandidates';
 const MAX_CRIME_MONTHS = 6;
 
 export interface BuildRankedAreasOptions {
-  /** When set, **transit** commute uses TfL Journey Planner; other modes stay straight-line. */
+  /** When set, **transit** commute uses TfL Journey Planner. */
   readonly tfl?: TflApiCredentials;
+  /** When set, **driving** / **cycling** / **walking** use OpenRouteService directions (optional). */
+  readonly openRouteService?: OrsApiCredentials;
 }
 
 const weightedCrimeForPoint = async (
@@ -61,13 +64,10 @@ export const buildRankedAreas = async (
       const avg = months > 0 ? total / months : 0;
       const crime = failed ? 45 : crimeScoreFromWeightedMonthlyAvg(avg);
       const base = scoreAffordabilitySchoolsDimensions(body, c.latitude, c.longitude);
-      const commuteRes = await resolveCommuteScore(
-        body,
-        c.latitude,
-        c.longitude,
-        fetchImpl,
-        options?.tfl,
-      );
+      const commuteRes = await resolveCommuteScore(body, c.latitude, c.longitude, fetchImpl, {
+        tfl: options?.tfl,
+        openRouteService: options?.openRouteService,
+      });
       const breakdown = {
         affordability: base.affordability,
         commute: commuteRes.score,

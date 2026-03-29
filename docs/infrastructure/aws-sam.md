@@ -38,6 +38,12 @@ sam local start-api --port 3000 --env-vars sam/env.json
 
 Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
 
+### OpenRouteService (optional drive / cycle / walk commute)
+
+`SearchAreasFunction` reads **`ORS_API_KEY`** from the **`OrsApiKey`** template parameter. When set, **driving**, **cycling**, and **walking** commute modes use [OpenRouteService](https://openrouteservice.org/) directions (not **transit** — use TfL). When empty, those modes use the straight-line time proxy. Register for an API key and follow provider quotas and terms.
+
+**Local SAM:** add **`ORS_API_KEY`** under **`SearchAreasFunction`** in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
+
 ### Mapbox (optional workplace geocode)
 
 `GeocodeWorkplaceFunction` reads **`MAPBOX_ACCESS_TOKEN`** from the **`MapboxAccessToken`** template parameter (see [`template.yaml`](../../template.yaml)). When empty, geocoding uses Nominatim only. When set, Mapbox is tried first and Nominatim is used as fallback. Register at [Mapbox](https://www.mapbox.com/) and follow their billing and usage terms.

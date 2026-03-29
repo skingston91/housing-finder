@@ -15,6 +15,12 @@ Parameters:
     Description: Optional Mapbox access token for workplace geocoding; when empty, Nominatim is used.
     NoEcho: true
 
+  OrsApiKey:
+    Type: String
+    Default: ''
+    Description: Optional OpenRouteService API key for driving/cycling/walking commute directions (transit still uses TfL).
+    NoEcho: true
+
 Globals:
   Function:
     Timeout: 30
@@ -78,6 +84,7 @@ Resources:
       Environment:
         Variables:
           TFL_APP_KEY: !Ref TflAppKey
+          ORS_API_KEY: !Ref OrsApiKey
       Events:
         SearchAreas:
           Type: HttpApi
