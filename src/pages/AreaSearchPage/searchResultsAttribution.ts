@@ -1,7 +1,19 @@
 import type { RankedArea } from '@/domain/area/types';
 
-const affordabilitySchoolsSummary =
-  'Affordability compares your budget to an indicative median for the nearest London borough (OGL-style disclosure). Schools use distance to a small reference seed set.';
+const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): string => {
+  const src = metadata?.affordabilityPriceSource;
+  let aff =
+    'Affordability compares your budget to an indicative median for the nearest London borough (OGL-style disclosure).';
+  if (src === 'ukhpi-linked-data' || src === 'ukhpi-partial-static-fallback') {
+    aff =
+      'Affordability compares your budget to HM Land Registry UK HPI average prices for the nearest London borough where available (OGL — discovery only).';
+  }
+  const schools =
+    metadata?.schoolsModel === 'gias-open-data-sample'
+      ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).'
+      : ' Schools use distance to a small reference seed set.';
+  return `${aff}${schools}`;
+};
 
 const commuteSummary = (metadata: RankedArea['metadata']): string => {
   if (!metadata || metadata.stub === 1) {
@@ -23,7 +35,7 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
 };
 
 const proxyBlock = (metadata: RankedArea['metadata']): string =>
-  `${affordabilitySchoolsSummary}${commuteSummary(metadata)}`;
+  `${affordabilityAndSchoolsSummary(metadata)}${commuteSummary(metadata)}`;
 
 /** First non-empty `dataPoliceUk` string across results (shared attribution line). */
 export const firstDataPoliceUkAttribution = (areas: readonly RankedArea[]): string | undefined => {

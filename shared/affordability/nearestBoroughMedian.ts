@@ -2,16 +2,17 @@ import { haversineKm } from '../rankAreas/geo';
 
 import { LONDON_BOROUGH_MEDIANS, type LondonBoroughMedianRow } from './londonBoroughMedians';
 
-export const nearestBoroughMedian = (
+export const nearestBoroughMedianFromRows = (
   latitude: number,
   longitude: number,
+  rows: readonly LondonBoroughMedianRow[],
 ): LondonBoroughMedianRow => {
-  let best = LONDON_BOROUGH_MEDIANS[0];
+  let best = rows[0];
   if (!best) {
-    throw new Error('londonBoroughMedians: empty');
+    throw new Error('nearestBoroughMedianFromRows: empty rows');
   }
   let bestKm = haversineKm(latitude, longitude, best.latitude, best.longitude);
-  for (const row of LONDON_BOROUGH_MEDIANS) {
+  for (const row of rows) {
     const km = haversineKm(latitude, longitude, row.latitude, row.longitude);
     if (km < bestKm) {
       bestKm = km;
@@ -20,3 +21,6 @@ export const nearestBoroughMedian = (
   }
   return best;
 };
+
+export const nearestBoroughMedian = (latitude: number, longitude: number): LondonBoroughMedianRow =>
+  nearestBoroughMedianFromRows(latitude, longitude, LONDON_BOROUGH_MEDIANS);

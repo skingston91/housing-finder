@@ -25,6 +25,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
   const tflAppKey = process.env.TFL_APP_KEY?.trim();
   const orsApiKey = process.env.ORS_API_KEY?.trim();
+  const useLiveUkhpiMedians = process.env.UKHPI_LIVE?.trim() !== '0';
   const routing =
     (tflAppKey !== undefined && tflAppKey !== '') || (orsApiKey !== undefined && orsApiKey !== '')
       ? {
@@ -32,6 +33,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
           ...(orsApiKey ? { openRouteService: { apiKey: orsApiKey } as const } : {}),
         }
       : undefined;
-  const areas = await buildRankedAreas(parsed.value, globalThis.fetch, routing);
+  const areas = await buildRankedAreas(parsed.value, globalThis.fetch, {
+    ...routing,
+    useLiveUkhpiMedians,
+  });
   return jsonResponse(200, { areas });
 };

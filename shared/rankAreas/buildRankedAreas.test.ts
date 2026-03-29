@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { clearLondonBoroughMedianCache } from '../affordability/resolveLondonBoroughMedianRows';
 import { clearOrsDirectionsCache } from '../commute/orsDirections';
 import { clearTflJourneyCache } from '../commute/tflJourney';
 import type { SearchAreasRequestBody } from '../searchAreasContract';
@@ -19,6 +20,7 @@ describe('buildRankedAreas', () => {
   beforeEach(() => {
     clearTflJourneyCache();
     clearOrsDirectionsCache();
+    clearLondonBoroughMedianCache();
   });
 
   it('ranks areas using mocked police.uk responses', async () => {
@@ -130,5 +132,64 @@ describe('buildRankedAreas', () => {
     expect(areas.length).toBeGreaterThan(0);
     expect(areas[0]?.metadata?.commuteModel).toBe('openrouteservice-directions');
     expect(areas[0]?.metadata?.commuteJourneyMinutes).toBe(20);
+  });
+
+  it('uses live UK HPI medians when enabled and Land Registry responds', async () => {
+    const requestToUrl = (input: RequestInfo | URL): string => {
+      if (typeof input === 'string') {
+        return input;
+      }
+      if (input instanceof URL) {
+        return input.href;
+      }
+      return input.url;
+    };
+
+    const fetchImpl = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = requestToUrl(input);
+      if (url.includes('data.police.uk')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ category: 'burglary' }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.includes('landregistry.data.gov.uk') && url.includes('_pageSize=1')) {
+        const m = /region\/([^/?.]+)\.json/.exec(url);
+        const slug = m?.[1] ?? 'x';
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              result: {
+                items: [`http://landregistry.data.gov.uk/data/ukhpi/region/${slug}/month/2025-06`],
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+      if (url.includes('landregistry.data.gov.uk') && url.includes('/month/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              result: {
+                primaryTopic: { averagePrice: 400_000, refMonth: '2025-06' },
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }) as typeof fetch;
+
+    const areas = await buildRankedAreas(minimalBody, fetchImpl, {
+      useLiveUkhpiMedians: true,
+    });
+    expect(areas.length).toBeGreaterThan(0);
+    expect(areas[0]?.metadata?.affordabilityPriceSource).toBe('ukhpi-linked-data');
+    expect(areas[0]?.metadata?.ukhpiRefMonth).toBe('2025-06');
+    expect(areas[0]?.metadata?.schoolsModel).toBe('gias-open-data-sample');
   });
 });

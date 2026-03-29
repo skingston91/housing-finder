@@ -1,3 +1,4 @@
+import { affordabilityLandRegistryAttribution } from './affordability/affordabilityAttribution';
 import type { RankedAreaDto, SearchAreasRequestBody } from './searchAreasContract';
 import { compositeScore } from './scoring/compositeScore';
 import { scoreNonCrimeDimensions } from './rankAreas/areaDimensionScores';
@@ -39,10 +40,9 @@ export const generateStubRankedAreas = (
         candidateMode,
         affordabilityBorough: dims.affordabilityBoroughName,
         affordabilityModel: 'borough-median-indicator',
-        landRegistryOgl:
-          'Indicative borough medians for discovery only — not transactional valuations. Contains public sector information licensed under the Open Government Licence v3.0.',
+        landRegistryOgl: affordabilityLandRegistryAttribution('static-london-borough-table'),
         commuteModel: 'straight-line-time-estimate',
-        schoolsModel: 'seed-school-distance',
+        schoolsModel: 'gias-open-data-sample',
       },
     };
   });

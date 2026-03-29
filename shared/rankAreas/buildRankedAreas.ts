@@ -1,3 +1,5 @@
+import { affordabilityLandRegistryAttribution } from '../affordability/affordabilityAttribution';
+import { resolveLondonBoroughMedianRows } from '../affordability/resolveLondonBoroughMedianRows';
 import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
@@ -17,6 +19,11 @@ export interface BuildRankedAreasOptions {
   readonly tfl?: TflApiCredentials;
   /** When set, **driving** / **cycling** / **walking** use OpenRouteService directions (optional). */
   readonly openRouteService?: OrsApiCredentials;
+  /**
+   * When `true`, load latest **UK HPI** average prices per London borough (Land Registry linked-data JSON),
+   * cached 6h per Lambda instance. When `false` or omitted, use static in-repo borough medians only.
+   */
+  readonly useLiveUkhpiMedians?: boolean;
 }
 
 const weightedCrimeForPoint = async (
@@ -42,7 +49,7 @@ const weightedCrimeForPoint = async (
 
 /**
  * Rank candidate areas: **crime** from [data.police.uk](https://data.police.uk/);
- * **affordability** vs indicative borough medians; **commute** TfL (transit + keys) or straight-line proxy; **schools** seed proximity.
+ * **affordability** vs borough benchmarks (optional live UK HPI); **commute** TfL / ORS or straight-line; **schools** establishment sample distance.
  */
 export const buildRankedAreas = async (
   body: SearchAreasRequestBody,
@@ -51,6 +58,10 @@ export const buildRankedAreas = async (
 ): Promise<readonly RankedAreaDto[]> => {
   const monthsYm = recentMonthsYm(body.crime.windowMonths, MAX_CRIME_MONTHS);
   const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
+
+  const medianResolution = await resolveLondonBoroughMedianRows(fetchImpl, {
+    live: options?.useLiveUkhpiMedians === true,
+  });
 
   const rows = await Promise.all(
     candidates.map(async (c) => {
@@ -63,7 +74,12 @@ export const buildRankedAreas = async (
       );
       const avg = months > 0 ? total / months : 0;
       const crime = failed ? 45 : crimeScoreFromWeightedMonthlyAvg(avg);
-      const base = scoreAffordabilitySchoolsDimensions(body, c.latitude, c.longitude);
+      const base = scoreAffordabilitySchoolsDimensions(
+        body,
+        c.latitude,
+        c.longitude,
+        medianResolution.rows,
+      );
       const commuteRes = await resolveCommuteScore(body, c.latitude, c.longitude, fetchImpl, {
         tfl: options?.tfl,
         openRouteService: options?.openRouteService,
@@ -91,13 +107,16 @@ export const buildRankedAreas = async (
           candidateMode,
           affordabilityBorough: base.affordabilityBoroughName,
           affordabilityModel: 'borough-median-indicator',
-          landRegistryOgl:
-            'Indicative borough medians for discovery only — not transactional valuations. Contains public sector information licensed under the Open Government Licence v3.0.',
+          affordabilityPriceSource: medianResolution.priceSource,
+          ...(medianResolution.ukhpiRefMonth !== undefined
+            ? { ukhpiRefMonth: medianResolution.ukhpiRefMonth }
+            : {}),
+          landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
           commuteModel: commuteRes.model,
           ...(commuteRes.journeyMinutes !== undefined
             ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
             : {}),
-          schoolsModel: 'seed-school-distance',
+          schoolsModel: 'gias-open-data-sample',
         },
       };
       return area;

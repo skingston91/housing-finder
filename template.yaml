@@ -85,6 +85,7 @@ Resources:
         Variables:
           TFL_APP_KEY: !Ref TflAppKey
           ORS_API_KEY: !Ref OrsApiKey
+          UKHPI_LIVE: ''
       Events:
         SearchAreas:
           Type: HttpApi

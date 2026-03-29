@@ -44,6 +44,10 @@ Or pass the same parameters on **`sam deploy`** so production Lambdas receive th
 
 **Local SAM:** add **`ORS_API_KEY`** under **`SearchAreasFunction`** in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
 
+### UK HPI affordability (optional live borough prices)
+
+`SearchAreasFunction` reads **`UKHPI_LIVE`**. When set to **`0`**, affordability uses the **static** in-repo borough median table only. When **empty or any other value** (default in `template.yaml`), the handler fetches latest **UK HPI average prices** per London borough from [HM Land Registry linked data](https://landregistry.data.gov.uk/app/ukhpi/doc/) (JSON API), **cached 6 hours** per warm instance. **Local SAM:** example [`sam/env.json.example`](../../sam/env.json.example) sets **`"UKHPI_LIVE": "0"`** to avoid hammering Land Registry during dev; remove or change for live HPI.
+
 ### Mapbox (optional workplace geocode)
 
 `GeocodeWorkplaceFunction` reads **`MAPBOX_ACCESS_TOKEN`** from the **`MapboxAccessToken`** template parameter (see [`template.yaml`](../../template.yaml)). When empty, geocoding uses Nominatim only. When set, Mapbox is tried first and Nominatim is used as fallback. Register at [Mapbox](https://www.mapbox.com/) and follow their billing and usage terms.

@@ -14,7 +14,7 @@
 
 ## Scoring (phase 1)
 
-- Subscores (0–100) per dimension: **affordability**, **commute**, **schools**, **crime** — populated by adapters (affordability/commute/schools still stubbed in the Lambda pipeline).
+- Subscores (0–100) per dimension: **affordability**, **commute**, **schools**, **crime** — composed in `buildRankedAreas` from police.uk, optional UK HPI / TfL / ORS, and school distance samples.
 - **Composite** score: weighted average via `compositeScore()` in [`shared/scoring/compositeScore.ts`](../shared/scoring/compositeScore.ts), re-exported from `src/domain/scoring/compositeScore.ts` for the app. Tune weights in one place; document methodology here when we move beyond uniform defaults.
 
 ## Multi–workplace (future)
@@ -23,7 +23,7 @@
 
 ## API
 
-- **`POST /api/search-areas`** — Types in `shared/searchAreasContract.ts`. Lambda: `lambda/search-areas.ts` (validates with `shared/parseSearchAreasRequestBody.ts`, ranks via `shared/rankAreas/buildRankedAreas.ts` using **crime** from [data.police.uk](https://data.police.uk/) and affordability/schools proxies). **Transit commute:** optional **TfL** when `TFL_APP_KEY` is set (`template.yaml` **Parameters** → `SearchAreasFunction` env; TfL expects **`app_key` query param only**). **Drive / cycle / walk:** optional **OpenRouteService** when `ORS_API_KEY` is set (same function). Otherwise commute uses straight-line time estimates. **Candidates:** `shared/rankAreas/workplaceGridCandidates.ts` builds a capped grid around `workplace` inside a Greater London bounding box; if the workplace is outside that box, `shared/rankAreas/candidates.ts` named centroids are used instead (`metadata.candidateMode`). Routed by **API Gateway HTTP API** in `template.yaml`.
+- **`POST /api/search-areas`** — Types in `shared/searchAreasContract.ts`. Lambda: `lambda/search-areas.ts` (validates with `shared/parseSearchAreasRequestBody.ts`, ranks via `shared/rankAreas/buildRankedAreas.ts` using **crime** from [data.police.uk](https://data.police.uk/)). **Affordability:** optional live **UK HPI** borough averages when `UKHPI_LIVE` is not `0` on `SearchAreasFunction` (`resolveLondonBoroughMedianRows`, 6h cache); else static borough table. **Schools:** distance to seeds + expanded sample. **Transit commute:** optional **TfL** when `TFL_APP_KEY` is set (`template.yaml` **Parameters** → `SearchAreasFunction` env; TfL expects **`app_key` query param only**). **Drive / cycle / walk:** optional **OpenRouteService** when `ORS_API_KEY` is set (same function). Otherwise commute uses straight-line time estimates. **Candidates:** `shared/rankAreas/workplaceGridCandidates.ts` builds a capped grid around `workplace` inside a Greater London bounding box; if the workplace is outside that box, `shared/rankAreas/candidates.ts` named centroids are used instead (`metadata.candidateMode`). Routed by **API Gateway HTTP API** in `template.yaml`.
 - **`GET /api/health`** — `lambda/health.ts`.
 - **`POST /api/geocode-workplace`** — `lambda/geocode-workplace.ts` (optional **Mapbox** when `MAPBOX_ACCESS_TOKEN` is set, else **Nominatim**; UK-biased; see [data-sources.md](./data-sources.md)). Response may include `geocodeProvider`.
 - **Results map (SPA)** — After a successful search, **MapLibre** shows workplace and area centroids (Carto Positron style; attribution in UI). Implemented in `src/pages/AreaSearchPage/ResultsMap.tsx`, lazy-loaded from `AreaSearchPage`.
