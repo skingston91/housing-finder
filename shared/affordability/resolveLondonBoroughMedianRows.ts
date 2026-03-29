@@ -1,5 +1,9 @@
+import type { PropertyTypeDto } from '../searchAreasContract';
+
 import type { LondonBoroughMedianRow } from './londonBoroughMedians';
 import { LONDON_BOROUGH_MEDIANS } from './londonBoroughMedians';
+import type { UkhpiAveragePriceKey } from './ukhpiAveragePriceKey';
+import { ukhpiAveragePriceKeyForPropertyTypes } from './ukhpiAveragePriceKey';
 import { fetchLatestAveragePriceForUkhpiSlug } from './ukhpiLinkedDataApi';
 import { fetchLondonBoroughUkhpiPricesViaSparql } from './ukhpiSparql';
 import { UKHPI_REGION_SLUG_BY_BOROUGH_ID } from './ukhpiRegionSlugByBoroughId';
@@ -14,19 +18,19 @@ export interface ResolvedLondonBoroughMedianRows {
   readonly priceSource: AffordabilityMedianPriceSource;
   /** Latest UK HPI `refMonth` when all boroughs resolved from live data (YYYY-MM). */
   readonly ukhpiRefMonth?: string;
+  /** Which UK HPI average-price field was used (single property type vs all dwellings). */
+  readonly ukhpiPriceMeasure?: UkhpiAveragePriceKey;
 }
 
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 
-let cache:
-  | {
-      readonly expiresAt: number;
-      readonly payload: ResolvedLondonBoroughMedianRows;
-    }
-  | undefined;
+const cache = new Map<
+  string,
+  { readonly expiresAt: number; readonly payload: ResolvedLondonBoroughMedianRows }
+>();
 
 export const clearLondonBoroughMedianCache = (): void => {
-  cache = undefined;
+  cache.clear();
 };
 
 const maxRefMonth = (a: string, b: string): string => (a > b ? a : b);
@@ -45,13 +49,13 @@ const mapInBatches = async <T, R>(
 };
 
 /**
- * Optionally refreshes borough **median price** fields from HM Land Registry **UK HPI** linked-data
- * Prefer one **SPARQL** request for all boroughs; fall back to per-borough linked-data JSON GETs
- * for gaps or if SPARQL fails. Cached **6 hours** per Lambda instance. On total failure, returns static table only.
+ * Optionally refreshes borough benchmark prices from HM Land Registry **UK HPI**.
+ * One **SPARQL** request per `ukhpiPriceMeasure` cache key, then JSON GETs for gaps.
+ * Cached **6 hours** per Lambda instance per measure. On total failure, returns static table only.
  */
 export const resolveLondonBoroughMedianRows = async (
   fetchImpl: typeof fetch,
-  options: { readonly live: boolean },
+  options: { readonly live: boolean; readonly propertyTypes: readonly PropertyTypeDto[] },
 ): Promise<ResolvedLondonBoroughMedianRows> => {
   if (!options.live) {
     return {
@@ -60,9 +64,11 @@ export const resolveLondonBoroughMedianRows = async (
     };
   }
 
+  const priceKey = ukhpiAveragePriceKeyForPropertyTypes(options.propertyTypes);
   const now = Date.now();
-  if (cache !== undefined && now < cache.expiresAt) {
-    return cache.payload;
+  const cached = cache.get(priceKey);
+  if (cached !== undefined && now < cached.expiresAt) {
+    return cached.payload;
   }
 
   const merged: LondonBoroughMedianRow[] = LONDON_BOROUGH_MEDIANS.map((row) => ({ ...row }));
@@ -85,7 +91,7 @@ export const resolveLondonBoroughMedianRows = async (
     return true;
   };
 
-  const sparqlMap = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl);
+  const sparqlMap = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl, priceKey);
   const resolvedFromSparql = new Set<string>();
   if (sparqlMap !== null) {
     for (const [boroughId, live] of sparqlMap) {
@@ -102,7 +108,7 @@ export const resolveLondonBoroughMedianRows = async (
     if (slug === undefined) {
       return { id: row.id, live: null };
     }
-    const live = await fetchLatestAveragePriceForUkhpiSlug(slug, fetchImpl);
+    const live = await fetchLatestAveragePriceForUkhpiSlug(slug, fetchImpl, priceKey);
     return { id: row.id, live };
   });
 
@@ -129,11 +135,12 @@ export const resolveLondonBoroughMedianRows = async (
       : {
           rows: merged,
           priceSource,
+          ukhpiPriceMeasure: priceKey,
           ...(refMonthMax !== undefined ? { ukhpiRefMonth: refMonthMax } : {}),
         };
 
   if (successCount > 0) {
-    cache = { expiresAt: now + CACHE_TTL_MS, payload };
+    cache.set(priceKey, { expiresAt: now + CACHE_TTL_MS, payload });
   }
   return payload;
 };

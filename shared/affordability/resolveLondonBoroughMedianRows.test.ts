@@ -23,7 +23,10 @@ describe('resolveLondonBoroughMedianRows', () => {
 
   it('returns static table when live is false', async () => {
     const fetchImpl = vi.fn() as typeof fetch;
-    const r = await resolveLondonBoroughMedianRows(fetchImpl, { live: false });
+    const r = await resolveLondonBoroughMedianRows(fetchImpl, {
+      live: false,
+      propertyTypes: ['flat'],
+    });
     expect(r.priceSource).toBe('static-london-borough-table');
     expect(r.rows).toBe(LONDON_BOROUGH_MEDIANS);
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -52,9 +55,13 @@ describe('resolveLondonBoroughMedianRows', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const r = await resolveLondonBoroughMedianRows(fetchImpl, { live: true });
+    const r = await resolveLondonBoroughMedianRows(fetchImpl, {
+      live: true,
+      propertyTypes: ['flat'],
+    });
     expect(r.priceSource).toBe('ukhpi-linked-data');
     expect(r.ukhpiRefMonth).toBe('2025-06');
+    expect(r.ukhpiPriceMeasure).toBe('averagePriceFlatMaisonette');
     expect(r.rows.every((row) => row.medianPriceGbp === 400_000)).toBe(true);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
@@ -94,8 +101,12 @@ describe('resolveLondonBoroughMedianRows', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const r = await resolveLondonBoroughMedianRows(fetchImpl, { live: true });
+    const r = await resolveLondonBoroughMedianRows(fetchImpl, {
+      live: true,
+      propertyTypes: ['terraced', 'flat'],
+    });
     expect(r.priceSource).toBe('ukhpi-linked-data');
+    expect(r.ukhpiPriceMeasure).toBe('averagePrice');
     expect(fetchImpl).toHaveBeenCalledTimes(1 + LONDON_BOROUGH_MEDIANS.length * 2);
   });
 });

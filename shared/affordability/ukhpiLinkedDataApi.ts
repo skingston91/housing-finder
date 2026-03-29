@@ -1,4 +1,27 @@
+import type { UkhpiAveragePriceKey } from './ukhpiAveragePriceKey';
+
 const UKHPI_BASE = 'https://landregistry.data.gov.uk';
+
+const readUkhpiPriceFromTopic = (
+  t: Record<string, unknown>,
+  priceKey: UkhpiAveragePriceKey,
+): number | null => {
+  const tryKey = (k: string): number | null => {
+    const v = t[k];
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+      return Math.round(v);
+    }
+    return null;
+  };
+  const primary = tryKey(priceKey);
+  if (primary !== null) {
+    return primary;
+  }
+  if (priceKey !== 'averagePrice') {
+    return tryKey('averagePrice');
+  }
+  return null;
+};
 
 const toHttpsJsonUrl = (linkedDataUri: string): string => {
   const u = linkedDataUri.startsWith('http:')
@@ -36,6 +59,7 @@ export const parseLatestMonthUriFromRegionList = (json: unknown): string | null 
 /** Average price and reporting month from a single observation (`…/month/YYYY-MM.json`). */
 export const parseMonthObservation = (
   json: unknown,
+  priceKey: UkhpiAveragePriceKey = 'averagePrice',
 ): { readonly averagePriceGbp: number; readonly refMonth: string } | null => {
   const result = readResultRecord(json);
   if (result === null) {
@@ -46,20 +70,21 @@ export const parseMonthObservation = (
     return null;
   }
   const t = topic as Record<string, unknown>;
-  const price = t.averagePrice;
+  const price = readUkhpiPriceFromTopic(t, priceKey);
   const refMonth = t.refMonth;
-  if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+  if (price === null) {
     return null;
   }
   if (typeof refMonth !== 'string' || refMonth.length < 7) {
     return null;
   }
-  return { averagePriceGbp: Math.round(price), refMonth };
+  return { averagePriceGbp: price, refMonth };
 };
 
 export const fetchLatestAveragePriceForUkhpiSlug = async (
   slug: string,
   fetchImpl: typeof fetch,
+  priceKey: UkhpiAveragePriceKey = 'averagePrice',
 ): Promise<{ readonly averagePriceGbp: number; readonly refMonth: string } | null> => {
   const listUrl = `${UKHPI_BASE}/data/ukhpi/region/${encodeURIComponent(slug)}.json?_pageSize=1`;
   const listRes = await fetchImpl(listUrl, { headers: { Accept: 'application/json' } });
@@ -87,5 +112,5 @@ export const fetchLatestAveragePriceForUkhpiSlug = async (
   } catch {
     return null;
   }
-  return parseMonthObservation(obsJson);
+  return parseMonthObservation(obsJson, priceKey);
 };

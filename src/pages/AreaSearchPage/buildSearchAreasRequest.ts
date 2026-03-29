@@ -3,7 +3,8 @@ import type { AreaSearchCriteria, CommuteConstraints, PropertyType } from '@/dom
 import type { SearchAreasRequestBody } from '@shared/searchAreasContract';
 
 export interface AreaSearchFormState {
-  maxPriceGbp: number;
+  /** Empty while the user clears the field to type a new value (avoids `Number('')` → 0). */
+  maxPriceGbp: number | '';
   maxPricePerM2Gbp: number | '';
   propertyTypes: readonly PropertyType[];
   workplaceLabel: string;
@@ -43,6 +44,9 @@ export const defaultFormState = (): AreaSearchFormState => ({
 
 /** Validates the area-search form and returns domain criteria (inner model). */
 export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCriteria | null => {
+  if (form.maxPriceGbp === '' || !Number.isFinite(form.maxPriceGbp) || form.maxPriceGbp < 1) {
+    return null;
+  }
   if (form.propertyTypes.length === 0) {
     return null;
   }

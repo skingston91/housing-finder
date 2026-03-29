@@ -32,6 +32,33 @@ describe('parseMonthObservation', () => {
       }),
     ).toEqual({ averagePriceGbp: 500_123, refMonth: '2025-06' });
   });
+
+  it('reads flat/maisonette field with fallback to all-dwellings average', () => {
+    expect(
+      parseMonthObservation(
+        {
+          result: {
+            primaryTopic: { averagePrice: 900_000, refMonth: '2025-06' },
+          },
+        },
+        'averagePriceFlatMaisonette',
+      ),
+    ).toEqual({ averagePriceGbp: 900_000, refMonth: '2025-06' });
+    expect(
+      parseMonthObservation(
+        {
+          result: {
+            primaryTopic: {
+              averagePriceFlatMaisonette: 650_000,
+              averagePrice: 900_000,
+              refMonth: '2025-06',
+            },
+          },
+        },
+        'averagePriceFlatMaisonette',
+      ),
+    ).toEqual({ averagePriceGbp: 650_000, refMonth: '2025-06' });
+  });
 });
 
 describe('fetchLatestAveragePriceForUkhpiSlug', () => {

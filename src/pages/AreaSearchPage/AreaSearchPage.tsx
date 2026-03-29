@@ -96,7 +96,7 @@ export const AreaSearchPage = () => {
     const criteria = buildAreaSearchCriteria(form);
     if (!criteria) {
       setError(
-        'Check your inputs — property types, workplace, schools, and crime JSON must be valid.',
+        'Check your inputs — max price (at least £1), property types, workplace, schools, and crime JSON must be valid.',
       );
       return;
     }

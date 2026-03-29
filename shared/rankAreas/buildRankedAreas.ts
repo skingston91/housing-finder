@@ -61,6 +61,7 @@ export const buildRankedAreas = async (
 
   const medianResolution = await resolveLondonBoroughMedianRows(fetchImpl, {
     live: options?.useLiveUkhpiMedians === true,
+    propertyTypes: body.propertyTypes,
   });
 
   const rows = await Promise.all(
@@ -110,6 +111,9 @@ export const buildRankedAreas = async (
           affordabilityPriceSource: medianResolution.priceSource,
           ...(medianResolution.ukhpiRefMonth !== undefined
             ? { ukhpiRefMonth: medianResolution.ukhpiRefMonth }
+            : {}),
+          ...(medianResolution.ukhpiPriceMeasure !== undefined
+            ? { ukhpiPriceMeasure: medianResolution.ukhpiPriceMeasure }
             : {}),
           landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
           commuteModel: commuteRes.model,

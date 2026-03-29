@@ -1,3 +1,4 @@
+import type { UkhpiAveragePriceKey } from './ukhpiAveragePriceKey';
 import { UKHPI_REGION_SLUG_BY_BOROUGH_ID } from './ukhpiRegionSlugByBoroughId';
 
 const SPARQL_ENDPOINT = 'https://landregistry.data.gov.uk/landregistry/query';
@@ -25,7 +26,9 @@ const slugToInternalBoroughId = (slug: string): string | undefined => {
   return undefined;
 };
 
-export const buildLondonBoroughUkhpiSparqlQuery = (): string => {
+export const buildLondonBoroughUkhpiSparqlQuery = (
+  priceKey: UkhpiAveragePriceKey = 'averagePrice',
+): string => {
   const iris = [
     ...new Set(
       Object.values(UKHPI_REGION_SLUG_BY_BOROUGH_ID).map((slug) => `<${REGION_IRI_PREFIX}${slug}>`),
@@ -43,7 +46,7 @@ SELECT ?regionUri ?price ?month WHERE {
   }
   ?obs2 ukhpi:refRegion ?regionUri .
   ?obs2 ukhpi:refMonth ?month .
-  ?obs2 ukhpi:averagePrice ?price .
+  ?obs2 ukhpi:${priceKey} ?price .
 }`;
 };
 
@@ -101,11 +104,12 @@ const parseSparqlJson = (
  */
 export const fetchLondonBoroughUkhpiPricesViaSparql = async (
   fetchImpl: typeof fetch,
+  priceKey: UkhpiAveragePriceKey = 'averagePrice',
 ): Promise<ReadonlyMap<
   string,
   { readonly averagePriceGbp: number; readonly refMonth: string }
 > | null> => {
-  const query = buildLondonBoroughUkhpiSparqlQuery();
+  const query = buildLondonBoroughUkhpiSparqlQuery(priceKey);
   const body = new URLSearchParams({ query });
   const res = await fetchImpl(SPARQL_ENDPOINT, {
     method: 'POST',

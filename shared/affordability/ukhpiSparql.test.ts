@@ -24,6 +24,12 @@ describe('buildLondonBoroughUkhpiSparqlQuery', () => {
       expect(q).toContain(`<http://landregistry.data.gov.uk/id/region/${slug}>`);
     }
     expect(q).toContain('SELECT ?regionUri ?price ?month');
+    expect(q).toContain('ukhpi:averagePrice ?price');
+  });
+
+  it('uses property-type-specific predicate when requested', () => {
+    const q = buildLondonBoroughUkhpiSparqlQuery('averagePriceFlatMaisonette');
+    expect(q).toContain('ukhpi:averagePriceFlatMaisonette ?price');
   });
 });
 

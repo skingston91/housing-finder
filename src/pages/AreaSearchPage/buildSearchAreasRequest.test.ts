@@ -22,4 +22,16 @@ describe('buildSearchAreasRequest', () => {
     form.crimeWeightsJson = '{';
     expect(buildSearchAreasRequest(form)).toBeNull();
   });
+
+  it('returns null when max price is empty (cleared field)', () => {
+    const form = defaultFormState();
+    form.maxPriceGbp = '';
+    expect(buildSearchAreasRequest(form)).toBeNull();
+  });
+
+  it('returns null when max price is below minimum', () => {
+    const form = defaultFormState();
+    form.maxPriceGbp = 0;
+    expect(buildSearchAreasRequest(form)).toBeNull();
+  });
 });

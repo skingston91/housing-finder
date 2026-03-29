@@ -97,9 +97,14 @@ export const AreaSearchCriteriaForm = ({
             <Input
               type="number"
               min={1}
-              value={form.maxPriceGbp}
+              value={form.maxPriceGbp === '' ? '' : String(form.maxPriceGbp)}
               onChange={(e) => {
-                const v = Number(e.target.value);
+                const raw = e.target.value;
+                if (raw === '') {
+                  onChange({ ...form, maxPriceGbp: '' });
+                  return;
+                }
+                const v = Number(raw);
                 onChange({ ...form, maxPriceGbp: Number.isFinite(v) ? v : form.maxPriceGbp });
               }}
               aria-label="Maximum price in GBP"
