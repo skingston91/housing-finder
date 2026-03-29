@@ -90,7 +90,15 @@ const dotenvPath = join(root, '.env');
 let merged = JSON.parse(readFileSync(examplePath, 'utf8'));
 
 if (existsSync(dotenvPath)) {
-  merged = applyDotEnvToEnvJson(merged, parseDotEnv(readFileSync(dotenvPath, 'utf8')));
+  const dot = parseDotEnv(readFileSync(dotenvPath, 'utf8'));
+  merged = applyDotEnvToEnvJson(merged, dot);
+  const arn = dot.API_SECRETS_ARN?.trim();
+  if (arn !== undefined && arn !== '') {
+    merged = deepMerge(merged, {
+      SearchAreasFunction: { API_SECRETS_ARN: arn },
+      GeocodeWorkplaceFunction: { API_SECRETS_ARN: arn },
+    });
+  }
 }
 
 if (existsSync(envJsonPath)) {

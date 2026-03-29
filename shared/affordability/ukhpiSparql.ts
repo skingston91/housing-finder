@@ -99,16 +99,26 @@ const parseSparqlJson = (
   return out;
 };
 
+export type SparqlBoroughPriceMap = ReadonlyMap<
+  string,
+  { readonly averagePriceGbp: number; readonly refMonth: string }
+>;
+
+export type SparqlFetchResult =
+  | { readonly ok: true; readonly map: SparqlBoroughPriceMap }
+  | {
+      readonly ok: false;
+      readonly reason: 'http' | 'json_parse';
+      readonly httpStatus: number;
+    };
+
 /**
  * One SPARQL request: latest UK HPI **average** price per London borough (VALUES-filtered regions).
  */
 export const fetchLondonBoroughUkhpiPricesViaSparql = async (
   fetchImpl: typeof fetch,
   priceKey: UkhpiAveragePriceKey = 'averagePrice',
-): Promise<ReadonlyMap<
-  string,
-  { readonly averagePriceGbp: number; readonly refMonth: string }
-> | null> => {
+): Promise<SparqlFetchResult> => {
   const query = buildLondonBoroughUkhpiSparqlQuery(priceKey);
   const body = new URLSearchParams({ query });
   const res = await fetchImpl(SPARQL_ENDPOINT, {
@@ -120,13 +130,17 @@ export const fetchLondonBoroughUkhpiPricesViaSparql = async (
     body: body.toString(),
   });
   if (!res.ok) {
-    return null;
+    return { ok: false, reason: 'http', httpStatus: res.status };
   }
   let json: unknown;
   try {
     json = (await res.json()) as unknown;
   } catch {
-    return null;
+    return { ok: false, reason: 'json_parse', httpStatus: res.status };
   }
-  return parseSparqlJson(json);
+  const map = parseSparqlJson(json);
+  if (map === null) {
+    return { ok: false, reason: 'json_parse', httpStatus: res.status };
+  }
+  return { ok: true, map };
 };

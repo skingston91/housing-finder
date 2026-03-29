@@ -54,8 +54,11 @@ describe('fetchLondonBoroughUkhpiPricesViaSparql', () => {
       );
     }) as typeof fetch;
 
-    const map = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl);
-    expect(map?.get('camden')).toEqual({ averagePriceGbp: 794_413, refMonth: '2026-01' });
+    const result = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.map.get('camden')).toEqual({ averagePriceGbp: 794_413, refMonth: '2026-01' });
+    }
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetchImpl).mock.calls[0]?.[1]).toMatchObject({ method: 'POST' });
   });

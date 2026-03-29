@@ -3,6 +3,7 @@ import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 import { takeGeocodeRateLimitToken } from '../shared/geocoding/geocodeRateLimit';
 import { geocodeUkWorkplace } from '../shared/geocoding/geocodeUkWorkplace';
 import { parseGeocodeRequestBody } from '../shared/parseGeocodeRequestBody';
+import { resolveSecretString } from '../shared/secrets/apiSecrets';
 
 import { jsonResponse } from './http';
 
@@ -48,7 +49,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   }
 
   try {
-    const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN?.trim() ?? '';
+    const mapboxToken = await resolveSecretString('MAPBOX_ACCESS_TOKEN');
     const hit = await geocodeUkWorkplace(parsed.value.q, globalThis.fetch, {
       mapboxAccessToken: mapboxToken || undefined,
     });

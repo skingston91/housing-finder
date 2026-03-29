@@ -43,6 +43,10 @@ Rough guide for **non-commercial / hobby** vs **commercial or restricted** sourc
 - **Note:** Download URLs are short-lived; batch jobs belong in serverless/cron, not the browser.
 - **Alternatives:** OGL bulk downloads without this API where sufficient; commercial data vendors for curated packs.
 
+### Schools — GIAS ingest
+
+The ranking sample (`shared/schools/londonStateSchoolEstablishmentSample.ts`) can be regenerated from the official **Get Information about Schools** CSV using **`npm run ingest:gias`** — see [`scripts/README.md`](../scripts/README.md).
+
 ### Police.uk — Street-level crime
 
 - **URL:** [Street-level crimes](https://data.police.uk/docs/method/crime-street/)

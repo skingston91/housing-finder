@@ -26,8 +26,17 @@ Parameters:
     Default: ''
     Description: Optional extra browser origin allowed by API Gateway CORS (e.g. https://your-app.pages.dev). http://localhost:5173 is always allowed. Leave empty for local-only.
 
+  ApiSecretsArn:
+    Type: String
+    Default: ''
+    Description: >
+      Optional Secrets Manager secret ARN. SecretString must be JSON with optional keys
+      TFL_APP_KEY, ORS_API_KEY, MAPBOX_ACCESS_TOKEN. Plain Parameters above still win when non-empty.
+      Leave empty to use only template Parameters / console env.
+
 Conditions:
   HasCorsAdditionalOrigin: !Not [!Equals [!Ref CorsAdditionalOrigin, '']]
+  HasApiSecretsArn: !Not [!Equals [!Ref ApiSecretsArn, '']]
 
 Globals:
   Function:
@@ -123,6 +132,7 @@ Resources:
         Variables:
           MAPBOX_ACCESS_TOKEN: !Ref MapboxAccessToken
           GEOCODE_RATE_LIMIT_PER_MINUTE: '30'
+          API_SECRETS_ARN: !Ref ApiSecretsArn
       Events:
         GeocodeWorkplace:
           Type: HttpApi
@@ -130,3 +140,18 @@ Resources:
             ApiId: !Ref HousingHttpApi
             Path: /api/geocode-workplace
             Method: POST
+
+  ApiSecretsReadPolicy:
+    Type: AWS::IAM::Policy
+    Condition: HasApiSecretsArn
+    Properties:
+      PolicyName: housing-finder-api-secrets-read
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Ref ApiSecretsArn
+      Roles:
+        - !Ref SearchAreasFunctionRole
+        - !Ref GeocodeWorkplaceFunctionRole

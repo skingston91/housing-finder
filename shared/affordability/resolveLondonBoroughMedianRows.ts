@@ -1,5 +1,6 @@
 import type { PropertyTypeDto } from '../searchAreasContract';
 
+import type { AffordabilityMedianPriceSource } from './affordabilityMedianPriceSource';
 import type { LondonBoroughMedianRow } from './londonBoroughMedians';
 import { LONDON_BOROUGH_MEDIANS } from './londonBoroughMedians';
 import type { UkhpiAveragePriceKey } from './ukhpiAveragePriceKey';
@@ -7,11 +8,9 @@ import { ukhpiAveragePriceKeyForPropertyTypes } from './ukhpiAveragePriceKey';
 import { fetchLatestAveragePriceForUkhpiSlug } from './ukhpiLinkedDataApi';
 import { fetchLondonBoroughUkhpiPricesViaSparql } from './ukhpiSparql';
 import { UKHPI_REGION_SLUG_BY_BOROUGH_ID } from './ukhpiRegionSlugByBoroughId';
+import { buildUkhpiTelemetry, logUkhpiResolutionTelemetry } from './ukhpiResolutionTelemetry';
 
-export type AffordabilityMedianPriceSource =
-  | 'ukhpi-linked-data'
-  | 'ukhpi-partial-static-fallback'
-  | 'static-london-borough-table';
+export type { AffordabilityMedianPriceSource } from './affordabilityMedianPriceSource';
 
 export interface ResolvedLondonBoroughMedianRows {
   readonly rows: readonly LondonBoroughMedianRow[];
@@ -71,6 +70,8 @@ export const resolveLondonBoroughMedianRows = async (
     return cached.payload;
   }
 
+  const startedAt = performance.now();
+
   const merged: LondonBoroughMedianRow[] = LONDON_BOROUGH_MEDIANS.map((row) => ({ ...row }));
   let successCount = 0;
   let failCount = 0;
@@ -91,7 +92,8 @@ export const resolveLondonBoroughMedianRows = async (
     return true;
   };
 
-  const sparqlMap = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl, priceKey);
+  const sparqlResult = await fetchLondonBoroughUkhpiPricesViaSparql(fetchImpl, priceKey);
+  const sparqlMap = sparqlResult.ok ? sparqlResult.map : null;
   const resolvedFromSparql = new Set<string>();
   if (sparqlMap !== null) {
     for (const [boroughId, live] of sparqlMap) {
@@ -112,11 +114,17 @@ export const resolveLondonBoroughMedianRows = async (
     return { id: row.id, live };
   });
 
+  const failedJsonBoroughIds: string[] = [];
+  let jsonPathSucceeded = 0;
   for (const r of jsonResults) {
     if (r.live === null) {
       failCount += 1;
+      if (failedJsonBoroughIds.length < 8) {
+        failedJsonBoroughIds.push(r.id);
+      }
       continue;
     }
+    jsonPathSucceeded += 1;
     void applyPrice(r.id, r.live.averagePriceGbp, r.live.refMonth);
   }
 
@@ -128,6 +136,21 @@ export const resolveLondonBoroughMedianRows = async (
   } else {
     priceSource = 'ukhpi-linked-data';
   }
+
+  logUkhpiResolutionTelemetry(
+    buildUkhpiTelemetry(
+      priceKey,
+      startedAt,
+      sparqlResult,
+      {
+        boroughsAttempted: needJsonFetch.length,
+        boroughsSucceeded: jsonPathSucceeded,
+        boroughsFailed: failCount,
+        failedBoroughIdsSample: failedJsonBoroughIds,
+      },
+      priceSource,
+    ),
+  );
 
   const payload: ResolvedLondonBoroughMedianRows =
     successCount === 0

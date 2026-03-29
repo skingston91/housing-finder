@@ -1,4 +1,4 @@
-import type { AffordabilityMedianPriceSource } from './resolveLondonBoroughMedianRows';
+import type { AffordabilityMedianPriceSource } from './affordabilityMedianPriceSource';
 
 /** UI / metadata line for Land Registry–related affordability signals (OGL). */
 export const affordabilityLandRegistryAttribution = (

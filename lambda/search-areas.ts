@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
 import { parseSearchAreasRequestBody } from '../shared/parseSearchAreasRequestBody';
 import { buildRankedAreas } from '../shared/rankAreas/buildRankedAreas';
+import { resolveSecretString } from '../shared/secrets/apiSecrets';
 
 import { jsonResponse } from './http';
 
@@ -23,8 +24,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     return jsonResponse(400, { error: parsed.error });
   }
 
-  const tflAppKey = process.env.TFL_APP_KEY?.trim();
-  const orsApiKey = process.env.ORS_API_KEY?.trim();
+  const tflAppKey = await resolveSecretString('TFL_APP_KEY');
+  const orsApiKey = await resolveSecretString('ORS_API_KEY');
   const useLiveUkhpiMedians = process.env.UKHPI_LIVE?.trim() !== '0';
   const routing =
     (tflAppKey !== undefined && tflAppKey !== '') || (orsApiKey !== undefined && orsApiKey !== '')

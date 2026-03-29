@@ -56,6 +56,14 @@ This runs **`sam local start-api`** on port **3000** via [`scripts/sam-local.mjs
 
 `GeocodeWorkplaceFunction` enforces **`GEOCODE_RATE_LIMIT_PER_MINUTE`** (default **30** per client IP per rolling minute in [`template.yaml`](../../template.yaml)). Counts are **in-memory per Lambda instance** (warm-container only). **`0`** disables limiting. On exceed, the API returns **429** with **`Retry-After`** and JSON **`retryAfterSeconds`**.
 
+### Secrets Manager (optional API keys)
+
+[`template.yaml`](../../template.yaml) **Parameter** **`ApiSecretsArn`** (optional). When set to a [Secrets Manager](https://docs.aws.amazon.com/secretsmanager/) secret **ARN**, both **`SearchAreasFunction`** and **`GeocodeWorkplaceFunction`** receive **`API_SECRETS_ARN`** and may read **`SecretString`** as JSON with optional keys **`TFL_APP_KEY`**, **`ORS_API_KEY`**, **`MAPBOX_ACCESS_TOKEN`**. **Plain template parameters still win** when non-empty (see [`shared/secrets/apiSecrets.ts`](../../shared/secrets/apiSecrets.ts)). CloudFormation attaches **`ApiSecretsReadPolicy`** (`secretsmanager:GetSecretValue` on that ARN) only when **`ApiSecretsArn`** is not empty. If the secret uses a **customer-managed KMS** key, add **`kms:Decrypt`** on that key to the execution role (not included by default).
+
+### UK HPI resolution logs
+
+With live UK HPI enabled, **`resolveLondonBoroughMedianRows`** emits a single **structured JSON** line per resolution (component **`ukhpi_resolution`**) to **stdout** — SPARQL outcome, JSON fallback counts, failed borough id sample, duration — for **CloudWatch Logs** filtering. No personal data.
+
 ## Build and deploy
 
 ```bash
