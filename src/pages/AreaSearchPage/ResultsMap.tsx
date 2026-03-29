@@ -13,6 +13,57 @@ const BASE_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.jso
 
 const NO_SELECTION = '__no_selection__';
 
+const buildAreaPopupEl = (props: {
+  readonly name: string;
+  readonly score: number;
+  readonly affordability: number;
+  readonly commute: number;
+  readonly schools: number;
+  readonly crime: number;
+}): HTMLDivElement => {
+  const root = document.createElement('div');
+  root.style.minWidth = '188px';
+  root.style.fontFamily = 'system-ui, sans-serif';
+  root.style.fontSize = '12px';
+  root.style.lineHeight = '1.45';
+  root.style.color = '#1a202c';
+
+  const title = document.createElement('div');
+  title.style.fontWeight = '600';
+  title.style.marginBottom = '6px';
+  title.textContent = props.name;
+  root.appendChild(title);
+
+  const overall = document.createElement('div');
+  overall.style.marginBottom = '8px';
+  overall.textContent = `Overall score: ${String(props.score)}`;
+  root.appendChild(overall);
+
+  const grid = document.createElement('div');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'auto 1fr';
+  grid.style.columnGap = '10px';
+  grid.style.rowGap = '3px';
+
+  const row = (label: string, value: number) => {
+    const l = document.createElement('span');
+    l.textContent = label;
+    l.style.color = '#4a5568';
+    const v = document.createElement('span');
+    v.textContent = String(Math.round(value));
+    grid.appendChild(l);
+    grid.appendChild(v);
+  };
+
+  row('Affordability', props.affordability);
+  row('Commute', props.commute);
+  row('Schools', props.schools);
+  row('Crime', props.crime);
+  root.appendChild(grid);
+
+  return root;
+};
+
 const syncResultsLayerSelection = (map: maplibregl.Map, selectedAreaId: string | null): void => {
   if (!map.getLayer('results-circles')) {
     return;
@@ -93,6 +144,10 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
         areaId: a.id,
         name: a.displayName,
         score: Math.round(a.score),
+        affordability: a.breakdown.affordability,
+        commute: a.breakdown.commute,
+        schools: a.breakdown.schools,
+        crime: a.breakdown.crime,
       },
     }));
 
@@ -111,6 +166,8 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
       type: 'FeatureCollection',
       features,
     };
+
+    let activePopup: maplibregl.Popup | null = null;
 
     const onLoad = () => {
       map.addSource('results', {
@@ -144,20 +201,85 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
 
       syncResultsLayerSelection(map, selectedRef.current);
 
-      map.on('click', 'results-circles', (e) => {
-        const f = e.features?.[0];
-        if (f === undefined) {
+      map.on('click', (e) => {
+        const hits = map.queryRenderedFeatures(e.point, { layers: ['results-circles'] });
+        if (hits.length === 0) {
+          activePopup?.remove();
+          activePopup = null;
           return;
         }
-        const raw: unknown = f.properties;
+
+        const hit = hits[0];
+        if (hit === undefined) {
+          return;
+        }
+        const raw: unknown = hit.properties;
         if (typeof raw !== 'object' || raw === null) {
           return;
         }
         const rec = raw as Record<string, unknown>;
         const kind = rec.kind;
-        const id = rec.areaId;
-        if (kind === 'area' && typeof id === 'string' && id.length > 0) {
+        const geom = hit.geometry;
+        if (geom.type !== 'Point') {
+          return;
+        }
+        const coords = geom.coordinates;
+        const lng0 = coords[0];
+        const lng1 = coords[1];
+        if (lng0 === undefined || lng1 === undefined) {
+          return;
+        }
+        const lngLat: [number, number] = [lng0, lng1];
+
+        activePopup?.remove();
+        activePopup = null;
+
+        if (kind === 'workplace') {
+          const tip = document.createElement('div');
+          tip.style.maxWidth = '220px';
+          tip.style.fontFamily = 'system-ui, sans-serif';
+          tip.style.fontSize = '12px';
+          tip.style.lineHeight = '1.45';
+          tip.style.color = '#1a202c';
+          tip.textContent = 'Your workplace — commute searches use this point as the anchor.';
+          activePopup = new maplibregl.Popup({
+            closeButton: true,
+            maxWidth: '280px',
+          })
+            .setLngLat(lngLat)
+            .setDOMContent(tip)
+            .addTo(map);
+          return;
+        }
+
+        if (kind === 'area') {
+          const id = rec.areaId;
+          if (typeof id !== 'string' || id.length === 0) {
+            return;
+          }
+          const name = typeof rec.name === 'string' ? rec.name : 'Area';
+          const score = typeof rec.score === 'number' ? rec.score : 0;
+          const num = (k: string): number => {
+            const v = rec[k];
+            return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+          };
           onSelectRef.current(id, 'map');
+          activePopup = new maplibregl.Popup({
+            closeButton: true,
+            maxWidth: '300px',
+          })
+            .setLngLat(lngLat)
+            .setDOMContent(
+              buildAreaPopupEl({
+                name,
+                score,
+                affordability: num('affordability'),
+                commute: num('commute'),
+                schools: num('schools'),
+                crime: num('crime'),
+              }),
+            )
+            .addTo(map);
         }
       });
 
@@ -172,6 +294,7 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
     void map.once('load', onLoad);
 
     return () => {
+      activePopup?.remove();
       map.remove();
       mapRef.current = null;
     };
@@ -206,8 +329,9 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
         bg="gray.100"
       />
       <Text fontSize="xs" color="fg.muted" mt={2}>
-        Basemap © OpenStreetMap contributors © CARTO · Click a blue dot or a result card to
-        highlight an area.
+        Basemap © OpenStreetMap contributors © CARTO · Click a dot for scores (areas) or the commute
+        anchor (workplace); click the map background to close the popup. Result cards still sync
+        highlight with the map.
       </Text>
     </Box>
   );

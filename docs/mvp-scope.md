@@ -19,16 +19,16 @@
 
 The following is **implemented and documented** for anonymous London-first area discovery:
 
-| Area              | Status                                                                                                                                                                                  |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **UI**            | Criteria form, results, **MapLibre** map after search, loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label                                     |
-| **API**           | `GET /api/health`, `POST /api/search-areas`, `POST /api/geocode-workplace`                                                                                                              |
-| **Affordability** | Nearest-borough indicative median + optional **max £/m²** blend (`shared/affordability/`); OGL attribution in metadata and UI                                                           |
-| **Commute**       | Straight-line proxy by mode; **transit** can use **TfL Journey Planner** when `TFL_APP_KEY` is set on `SearchAreasFunction` (`shared/commute/tflJourney.ts`; TfL uses **app_key** only) |
-| **Schools**       | Phase-aware distance to seed schools (`shared/schools/`)                                                                                                                                |
-| **Crime**         | data.police.uk street-level, weighted categories (`shared/policeUk/`, `shared/rankAreas/buildRankedAreas.ts`)                                                                           |
-| **Candidates**    | Workplace grid inside London bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                                                                          |
-| **Quality**       | `npm run verify` (lint, format, tsc, tests, Vite build); SAM build separate (`npm run sam:build`)                                                                                       |
+| Area              | Status                                                                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **UI**            | Criteria form, results, **MapLibre** map after search (centroid popups with score breakdown), loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label |
+| **API**           | `GET /api/health`, `POST /api/search-areas`, `POST /api/geocode-workplace`                                                                                                                 |
+| **Affordability** | Nearest-borough indicative median + optional **max £/m²** blend (`shared/affordability/`); OGL attribution in metadata and UI                                                              |
+| **Commute**       | Straight-line proxy by mode; **transit** can use **TfL Journey Planner** when `TFL_APP_KEY` is set on `SearchAreasFunction` (`shared/commute/tflJourney.ts`; TfL uses **app_key** only)    |
+| **Schools**       | Phase-aware distance to seed schools (`shared/schools/`)                                                                                                                                   |
+| **Crime**         | data.police.uk street-level, weighted categories (`shared/policeUk/`, `shared/rankAreas/buildRankedAreas.ts`)                                                                              |
+| **Candidates**    | Workplace grid inside London bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                                                                             |
+| **Quality**       | `npm run verify` (lint, format, tsc, tests, Vite build); SAM build separate (`npm run sam:build`)                                                                                          |
 
 Phase 1 is **not** a substitute for conveyancing, school admissions, or routing; it is a **transparent composite** for exploration.
 
@@ -38,7 +38,7 @@ Phase 1 is **not** a substitute for conveyancing, school admissions, or routing;
 2. **Land Registry** — Live **SPARQL** or official statistical feeds instead of static borough medians; refresh pipeline.
 3. **Schools** — DfE or official open data (performance, proximity) instead of seed-only distance.
 4. **Commute** — **Partial:** TfL Unified API for **transit**; **OpenRouteService** directions for **driving** / **cycling** / **walking** when **`ORS_API_KEY`** is set on `SearchAreasFunction` (`shared/commute/orsDirections.ts`, in-memory cache). **Next:** OSRM self-host, Google Directions, Secrets Manager. **Commercial hardening** (global rate limits, quotas, WAF): [commercial-release-requirements.md](./commercial-release-requirements.md).
-5. **Maps** — **Partial:** **MapLibre** results map (workplace + ranked centroids), Carto **Positron** basemap, lazy-loaded chunk (`src/pages/AreaSearchPage/ResultsMap.tsx`). **List ↔ map:** selecting a result card or a map point highlights both; **map pick** scrolls the matching card into view (`block: 'nearest'`). **Next:** optional paid tiles, richer popups.
+5. **Maps** — **Partial:** **MapLibre** results map (workplace + ranked centroids), Carto **Positron** basemap, lazy-loaded chunk (`src/pages/AreaSearchPage/ResultsMap.tsx`). **List ↔ map:** selecting a result card or a map point highlights both; **map pick** scrolls the matching card into view (`block: 'nearest'`). **Popups:** click an area dot for name + overall score + dimension breakdown; workplace dot shows anchor copy; background click closes. **Next:** optional paid tiles, keyboard-accessible map inspection.
 
 ## Near-term backlog (legacy list — superseded by Phase 2 above)
 

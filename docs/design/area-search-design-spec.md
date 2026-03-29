@@ -16,7 +16,7 @@
 | Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`                                      |
 | Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts` (`buildAreaSearchCriteria` → domain) |
 | Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`                                              |
-| Results map     | `src/pages/AreaSearchPage/ResultsMap.tsx` (list ↔ map highlight)                           |
+| Results map     | `src/pages/AreaSearchPage/ResultsMap.tsx` (list ↔ map highlight, centroid popups)          |
 | Score bars      | `src/pages/AreaSearchPage/ScoreBar.tsx`                                                    |
 | Ports           | `src/adapters/ports.ts` (`AreaDiscoveryPort`, `WorkplaceGeocodePort`)                      |
 | HTTP adapters   | `src/adapters/httpAreaDiscovery.ts`, `httpWorkplaceGeocode.ts`                             |
@@ -30,7 +30,7 @@
 1. User adjusts criteria (defaults pre-filled for London demo).
 2. **Search areas** → `POST /api/search-areas` with JSON body.
 3. **Loading:** spinner + “Ranking areas…”
-4. **Success:** results column shows a **map** (workplace + centroids) and **cards**; selecting a card or a map point **highlights** the same area (ring on card, larger/darker circle on map). Picking an area **on the map** **scrolls** the corresponding card into view when it is off-screen.
+4. **Success:** results column shows a **map** (workplace + centroids) and **cards**; selecting a card or a map point **highlights** the same area (ring on card, larger/darker circle on map). Picking an area **on the map** **scrolls** the corresponding card into view when it is off-screen. **Clicking a centroid** opens a **popup** (name, overall score, dimension breakdown); **workplace** dot shows anchor copy; **click outside** closes the popup.
 5. **Error:** inline alert with server message or validation hint.
 6. **Empty (no search yet):** short copy explaining `npm run dev:stack` or `sam local` + Vite proxy for local API.
 7. **Optional:** **Fill coordinates from label** → `POST /api/geocode-workplace` (Nominatim; low volume).
