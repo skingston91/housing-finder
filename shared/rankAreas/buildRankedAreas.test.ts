@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { clearTflJourneyCache } from '../commute/tflJourney';
 import type { SearchAreasRequestBody } from '../searchAreasContract';
 
 import { buildRankedAreas } from './buildRankedAreas';
@@ -14,6 +15,10 @@ const minimalBody: SearchAreasRequestBody = {
 };
 
 describe('buildRankedAreas', () => {
+  beforeEach(() => {
+    clearTflJourneyCache();
+  });
+
   it('ranks areas using mocked police.uk responses', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(

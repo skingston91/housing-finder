@@ -21,7 +21,7 @@ The following is **implemented and documented** for anonymous London-first area 
 
 | Area              | Status                                                                                                                                                                                  |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **UI**            | Criteria form, results, loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label                                                                    |
+| **UI**            | Criteria form, results, **MapLibre** map after search, loading/error/empty states, data-source alerts, provenance copy, optional geocode-from-label                                     |
 | **API**           | `GET /api/health`, `POST /api/search-areas`, `POST /api/geocode-workplace`                                                                                                              |
 | **Affordability** | Nearest-borough indicative median + optional **max £/m²** blend (`shared/affordability/`); OGL attribution in metadata and UI                                                           |
 | **Commute**       | Straight-line proxy by mode; **transit** can use **TfL Journey Planner** when `TFL_APP_KEY` is set on `SearchAreasFunction` (`shared/commute/tflJourney.ts`; TfL uses **app_key** only) |
@@ -34,11 +34,11 @@ Phase 1 is **not** a substitute for conveyancing, school admissions, or routing;
 
 ## Phase 2 backlog (future)
 
-1. **Production geocoder** — Replace or supplement Nominatim with a hosted geocoder, quotas, and abuse protection.
+1. **Production geocoder** — **Partial:** optional **Mapbox Geocoding** when **`MAPBOX_ACCESS_TOKEN`** is set on `GeocodeWorkplaceFunction` (`shared/geocoding/geocodeUkWorkplace.ts`); otherwise Nominatim. **Next:** quotas, abuse protection, additional providers.
 2. **Land Registry** — Live **SPARQL** or official statistical feeds instead of static borough medians; refresh pipeline.
 3. **Schools** — DfE or official open data (performance, proximity) instead of seed-only distance.
-4. **Commute** — **Partial:** TfL Unified API for **transit** mode (template parameters + env). **Next:** driving/cycling OSRM or Google Directions, caching, Secrets Manager, rate limits.
-5. **Maps** — MapLibre (or similar) with list + map parity and attribution.
+4. **Commute** — **Partial:** TfL Unified API for **transit** mode; **in-memory journey cache** (warm Lambda, TTL, capped size) in `shared/commute/tflJourney.ts`. **Next:** driving/cycling OSRM or Google Directions, Secrets Manager, stricter rate limits.
+5. **Maps** — **Partial:** **MapLibre** results map (workplace + ranked centroids), Carto **Positron** basemap, lazy-loaded chunk (`src/pages/AreaSearchPage/ResultsMap.tsx`). **Next:** list ↔ map interaction, optional paid tiles, popups.
 
 ## Near-term backlog (legacy list — superseded by Phase 2 above)
 

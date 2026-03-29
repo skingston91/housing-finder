@@ -34,5 +34,13 @@ export const postGeocodeWorkplace = async (q: string): Promise<GeocodeWorkplaceR
   ) {
     throw new Error('Invalid geocode response');
   }
-  return { latitude: lat, longitude: lng, displayName };
+  const providerRaw = (data as { geocodeProvider?: unknown }).geocodeProvider;
+  const geocodeProvider =
+    providerRaw === 'mapbox' || providerRaw === 'nominatim' ? providerRaw : undefined;
+  return {
+    latitude: lat,
+    longitude: lng,
+    displayName,
+    ...(geocodeProvider ? { geocodeProvider } : {}),
+  };
 };

@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SearchAreasRequestBody } from '../searchAreasContract';
 
 import { resolveCommuteScore } from './resolveCommuteScore';
+import { clearTflJourneyCache } from './tflJourney';
 
 const transitBody = (maxMinutes: number): SearchAreasRequestBody => ({
   maxPriceGbp: 400_000,
@@ -14,6 +15,10 @@ const transitBody = (maxMinutes: number): SearchAreasRequestBody => ({
 });
 
 describe('resolveCommuteScore', () => {
+  beforeEach(() => {
+    clearTflJourneyCache();
+  });
+
   it('uses TfL when transit mode and credentials return a journey', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(

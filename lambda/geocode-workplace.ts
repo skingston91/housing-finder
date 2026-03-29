@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
-import { geocodeWithNominatim } from '../shared/geocoding/nominatim';
+import { geocodeUkWorkplace } from '../shared/geocoding/geocodeUkWorkplace';
 import { parseGeocodeRequestBody } from '../shared/parseGeocodeRequestBody';
 
 import { jsonResponse } from './http';
@@ -24,7 +24,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   }
 
   try {
-    const hit = await geocodeWithNominatim(parsed.value.q, globalThis.fetch);
+    const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN?.trim() ?? '';
+    const hit = await geocodeUkWorkplace(parsed.value.q, globalThis.fetch, {
+      mapboxAccessToken: mapboxToken || undefined,
+    });
     if (!hit) {
       return jsonResponse(404, { error: 'No results for that query' });
     }
@@ -32,6 +35,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       latitude: hit.latitude,
       longitude: hit.longitude,
       displayName: hit.displayName,
+      geocodeProvider: hit.provider,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Geocoding failed';

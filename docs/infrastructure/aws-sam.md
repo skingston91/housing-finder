@@ -38,6 +38,12 @@ sam local start-api --port 3000 --env-vars sam/env.json
 
 Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
 
+### Mapbox (optional workplace geocode)
+
+`GeocodeWorkplaceFunction` reads **`MAPBOX_ACCESS_TOKEN`** from the **`MapboxAccessToken`** template parameter (see [`template.yaml`](../../template.yaml)). When empty, geocoding uses Nominatim only. When set, Mapbox is tried first and Nominatim is used as fallback. Register at [Mapbox](https://www.mapbox.com/) and follow their billing and usage terms.
+
+**Local SAM:** add `GeocodeWorkplaceFunction` → `MAPBOX_ACCESS_TOKEN` in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
+
 ## Build and deploy
 
 ```bash

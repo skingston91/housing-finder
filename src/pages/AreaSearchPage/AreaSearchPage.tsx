@@ -10,13 +10,17 @@ import {
   Text,
 } from '@chakra-ui/react';
 import type { RankedAreaDto } from '@shared/searchAreasContract';
-import { useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 
 import { postGeocodeWorkplace } from '@/services/geocodeWorkplaceClient';
 import { postSearchAreas } from '@/services/searchAreasClient';
 
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
+const ResultsMapLazy = lazy(async () => {
+  const m = await import('./ResultsMap');
+  return { default: m.ResultsMap };
+});
 import { buildSearchAreasRequest, defaultFormState } from './buildSearchAreasRequest';
 import {
   firstDataPoliceUkAttribution,
@@ -52,6 +56,13 @@ export const AreaSearchPage = () => {
       setGeocodePending(false);
     }
   }, [form.workplaceLabel]);
+
+  const workplaceForMap = useMemo(() => {
+    if (form.workplaceLat === '' || form.workplaceLng === '') {
+      return null;
+    }
+    return { latitude: form.workplaceLat, longitude: form.workplaceLng };
+  }, [form.workplaceLat, form.workplaceLng]);
 
   const handleSearch = useCallback(async () => {
     setError(null);
@@ -128,6 +139,17 @@ export const AreaSearchPage = () => {
                     <Alert.Description>{error}</Alert.Description>
                   </Alert.Content>
                 </Alert.Root>
+              ) : null}
+              {!loading && areas.length > 0 ? (
+                <Suspense
+                  fallback={
+                    <Text fontSize="sm" color="fg.muted">
+                      Loading map…
+                    </Text>
+                  }
+                >
+                  <ResultsMapLazy workplace={workplaceForMap} areas={areas} />
+                </Suspense>
               ) : null}
               {!loading && !error && areas.length === 0 ? (
                 <Text color="fg.muted" fontSize="sm">

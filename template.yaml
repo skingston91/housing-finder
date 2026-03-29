@@ -9,6 +9,12 @@ Parameters:
     Description: TfL Unified API app_key only (optional; app_id is not used). Enables journey-based transit commute.
     NoEcho: true
 
+  MapboxAccessToken:
+    Type: String
+    Default: ''
+    Description: Optional Mapbox access token for workplace geocoding; when empty, Nominatim is used.
+    NoEcho: true
+
 Globals:
   Function:
     Timeout: 30
@@ -94,6 +100,9 @@ Resources:
       CodeUri: ./
       Handler: lambda/geocode-workplace.handler
       Runtime: nodejs22.x
+      Environment:
+        Variables:
+          MAPBOX_ACCESS_TOKEN: !Ref MapboxAccessToken
       Events:
         GeocodeWorkplace:
           Type: HttpApi

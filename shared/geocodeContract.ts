@@ -1,5 +1,5 @@
 /**
- * HTTP contract for POST /api/geocode-workplace (Nominatim-backed, server-side only).
+ * HTTP contract for POST /api/geocode-workplace (server-side: optional Mapbox, else Nominatim).
  */
 
 export interface GeocodeWorkplaceRequestBody {
@@ -10,4 +10,6 @@ export interface GeocodeWorkplaceResponseBody {
   readonly latitude: number;
   readonly longitude: number;
   readonly displayName: string;
+  /** Which upstream resolved the query (omitted in older clients). */
+  readonly geocodeProvider?: 'mapbox' | 'nominatim';
 }
