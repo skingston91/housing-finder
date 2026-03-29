@@ -99,5 +99,5 @@ The ranking sample (`shared/schools/londonStateSchoolEstablishmentSample.ts`) ca
 
 ## Maps (display)
 
-- **Implemented (phase 2 slice):** **MapLibre GL** with **Carto Positron** vector style (`https://basemaps.cartocdn.com/gl/positron-gl-style/style.json`) in `src/pages/AreaSearchPage/ResultsMap.tsx` — workplace (red) and ranked area centroids (blue). Basemap attribution: **© OpenStreetMap contributors © CARTO** (also surfaced in UI copy).
+- **Implemented (phase 2 slice):** **MapLibre GL** with default **Carto Positron** vector style (`https://basemaps.cartocdn.com/gl/positron-gl-style/style.json`) in `src/pages/AreaSearchPage/ResultsMap.tsx` — workplace (red) and ranked area centroids (blue). Override with **`VITE_MAPLIBRE_STYLE_URL`** in `.env.local` (public MapLibre-compatible style JSON; follow that provider’s attribution). Default basemap attribution: **© OpenStreetMap contributors © CARTO** (also surfaced in UI copy).
 - **Future:** richer map popups, optional commercial tiles (Mapbox, MapTiler, etc.) where licence allows.

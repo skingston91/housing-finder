@@ -30,6 +30,7 @@ For **TfL / ORS / Mapbox** on Lambdas locally, put **`TFL_APP_KEY`**, **`ORS_API
 ## Environment variables
 
 - Copy `.env.example` to `.env.local` for Vite. **Only** variables prefixed with `VITE_` are exposed to the browser.
+- **`VITE_MAPLIBRE_STYLE_URL`** (optional) — URL to a MapLibre-compatible style JSON for the results map; defaults to Carto Positron.
 - **`TFL_APP_KEY` / `ORS_API_KEY` / `MAPBOX_ACCESS_TOKEN`** in **`.env`** (not `VITE_*`) are picked up by **`npm run sam:local`** for local Lambda emulation — they never reach the browser.
 - For production, use **SAM deploy parameters**, **AWS console env**, or **Secrets Manager**, not only a checked-in `.env`.
 

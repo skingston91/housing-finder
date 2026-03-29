@@ -10,7 +10,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 maplibregl.setWorkerUrl(maplibreglWorkerUrl);
 
-const BASE_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const DEFAULT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+
+const mapStyleUrl = (): string => {
+  const raw = import.meta.env.VITE_MAPLIBRE_STYLE_URL;
+  return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : DEFAULT_MAP_STYLE;
+};
 
 const NO_SELECTION = '__no_selection__';
 
@@ -178,7 +183,7 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
     try {
       map = new maplibregl.Map({
         container: el,
-        style: BASE_STYLE,
+        style: mapStyleUrl(),
       });
     } catch {
       return;
