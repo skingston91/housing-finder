@@ -61,7 +61,7 @@ The ranking sample (`shared/schools/londonStateSchoolEstablishmentSample.ts`) ca
 - **URL:** [Compare school performance](https://www.compare-school-performance.service.gov.uk/) (human-facing); prefer **official open data** downloads/APIs where available for automation.
 - **Use:** Distance to good schools, phase filters, performance bands.
 - **Risk:** Scraping the website is fragile; plan ingestion from **published open data** files or APIs only.
-- **Implementation (phase 2 partial):** `shared/schools/londonSchoolPointsForRanking.ts` combines original seeds with `londonStateSchoolEstablishmentSample.ts` (extra London coordinates in the **GIAS / DfE open-data family**, OGL). Scoring: `schoolsScoreFromEstablishmentPoints` (distance + phase match). Metadata `schoolsModel: gias-open-data-sample`. Maintainer notes for replacing the sample with a CSV extract: [`scripts/README.md`](../../scripts/README.md).
+- **Implementation (phase 2 partial):** `shared/schools/londonSchoolPointsForRanking.ts` combines original seeds with `londonStateSchoolEstablishmentSample.ts` (extra London coordinates in the **GIAS / DfE open-data family**, OGL). Scoring: `schoolsScoreFromEstablishmentPoints` (distance + phase match, with a seed-only prototype performance blend via `performanceByPhase`). Metadata `schoolsModel: gias-open-data-sample-performance-seed-prototype`. Maintainer notes for replacing the sample with a CSV extract: [`scripts/README.md`](../../scripts/README.md).
 - **Alternatives (commercial):** third-party education data products; **official:** GIAS, DfE statistical releases.
 
 ### Property listings (Zoopla, Rightmove, etc.)
@@ -87,7 +87,7 @@ The ranking sample (`shared/schools/londonStateSchoolEstablishmentSample.ts`) ca
 
 ### Schools (phase 1 proxy)
 
-- **Seed proximity:** `shared/schools/londonSchoolSeeds.ts` — small reference coordinate set; `metadata.schoolsModel: seed-school-distance`. Not DfE performance data; replace with official open data when available.
+- **Seed proximity + prototype performance:** `shared/schools/londonSchoolSeeds.ts` — small reference coordinate set enriched with an optional `performanceByPhase` seed signal (0–100) blended into `schoolsScoreFromEstablishmentPoints`. Current `metadata.schoolsModel: gias-open-data-sample-performance-seed-prototype`. Replace the seed-only performance prototype with official DfE/open performance tables later.
 - **Alternatives:** DfE open data, GIAS; commercial school-location products.
 
 ### National Rail — OJP / RTJP

@@ -131,7 +131,7 @@ export const buildRankedAreas = async (
           ...(commuteRes.journeyMinutes !== undefined
             ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
             : {}),
-          schoolsModel: 'gias-open-data-sample',
+          schoolsModel: 'gias-open-data-sample-performance-seed-prototype',
         },
       };
       return area;

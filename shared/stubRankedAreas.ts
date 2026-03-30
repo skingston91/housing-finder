@@ -42,7 +42,7 @@ export const generateStubRankedAreas = (
         affordabilityModel: 'borough-median-indicator',
         landRegistryOgl: affordabilityLandRegistryAttribution('static-london-borough-table'),
         commuteModel: 'straight-line-time-estimate',
-        schoolsModel: 'gias-open-data-sample',
+        schoolsModel: 'gias-open-data-sample-performance-seed-prototype',
       },
     };
   });

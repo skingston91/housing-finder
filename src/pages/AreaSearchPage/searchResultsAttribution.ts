@@ -9,9 +9,11 @@ const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): strin
       'Affordability compares your budget to HM Land Registry UK HPI average prices for the nearest London borough where available (OGL — discovery only).';
   }
   const schools =
-    metadata?.schoolsModel === 'gias-open-data-sample'
-      ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).'
-      : ' Schools use distance to a small reference seed set.';
+    metadata?.schoolsModel === 'gias-open-data-sample-performance-seed-prototype'
+      ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in a prototype performance signal from seed metadata (replace with official DfE/open performance tables later).'
+      : metadata?.schoolsModel === 'gias-open-data-sample'
+        ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).'
+        : ' Schools use distance to a small reference seed set.';
   return `${aff}${schools}`;
 };
 

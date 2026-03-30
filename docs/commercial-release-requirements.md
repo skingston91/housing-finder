@@ -24,6 +24,7 @@ Cross-check [data-sources.md](./data-sources.md) whenever an integration changes
 
 - Re-read **commercial-use** terms for every provider (TfL, OpenRouteService, Mapbox, Carto basemaps, data.police.uk, any future listing or registry data).
 - Keep on-screen and in-metadata **attribution** accurate and complete; add an “About data” or legal page if required.
+- DfE / school performance data: prefer official open data downloads/APIs and verify licensing/attribution; avoid scraping human-facing pages (fragile + ToS risk).
 - **Privacy:** if you log IPs, workplace strings, or analytics, align with GDPR/UK GDPR (lawful basis, retention, DPIA as needed).
 
 ## Reliability and observability

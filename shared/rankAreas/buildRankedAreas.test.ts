@@ -193,6 +193,8 @@ describe('buildRankedAreas', () => {
     expect(areas[0]?.metadata?.affordabilityPriceSource).toBe('ukhpi-linked-data');
     expect(areas[0]?.metadata?.ukhpiRefMonth).toBe('2025-06');
     expect(areas[0]?.metadata?.ukhpiPriceMeasure).toBe('averagePriceFlatMaisonette');
-    expect(areas[0]?.metadata?.schoolsModel).toBe('gias-open-data-sample');
+    expect(areas[0]?.metadata?.schoolsModel).toBe(
+      'gias-open-data-sample-performance-seed-prototype',
+    );
   });
 });
