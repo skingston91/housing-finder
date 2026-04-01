@@ -92,7 +92,12 @@ const syncResultsLayerSelection = (map: maplibregl.Map, selectedAreaId: string |
 export type AreaSelectionSource = 'map' | 'list';
 
 export interface ResultsMapProps {
-  readonly workplace: { readonly latitude: number; readonly longitude: number } | null;
+  /** Commute anchor: coordinates plus the same workplace label used in search (card-style header on the pin). */
+  readonly workplace: {
+    readonly latitude: number;
+    readonly longitude: number;
+    readonly label: string;
+  } | null;
   readonly areas: readonly RankedArea[];
   readonly selectedAreaId: string | null;
   /** `source` is `'map'` when the user picked a centroid on the map (used to scroll the list). */
@@ -166,10 +171,12 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
   }, []);
 
   const searchFingerprint = useMemo(() => {
-    const ids = areas.map((a) => a.id).join('|');
+    const parts = areas.map((a) => `${a.id}\u001f${a.displayName}`).join('|');
     const w =
-      workplace === null ? 'none' : `${String(workplace.latitude)},${String(workplace.longitude)}`;
-    return `${ids}#${w}`;
+      workplace === null
+        ? 'none'
+        : `${String(workplace.latitude)},${String(workplace.longitude)},${workplace.label}`;
+    return `${parts}#${w}`;
   }, [areas, workplace]);
 
   useEffect(() => {
@@ -216,7 +223,12 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
           type: 'Point',
           coordinates: [workplace.longitude, workplace.latitude],
         },
-        properties: { kind: 'workplace', areaId: '__workplace__', name: 'Workplace', score: 0 },
+        properties: {
+          kind: 'workplace',
+          areaId: '__workplace__',
+          name: workplace.label,
+          score: 0,
+        },
       });
     }
 
@@ -293,13 +305,23 @@ export const ResultsMap = ({ workplace, areas, selectedAreaId, onSelectArea }: R
         activePopup = null;
 
         if (kind === 'workplace') {
+          const titleText =
+            typeof rec.name === 'string' && rec.name.trim() !== '' ? rec.name : 'Workplace';
           const tip = document.createElement('div');
-          tip.style.maxWidth = '220px';
+          tip.style.maxWidth = '260px';
           tip.style.fontFamily = 'system-ui, sans-serif';
           tip.style.fontSize = '12px';
           tip.style.lineHeight = '1.45';
           tip.style.color = '#1a202c';
-          tip.textContent = 'Your workplace — commute searches use this point as the anchor.';
+          const h = document.createElement('div');
+          h.style.fontWeight = '600';
+          h.style.marginBottom = '6px';
+          h.textContent = titleText;
+          tip.appendChild(h);
+          const body = document.createElement('div');
+          body.style.color = '#4a5568';
+          body.textContent = 'Commute anchor — rankings use travel from this point.';
+          tip.appendChild(body);
           activePopup = new maplibregl.Popup({
             closeButton: true,
             maxWidth: '280px',

@@ -1,5 +1,7 @@
-import { Badge, Box, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
+import { Badge, Box, Button, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
+
+import { schoolsDimensionExplanationLine } from '@shared/schools/schoolsDimensionExplanation';
 
 import { areaProvenanceDescription, hasCrimeMetadataDetails } from './searchResultsAttribution';
 import { ScoreBar } from './ScoreBar';
@@ -8,6 +10,11 @@ export interface AreaResultCardProps {
   readonly area: RankedArea;
   readonly isSelected?: boolean;
   readonly onSelectArea?: (id: string) => void;
+  readonly compare?: {
+    readonly isInCompare: boolean;
+    readonly onToggle: () => void;
+    readonly limitReached: boolean;
+  };
 }
 
 const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
@@ -82,8 +89,14 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
   );
 };
 
-export const AreaResultCard = ({ area, isSelected = false, onSelectArea }: AreaResultCardProps) => {
+export const AreaResultCard = ({
+  area,
+  isSelected = false,
+  onSelectArea,
+  compare,
+}: AreaResultCardProps) => {
   const interactive = onSelectArea !== undefined;
+  const schoolsLine = schoolsDimensionExplanationLine(area.metadata);
 
   return (
     <Card.Root
@@ -122,6 +135,33 @@ export const AreaResultCard = ({ area, isSelected = false, onSelectArea }: AreaR
               Score {String(area.score)}
             </Badge>
           </HStack>
+          {compare !== undefined ? (
+            <Button
+              size="xs"
+              variant={compare.isInCompare ? 'solid' : 'outline'}
+              colorPalette="gray"
+              alignSelf="flex-start"
+              onClick={(e) => {
+                e.stopPropagation();
+                compare.onToggle();
+              }}
+              disabled={compare.limitReached && !compare.isInCompare}
+              title={
+                compare.limitReached && !compare.isInCompare
+                  ? 'Remove an area from compare first (maximum 3).'
+                  : undefined
+              }
+              aria-label={
+                compare.limitReached && !compare.isInCompare
+                  ? 'Compare is full, remove an area first'
+                  : compare.isInCompare
+                    ? 'Remove from compare'
+                    : 'Add to compare'
+              }
+            >
+              {compare.isInCompare ? 'In compare' : 'Compare'}
+            </Button>
+          ) : null}
           <Text fontSize="sm" color="fg.muted">
             {areaProvenanceDescription(area.metadata)} Lat {area.centroidLatitude.toFixed(3)}, Lng{' '}
             {area.centroidLongitude.toFixed(3)}
@@ -129,7 +169,14 @@ export const AreaResultCard = ({ area, isSelected = false, onSelectArea }: AreaR
           <Stack gap={3}>
             <ScoreBar label="Affordability" value={area.breakdown.affordability} />
             <ScoreBar label="Commute" value={area.breakdown.commute} />
-            <ScoreBar label="Schools" value={area.breakdown.schools} />
+            <Stack gap={1}>
+              <ScoreBar label="Schools" value={area.breakdown.schools} />
+              {schoolsLine !== null ? (
+                <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                  {schoolsLine}
+                </Text>
+              ) : null}
+            </Stack>
             <ScoreBar label="Crime (higher is better)" value={area.breakdown.crime} />
           </Stack>
           <ResultScoreDetails area={area} />

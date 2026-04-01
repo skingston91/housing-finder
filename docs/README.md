@@ -13,10 +13,11 @@
 
 ## Design
 
-| Document                                                                     | Purpose                                                |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------ |
-| [design/area-search-design-spec.md](./design/area-search-design-spec.md)     | Area search UX, structure, states, acceptance criteria |
-| [design/visual-design-spec.md](./design/visual-design-spec.md)               | Surfaces, type, accent (Jitty-inspired light UI)       |
-| [design/accessibility-design-spec.md](./design/accessibility-design-spec.md) | WCAG-oriented expectations                             |
+| Document                                                                                                       | Purpose                                                               |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [design/area-search-design-spec.md](./design/area-search-design-spec.md)                                       | Area search UX, structure, states, acceptance criteria                |
+| [design/area-search-trust-methodology-compare-spec.md](./design/area-search-trust-methodology-compare-spec.md) | Methodology panel, schools explain, compare (shareable URLs deferred) |
+| [design/visual-design-spec.md](./design/visual-design-spec.md)                                                 | Surfaces, type, accent (Jitty-inspired light UI)                      |
+| [design/accessibility-design-spec.md](./design/accessibility-design-spec.md)                                   | WCAG-oriented expectations                                            |
 
 Update these files when behaviour or integrations change so future debugging stays fast.

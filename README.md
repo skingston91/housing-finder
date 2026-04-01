@@ -12,7 +12,7 @@ npm run dev:stack
 
 Open [http://localhost:5173](http://localhost:5173). (`dev:stack` runs the **SAM local API** on port 3000 and **Vite** together; Docker + [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) required.)
 
-After changing Lambdas or `template.yaml`, run **`npm run sam:build`** (or **`npm run verify:sam`** to run the full app check plus SAM build).
+After changing Lambdas or `template.yaml`, run **`npm run sam:build`**, or **`npm run verify:sam`** to run **`npm run verify`** (lint, format, types, tests, Vite build), then **`npm run verify:data`** (DfE performance manifest quality gate; skips when no ingested school performance rows), then **`npm run sam:build`**.
 
 Front-end only (no `/api`): `npm run dev` — you will see proxy errors for search until `npm run sam:local` is running separately.
 

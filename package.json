@@ -13,13 +13,16 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"shared/**/*.ts\" \"lambda/**/*.ts\" \"api/**/*.md\" \"docs/**/*.md\" \"*.{json,md,yml}\" \"template.yaml\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"shared/**/*.ts\" \"lambda/**/*.ts\" \"api/**/*.md\" \"docs/**/*.md\" \"*.{json,md,yml}\" \"template.yaml\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"shared/**/*.{ts,json}\" \"lambda/**/*.ts\" \"api/**/*.md\" \"docs/**/*.md\" \"*.{json,md,yml}\" \"template.yaml\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"shared/**/*.{ts,json}\" \"lambda/**/*.ts\" \"api/**/*.md\" \"docs/**/*.md\" \"*.{json,md,yml}\" \"template.yaml\"",
     "sam:build": "sam build",
     "sam:local": "node scripts/sam-local.mjs",
     "ingest:gias": "node scripts/ingest-gias-establishments.mjs",
+    "ingest:dfe": "node scripts/ingest-dfe-performance.mjs",
+    "check:dfe-manifest": "node scripts/check-dfe-manifest.mjs",
+    "verify:data": "npm run check:dfe-manifest",
     "verify": "npm run lint && npm run format:check && tsc -b && npm run test && npm run build",
-    "verify:sam": "npm run verify && npm run sam:build"
+    "verify:sam": "npm run verify && npm run verify:data && npm run sam:build"
   },
   "engines": {
     "node": ">= 22",

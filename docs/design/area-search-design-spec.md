@@ -38,7 +38,7 @@
 ## Data and state
 
 - **Local React state** only (no auth): form state (`AreaSearchFormState`), `areas` (domain `RankedArea[]`), `loading`, `error`, `selectedAreaId` (list ↔ map).
-- **URL state:** deferred (could sync criteria later for shareable links).
+- **URL state:** **deferred** — shareable links / query params are not implemented; see [product-decisions.md](../product-decisions.md) and [area-search-trust-methodology-compare-spec.md](./area-search-trust-methodology-compare-spec.md).
 
 ## Visual and UX consistency (Jitty-inspired, light)
 

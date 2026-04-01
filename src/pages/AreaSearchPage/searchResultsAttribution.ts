@@ -8,12 +8,21 @@ const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): strin
     aff =
       'Affordability compares your budget to HM Land Registry UK HPI average prices for the nearest London borough where available (OGL — discovery only).';
   }
+  const statedPerfYear = metadata?.schoolsPerformanceAcademicYear;
+  const perfYear =
+    metadata?.schoolsModel === 'gias-open-data-sample-dfe-performance-urn-map' &&
+    typeof statedPerfYear === 'string' &&
+    statedPerfYear.trim().length > 0
+      ? ` Stated performance data year: ${statedPerfYear.trim()}.`
+      : '';
   const schools =
-    metadata?.schoolsModel === 'gias-open-data-sample-performance-seed-prototype'
-      ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in a prototype performance signal from seed metadata (replace with official DfE/open performance tables later).'
-      : metadata?.schoolsModel === 'gias-open-data-sample'
-        ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).'
-        : ' Schools use distance to a small reference seed set.';
+    metadata?.schoolsModel === 'gias-open-data-sample-dfe-performance-urn-map'
+      ? ` Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in performance signals from ingested DfE open-data CSVs keyed by school URN (indicative mapping — verify columns and year for your use case).${perfYear}`
+      : metadata?.schoolsModel === 'gias-open-data-sample-performance-seed-prototype'
+        ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in a prototype performance signal from seed metadata (replace with official DfE/open performance tables later).'
+        : metadata?.schoolsModel === 'gias-open-data-sample'
+          ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).'
+          : ' Schools use distance to a small reference seed set.';
   return `${aff}${schools}`;
 };
 
@@ -38,6 +47,48 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
 
 const proxyBlock = (metadata: RankedArea['metadata']): string =>
   `${affordabilityAndSchoolsSummary(metadata)}${commuteSummary(metadata)}`;
+
+/** First non-empty `schoolsDataAttribution` string across results (shared OGL/DfE line). */
+export const firstSchoolsDataAttribution = (areas: readonly RankedArea[]): string | undefined => {
+  for (const a of areas) {
+    const v = a.metadata?.schoolsDataAttribution;
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v;
+    }
+  }
+  return undefined;
+};
+
+export const firstSchoolsCoverageHint = (areas: readonly RankedArea[]): string | undefined => {
+  for (const a of areas) {
+    const pct = a.metadata?.schoolsPerformanceCoveragePct;
+    const matched = a.metadata?.schoolsPointsMatchedByUrn;
+    const withUrn = a.metadata?.schoolsPointsWithUrn;
+    if (
+      typeof pct === 'number' &&
+      Number.isFinite(pct) &&
+      typeof matched === 'number' &&
+      Number.isFinite(matched) &&
+      typeof withUrn === 'number' &&
+      Number.isFinite(withUrn)
+    ) {
+      return `Schools performance join coverage: ${pct.toFixed(1)}% (${matched.toString()}/${withUrn.toString()} URN-matched points).`;
+    }
+  }
+  return undefined;
+};
+
+export const firstSchoolsPerformanceYearHint = (
+  areas: readonly RankedArea[],
+): string | undefined => {
+  for (const a of areas) {
+    const y = a.metadata?.schoolsPerformanceAcademicYear;
+    if (typeof y === 'string' && y.trim().length > 0) {
+      return `School performance data year: ${y.trim()}.`;
+    }
+  }
+  return 'School performance data year is not set.';
+};
 
 /** First non-empty `dataPoliceUk` string across results (shared attribution line). */
 export const firstDataPoliceUkAttribution = (areas: readonly RankedArea[]): string | undefined => {

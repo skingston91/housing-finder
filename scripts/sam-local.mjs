@@ -108,6 +108,14 @@ if (existsSync(envJsonPath)) {
 const outPath = join(tmpdir(), `housing-finder-sam-env-${String(process.pid)}.json`);
 writeFileSync(outPath, JSON.stringify(merged, null, 2), 'utf8');
 
+// `sam local` without a prior `sam build` mounts the repo as /var/task and cannot load
+// TypeScript handlers (Runtime.ImportModuleError: Cannot find module 'search-areas').
+// Built functions live under .aws-sam/build/<FunctionId>/ with esbundle + corrected Handler.
+const build = spawnSync('sam', ['build'], { stdio: 'inherit', cwd: root });
+if (build.status !== 0) {
+  process.exit(build.status ?? 1);
+}
+
 const r = spawnSync('sam', ['local', 'start-api', '--port', '3000', '--env-vars', outPath], {
   stdio: 'inherit',
   cwd: root,

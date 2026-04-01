@@ -7,7 +7,8 @@
  *   node scripts/ingest-gias-establishments.mjs /path/to/establishments.csv [out.ts]
  *
  * Filters: open state-funded schools in a Greater London bounding box; needs
- * Latitude/Longitude or Easting/Northing (OSGB → WGS84 via proj4).
+ * Latitude/Longitude or Easting/Northing (OSGB → WGS84 via proj4). Emits `urn`
+ * when the CSV has URN / school_urn so DfE performance ingest can join.
  */
 import { parse } from 'csv-parse/sync';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -155,10 +156,14 @@ const main = () => {
       continue;
     }
     const phases = phasesFromGias(phaseText(row));
+    const urnCell = findCol(row, (k) => k === 'urn' || k === 'school_urn');
+    const urnRaw = urnCell !== null ? String(urnCell.value).trim() : '';
+    const urn = /^\d+$/.test(urnRaw) ? urnRaw : undefined;
     out.push({
       latitude: Math.round(ll.lat * 1e6) / 1e6,
       longitude: Math.round(ll.lng * 1e6) / 1e6,
       phases,
+      ...(urn !== undefined ? { urn } : {}),
     });
   }
 

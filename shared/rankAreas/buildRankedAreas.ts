@@ -9,7 +9,16 @@ import { createAsyncLimiter, type AsyncLimiter } from '../async/createAsyncLimit
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
 import { compositeScore } from '../scoring/compositeScore';
 import type { RankedAreaDto, SearchAreasRequestBody } from '../searchAreasContract';
+import {
+  SCHOOLS_PERFORMANCE_COVERAGE_PCT,
+  SCHOOLS_POINTS_MATCHED_BY_URN,
+  SCHOOLS_POINTS_WITH_URN,
+} from '../schools/londonSchoolPointsForRanking';
+import { resolveSchoolsDataAttribution } from '../schools/resolveSchoolsDataAttribution';
+import { resolveSchoolsPerformanceAcademicYearForMetadata } from '../schools/resolveSchoolsPerformanceAcademicYearForMetadata';
+import { resolveSchoolsRankingMetadataModel } from '../schools/resolveSchoolsRankingMetadataModel';
 import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
+import { buildMapStyleAreaHeading } from './buildMapStyleAreaHeading';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
@@ -72,6 +81,7 @@ export const buildRankedAreas = async (
   });
 
   const limitPoliceUk = createAsyncLimiter(POLICE_UK_MAX_CONCURRENT);
+  const schoolsPerformanceAcademicYear = resolveSchoolsPerformanceAcademicYearForMetadata();
 
   const rows = await Promise.all(
     candidates.map(async (c) => {
@@ -102,9 +112,13 @@ export const buildRankedAreas = async (
         crime,
       };
       const score = compositeScore(breakdown);
+      const displayName =
+        candidateMode === 'workplace-grid'
+          ? buildMapStyleAreaHeading(body.workplace, c, medianResolution.rows)
+          : c.displayName;
       const area: RankedAreaDto = {
         id: c.id,
-        displayName: c.displayName,
+        displayName,
         centroidLatitude: c.latitude,
         centroidLongitude: c.longitude,
         score,
@@ -131,7 +145,14 @@ export const buildRankedAreas = async (
           ...(commuteRes.journeyMinutes !== undefined
             ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
             : {}),
-          schoolsModel: 'gias-open-data-sample-performance-seed-prototype',
+          schoolsModel: resolveSchoolsRankingMetadataModel(),
+          schoolsDataAttribution: resolveSchoolsDataAttribution(),
+          schoolsPointsWithUrn: SCHOOLS_POINTS_WITH_URN,
+          schoolsPointsMatchedByUrn: SCHOOLS_POINTS_MATCHED_BY_URN,
+          schoolsPerformanceCoveragePct: SCHOOLS_PERFORMANCE_COVERAGE_PCT,
+          ...(schoolsPerformanceAcademicYear !== undefined
+            ? { schoolsPerformanceAcademicYear }
+            : {}),
         },
       };
       return area;

@@ -14,7 +14,7 @@ The API is **AWS Lambda** + **API Gateway HTTP API**, defined in [`template.yaml
 
 ## Prerequisites
 
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) on your `PATH` (`sam --version`). **`npm run verify` does not run `sam build`** — install SAM separately for API work.
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) on your `PATH` (`sam --version`). **`npm run verify` does not run `sam build`**. Use **`npm run verify:sam`** for a full pre-deploy check: `verify` → **`verify:data`** (DfE manifest gate from [`scripts/check-dfe-manifest.mjs`](../../scripts/check-dfe-manifest.mjs)) → **`sam build`**. Install SAM separately for API work.
 - **`esbuild`** — listed in **`dependencies`** (not `devDependencies`) because SAM’s `NodejsNpmEsbuildBuilder` runs `npm install` **without dev dependencies** in the build tree; if `esbuild` were only a devDependency, `sam build` fails with “Cannot find esbuild”. It is a build-time tool only; the Lambda bundle does not need it at runtime.
 - **Docker** (required for `sam local start-api`)
 - AWS credentials configured when you deploy (`aws configure` or environment/SSO)

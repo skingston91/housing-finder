@@ -53,6 +53,8 @@ describe('buildRankedAreas', () => {
     expect(first).toBeDefined();
     expect(first?.score).toBeTypeOf('number');
     expect(first?.displayName).toMatch(/.+/);
+    expect(first?.displayName).toMatch(/· .+/);
+    expect(first?.displayName).not.toContain('HQ');
     expect(first?.metadata?.policeUk).toBe('ok');
     expect(first?.metadata?.candidateMode).toBe('workplace-grid');
     expect(fetchImpl.mock.calls.length).toBe(12);
@@ -196,5 +198,9 @@ describe('buildRankedAreas', () => {
     expect(areas[0]?.metadata?.schoolsModel).toBe(
       'gias-open-data-sample-performance-seed-prototype',
     );
+    expect(typeof areas[0]?.metadata?.schoolsDataAttribution).toBe('string');
+    expect(typeof areas[0]?.metadata?.schoolsPointsWithUrn).toBe('number');
+    expect(typeof areas[0]?.metadata?.schoolsPointsMatchedByUrn).toBe('number');
+    expect(typeof areas[0]?.metadata?.schoolsPerformanceCoveragePct).toBe('number');
   });
 });

@@ -19,6 +19,10 @@ Decisions below drive the first implementation pass. Change this file when requi
 - **Schools:** primary / secondary / sixth form, distance or time to schools, faith filters, performance metrics — **all targeted**; MVP may stub some signals until DfE/open data ingestion exists.
 - **Crime:** **category-weighted** scores, default **12-month** window; weights and window should be **user-customisable** in product terms (UI may ship incrementally).
 
+## Deferred product items (record)
+
+- **Shareable search URLs / query-param state** — Not implemented yet. Criteria and results stay in local React state only. When we add this, sync with `buildSearchAreasRequest` validation and document CORS/API implications. Design note: [area-search-design-spec.md](./design/area-search-design-spec.md) (URL state line). Trust/compare UI spec: [area-search-trust-methodology-compare-spec.md](./design/area-search-trust-methodology-compare-spec.md).
+
 ## Technical
 
 - **React** with **Vite** (not webpack).

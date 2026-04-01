@@ -1,8 +1,9 @@
 import type { SearchAreasRequestBody } from '../searchAreasContract';
 
 import { LONDON_AREA_CANDIDATES } from './candidates';
-import { bearingDegrees, bearingToCompass8, haversineKm } from './geo';
+import { haversineKm } from './geo';
 import { pointInLondonBounds } from './londonBounds';
+import { relativePositionHeading } from './relativePositionHeading';
 
 export interface SearchCandidate {
   readonly id: string;
@@ -17,20 +18,6 @@ const GRID_RADIUS = 2;
 
 /** Cap parallel police.uk fan-out per request. */
 export const MAX_SEARCH_CANDIDATES = 12;
-
-const labelForCell = (
-  workplace: SearchAreasRequestBody['workplace'],
-  latitude: number,
-  longitude: number,
-): string => {
-  const d = haversineKm(workplace.latitude, workplace.longitude, latitude, longitude);
-  if (d < 0.15) {
-    return `Near · ${workplace.label}`;
-  }
-  const bear = bearingDegrees(workplace.latitude, workplace.longitude, latitude, longitude);
-  const compass = bearingToCompass8(bear);
-  return `${d.toFixed(1)} km ${compass} · ${workplace.label}`;
-};
 
 const buildWorkplaceGrid = (body: SearchAreasRequestBody): SearchCandidate[] => {
   const { workplace } = body;
@@ -47,7 +34,12 @@ const buildWorkplaceGrid = (body: SearchAreasRequestBody): SearchCandidate[] => 
       }
       out.push({
         id: `wg-${String(di)}-${String(dj)}`,
-        displayName: labelForCell(workplace, latitude, longitude),
+        displayName: relativePositionHeading(
+          workplace.latitude,
+          workplace.longitude,
+          latitude,
+          longitude,
+        ),
         latitude,
         longitude,
       });

@@ -16,14 +16,12 @@ import { httpAreaDiscoveryAdapter } from '@/adapters/httpAreaDiscovery';
 import { httpWorkplaceGeocodeAdapter } from '@/adapters/httpWorkplaceGeocode';
 
 import type { AreaSelectionSource } from './ResultsMap';
+import { AreaComparePanel } from './AreaComparePanel';
 import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
 import { buildAreaSearchCriteria, defaultFormState } from './buildSearchAreasRequest';
 import { getSelectionAnnouncement } from './selectionAnnouncement';
-import {
-  firstDataPoliceUkAttribution,
-  firstLandRegistryOglAttribution,
-} from './searchResultsAttribution';
+import { MethodologyPanel } from './MethodologyPanel';
 
 const ResultsMapLazy = lazy(async () => {
   const m = await import('./ResultsMap');
@@ -38,9 +36,14 @@ export const AreaSearchPage = () => {
   const [geocodePending, setGeocodePending] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [selectionLiveMessage, setSelectionLiveMessage] = useState('');
   const previousSelectionRef = useRef<string | null | undefined>(undefined);
   const cardAnchorRefs = useRef(new Map<string, HTMLElement>());
+
+  useEffect(() => {
+    setCompareIds((prev) => prev.filter((id) => areas.some((a) => a.id === id)));
+  }, [areas]);
 
   useEffect(() => {
     if (areas.length === 0) {
@@ -89,6 +92,7 @@ export const AreaSearchPage = () => {
       const res = await httpWorkplaceGeocodeAdapter.geocodeFromLabel(q);
       setForm((prev) => ({
         ...prev,
+        workplaceLabel: res.displayName,
         workplaceLat: res.latitude,
         workplaceLng: res.longitude,
       }));
@@ -99,12 +103,34 @@ export const AreaSearchPage = () => {
     }
   }, [form.workplaceLabel]);
 
+  const compareAreas = useMemo(() => {
+    const byId = new Map(areas.map((a) => [a.id, a]));
+    return compareIds.map((id) => byId.get(id)).filter((a): a is RankedArea => a !== undefined);
+  }, [areas, compareIds]);
+
+  const toggleCompare = useCallback((id: string) => {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, id];
+    });
+  }, []);
+
   const workplaceForMap = useMemo(() => {
     if (form.workplaceLat === '' || form.workplaceLng === '') {
       return null;
     }
-    return { latitude: form.workplaceLat, longitude: form.workplaceLng };
-  }, [form.workplaceLat, form.workplaceLng]);
+    const label = form.workplaceLabel.trim();
+    return {
+      latitude: form.workplaceLat,
+      longitude: form.workplaceLng,
+      label: label.length > 0 ? label : 'Workplace',
+    };
+  }, [form.workplaceLat, form.workplaceLng, form.workplaceLabel]);
 
   const handleSearch = useCallback(async () => {
     setError(null);
@@ -188,7 +214,7 @@ export const AreaSearchPage = () => {
                 {selectionLiveMessage}
               </Box>
               <Heading size="md">Results</Heading>
-              {!loading && areas.length > 0 ? <DataSourceAttribution areas={areas} /> : null}
+              {!loading && areas.length > 0 ? <MethodologyPanel areas={areas} /> : null}
               {loading ? <HStackSpinner /> : null}
               {error ? (
                 <Alert.Root status="error" variant="subtle">
@@ -214,6 +240,9 @@ export const AreaSearchPage = () => {
                     onSelectArea={handleSelectArea}
                   />
                 </Suspense>
+              ) : null}
+              {!loading && areas.length > 0 && compareAreas.length >= 2 ? (
+                <AreaComparePanel areas={compareAreas} />
               ) : null}
               {!loading && !error && areas.length === 0 ? (
                 <Text color="fg.muted" fontSize="sm">
@@ -254,6 +283,13 @@ export const AreaSearchPage = () => {
                       onSelectArea={(id) => {
                         handleSelectArea(id, 'list');
                       }}
+                      compare={{
+                        isInCompare: compareIds.includes(a.id),
+                        onToggle: () => {
+                          toggleCompare(a.id);
+                        },
+                        limitReached: compareIds.length >= 3 && !compareIds.includes(a.id),
+                      }}
                     />
                   </Box>
                 ))}
@@ -274,23 +310,3 @@ const HStackSpinner = () => (
     </Text>
   </HStack>
 );
-
-const DataSourceAttribution = ({ areas }: { areas: readonly RankedArea[] }) => {
-  const policeUk = firstDataPoliceUkAttribution(areas);
-  const landRegistry = firstLandRegistryOglAttribution(areas);
-  if (!policeUk && !landRegistry) {
-    return null;
-  }
-  return (
-    <Alert.Root status="info" variant="subtle">
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Title>Data sources</Alert.Title>
-        <Stack gap={2} fontSize="sm">
-          {policeUk ? <Text>{policeUk}</Text> : null}
-          {landRegistry ? <Text>{landRegistry}</Text> : null}
-        </Stack>
-      </Alert.Content>
-    </Alert.Root>
-  );
-};

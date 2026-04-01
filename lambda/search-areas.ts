@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
 import { parseSearchAreasRequestBody } from '../shared/parseSearchAreasRequestBody';
 import { buildRankedAreas } from '../shared/rankAreas/buildRankedAreas';
+import { resolveSchoolsPerformanceAcademicYearForMetadata } from '../shared/schools/resolveSchoolsPerformanceAcademicYearForMetadata';
 import { resolveSecretString } from '../shared/secrets/apiSecrets';
 
 import { jsonResponse } from './http';
@@ -38,5 +39,23 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     ...routing,
     useLiveUkhpiMedians,
   });
+  if (areas.length > 0) {
+    const meta = areas[0]?.metadata;
+    console.info(
+      JSON.stringify({
+        component: 'search_areas',
+        event: 'ranked',
+        areaCount: areas.length,
+        schoolsModel: meta?.schoolsModel,
+        schoolsPerformanceAcademicYear: resolveSchoolsPerformanceAcademicYearForMetadata(),
+        schoolsPerformanceCoveragePct: meta?.schoolsPerformanceCoveragePct,
+        schoolsPointsMatchedByUrn: meta?.schoolsPointsMatchedByUrn,
+        schoolsPointsWithUrn: meta?.schoolsPointsWithUrn,
+        candidateMode: meta?.candidateMode,
+        policeUk: meta?.policeUk,
+        affordabilityPriceSource: meta?.affordabilityPriceSource,
+      }),
+    );
+  }
   return jsonResponse(200, { areas });
 };

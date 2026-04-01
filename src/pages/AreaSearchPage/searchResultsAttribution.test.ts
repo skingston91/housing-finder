@@ -6,6 +6,9 @@ import {
   areaProvenanceDescription,
   firstDataPoliceUkAttribution,
   firstLandRegistryOglAttribution,
+  firstSchoolsCoverageHint,
+  firstSchoolsPerformanceYearHint,
+  firstSchoolsDataAttribution,
   hasCrimeMetadataDetails,
 } from './searchResultsAttribution';
 
@@ -38,6 +41,56 @@ describe('searchResultsAttribution', () => {
     expect(
       firstLandRegistryOglAttribution([area({ foo: 1 }), area({ landRegistryOgl: 'OGL line' })]),
     ).toBe('OGL line');
+  });
+
+  it('firstSchoolsDataAttribution returns first string', () => {
+    expect(
+      firstSchoolsDataAttribution([
+        area({ foo: 1 }),
+        area({ schoolsDataAttribution: 'School locations: OGL.' }),
+      ]),
+    ).toBe('School locations: OGL.');
+  });
+
+  it('firstSchoolsCoverageHint formats coverage percentage and counts', () => {
+    expect(
+      firstSchoolsCoverageHint([
+        area({ foo: 1 }),
+        area({
+          schoolsPerformanceCoveragePct: 61.2,
+          schoolsPointsMatchedByUrn: 153,
+          schoolsPointsWithUrn: 250,
+        }),
+      ]),
+    ).toBe('Schools performance join coverage: 61.2% (153/250 URN-matched points).');
+  });
+
+  it('firstSchoolsPerformanceYearHint returns year or unset message', () => {
+    expect(
+      firstSchoolsPerformanceYearHint([area({ schoolsPerformanceAcademicYear: '2023/24' })]),
+    ).toBe('School performance data year: 2023/24.');
+    expect(firstSchoolsPerformanceYearHint([area({ foo: 1 })])).toBe(
+      'School performance data year is not set.',
+    );
+  });
+
+  it('areaProvenanceDescription mentions DfE URN performance when metadata says so', () => {
+    expect(
+      areaProvenanceDescription({
+        policeUk: 'ok',
+        schoolsModel: 'gias-open-data-sample-dfe-performance-urn-map',
+      }),
+    ).toMatch(/ingested DfE open-data CSVs/);
+  });
+
+  it('areaProvenanceDescription includes stated performance year when metadata provides it', () => {
+    expect(
+      areaProvenanceDescription({
+        policeUk: 'ok',
+        schoolsModel: 'gias-open-data-sample-dfe-performance-urn-map',
+        schoolsPerformanceAcademicYear: '2023/24',
+      }),
+    ).toMatch(/Stated performance data year: 2023\/24/);
   });
 
   it('areaProvenanceDescription reflects stub and police.uk', () => {

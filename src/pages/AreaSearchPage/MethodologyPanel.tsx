@@ -1,0 +1,91 @@
+import { Alert, Box, Stack, Text } from '@chakra-ui/react';
+import type { RankedArea } from '@/domain/area/types';
+
+import {
+  firstDataPoliceUkAttribution,
+  firstLandRegistryOglAttribution,
+  firstSchoolsCoverageHint,
+  firstSchoolsDataAttribution,
+  firstSchoolsPerformanceYearHint,
+} from './searchResultsAttribution';
+
+/** When DfE URN performance is on but few establishment points join, warn clearly. */
+export const LOW_SCHOOLS_COVERAGE_THRESHOLD_PCT = 50;
+
+const shouldWarnLowSchoolsCoverage = (areas: readonly RankedArea[]): boolean => {
+  const m = areas[0]?.metadata;
+  if (m === undefined) {
+    return false;
+  }
+  if (m.schoolsModel !== 'gias-open-data-sample-dfe-performance-urn-map') {
+    return false;
+  }
+  const withUrn = m.schoolsPointsWithUrn;
+  const cov = m.schoolsPerformanceCoveragePct;
+  if (typeof withUrn !== 'number' || !Number.isFinite(withUrn) || withUrn <= 0) {
+    return false;
+  }
+  if (typeof cov !== 'number' || !Number.isFinite(cov)) {
+    return false;
+  }
+  return cov < LOW_SCHOOLS_COVERAGE_THRESHOLD_PCT;
+};
+
+export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) => {
+  const policeUk = firstDataPoliceUkAttribution(areas);
+  const landRegistry = firstLandRegistryOglAttribution(areas);
+  const schools = firstSchoolsDataAttribution(areas);
+  const schoolsCoverage = firstSchoolsCoverageHint(areas);
+  const schoolsYear = firstSchoolsPerformanceYearHint(areas);
+  const lowCoverage = shouldWarnLowSchoolsCoverage(areas);
+  const hasBody =
+    policeUk !== undefined ||
+    landRegistry !== undefined ||
+    schools !== undefined ||
+    schoolsCoverage !== undefined ||
+    schoolsYear !== undefined;
+
+  return (
+    <Stack gap={3}>
+      {lowCoverage ? (
+        <Alert.Root status="warning" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Lower schools data match rate</Alert.Title>
+            <Alert.Description fontSize="sm">
+              DfE performance is joined by school URN, but fewer than{' '}
+              {String(LOW_SCHOOLS_COVERAGE_THRESHOLD_PCT)}% of URN-labelled sample points matched.
+              The schools score may lean on distance. Check coverage in the methodology section or
+              refresh ingest when you have updated CSVs.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
+      ) : null}
+      <Text fontSize="sm" color="fg.muted">
+        Scores blend affordability, commute, schools, and crime using the sources below. Indicative
+        only—not admissions, catchment, or purchase advice.
+      </Text>
+      {hasBody ? (
+        <Box as="details" borderWidth="1px" borderColor="gray.200" rounded="lg" p={3} bg="white">
+          <Box
+            as="summary"
+            cursor="pointer"
+            fontWeight="medium"
+            fontSize="sm"
+            color="fg.muted"
+            _hover={{ color: 'fg' }}
+          >
+            Data sources and methodology
+          </Box>
+          <Stack gap={2} mt={3} fontSize="sm">
+            {policeUk ? <Text>{policeUk}</Text> : null}
+            {landRegistry ? <Text>{landRegistry}</Text> : null}
+            {schools ? <Text>{schools}</Text> : null}
+            {schoolsYear ? <Text>{schoolsYear}</Text> : null}
+            {schoolsCoverage ? <Text>{schoolsCoverage}</Text> : null}
+          </Stack>
+        </Box>
+      ) : null}
+    </Stack>
+  );
+};

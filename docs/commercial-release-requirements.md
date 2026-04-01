@@ -24,7 +24,7 @@ Cross-check [data-sources.md](./data-sources.md) whenever an integration changes
 
 - Re-read **commercial-use** terms for every provider (TfL, OpenRouteService, Mapbox, Carto basemaps, data.police.uk, any future listing or registry data).
 - Keep on-screen and in-metadata **attribution** accurate and complete; add an “About data” or legal page if required.
-- DfE / school performance data: prefer official open data downloads/APIs and verify licensing/attribution; avoid scraping human-facing pages (fragile + ToS risk).
+- **DfE / GIAS / school performance (implemented path):** coordinates and URN from **Get Information about Schools** CSV ingest (`ingest:gias`); performance measures from **DfE statistical CSVs** (`ingest:dfe`), which emit **`LONDON_SCHOOL_PERFORMANCE_ACADEMIC_YEAR`** + `schoolsPerformanceAcademicYear` and a generated quality manifest (`rowsMapped`, dropped rows, candidate unmapped metric columns). Before commercial use: confirm each file’s **Open Government Licence (OGL)** or other terms on [GOV.UK](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) and the relevant release notes; keep **Crown copyright / attribution** as required; surface accurate **on-screen and API metadata** (`schoolsDataAttribution`, `schoolsModel`, coverage fields). **Do not** scrape Compare school performance HTML—use published downloads only.
 - **Privacy:** if you log IPs, workplace strings, or analytics, align with GDPR/UK GDPR (lawful basis, retention, DPIA as needed).
 
 ## Reliability and observability

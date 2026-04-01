@@ -4,11 +4,12 @@ import type { SchoolPhaseDto } from '../searchAreasContract';
 export interface LondonSchoolSeed {
   readonly latitude: number;
   readonly longitude: number;
+  /** Unique reference number when known (GIAS / DfE); used to join official performance CSVs. */
+  readonly urn?: string;
   readonly phases: readonly SchoolPhaseDto[];
   /**
-   * Optional performance prototype signal per phase (0–100).
-   * For now this powers an early “performance-aware” schools score using seed-only metadata.
-   * Replace with official DfE performance tables ingest later.
+   * Optional performance signal per phase (0–100): prototype seed metadata and/or values merged from
+   * `LONDON_SCHOOL_PERFORMANCE_BY_URN` after DfE CSV ingest.
    */
   readonly performanceByPhase?: Partial<Record<SchoolPhaseDto, number>>;
 }
