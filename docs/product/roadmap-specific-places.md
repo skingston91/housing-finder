@@ -26,8 +26,9 @@ Today the app **discovers and ranks areas** (wards / candidates) using affordabi
 
 ## Near-term product steps (suggested order)
 
-1. Confirm **target listing provider(s)** and legal constraints.
-2. Spike **read-only listing search** behind a feature flag.
-3. Add **entry points** from ranked area results only (no change to core ranking pipeline until stable).
+1. **Low-effort bridge (planned, not built yet):** preset **Rightmove** (or similar) search URLs from user criteria — see [plan-rightmove-deep-links.md](./plan-rightmove-deep-links.md).
+2. Confirm **target listing provider(s)** and legal constraints for any in-app or API-backed listings.
+3. Spike **read-only listing search** behind a feature flag.
+4. Add **entry points** from ranked area results only (no change to core ranking pipeline until stable).
 
 Update [product-decisions.md](../product-decisions.md) when Phase 2 scope is agreed.

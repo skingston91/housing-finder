@@ -23,6 +23,7 @@ Decisions below drive the first implementation pass. Change this file when requi
 
 - **Production deploy checklist:** [production-readiness.md](../production-readiness.md).
 - **From areas → listings / specific places:** [product/roadmap-specific-places.md](./product/roadmap-specific-places.md).
+- **Rightmove deep-link bridge (plan only):** [product/plan-rightmove-deep-links.md](./product/plan-rightmove-deep-links.md).
 
 ## Deferred product items (record)
 
