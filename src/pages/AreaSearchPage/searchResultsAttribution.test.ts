@@ -25,6 +25,7 @@ const area = (metadata: RankedArea['metadata']): RankedArea => ({
     commute: 50,
     schools: 50,
     crime: 50,
+    priceTrend: 50,
   },
   metadata,
 });

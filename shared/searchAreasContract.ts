@@ -68,6 +68,15 @@ export interface CrimeDto {
   readonly categoryWeights: Readonly<Record<string, number>>;
 }
 
+/** Optional scoring controls (defaults preserve legacy four-dimension composite). */
+export interface ScoringDto {
+  /**
+   * When **true**, **UK HPI year-on-year borough price momentum** (relative among candidates) is
+   * blended into the composite score. Does not imply investment advice.
+   */
+  readonly includePriceTrendInComposite: boolean;
+}
+
 export interface SearchAreasRequestBody {
   readonly maxPriceGbp: number;
   readonly maxPricePerM2Gbp?: number;
@@ -76,6 +85,7 @@ export interface SearchAreasRequestBody {
   readonly commute: CommuteDto;
   readonly schools: SchoolsDto;
   readonly crime: CrimeDto;
+  readonly scoring?: ScoringDto;
 }
 
 export interface AreaScoreBreakdownDto {
@@ -83,6 +93,8 @@ export interface AreaScoreBreakdownDto {
   readonly commute: number;
   readonly schools: number;
   readonly crime: number;
+  /** Relative 0–100 momentum from UK HPI YoY among this search’s candidates (borough-level). */
+  readonly priceTrend: number;
 }
 
 export interface RankedAreaDto {

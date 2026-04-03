@@ -6,7 +6,7 @@ import { LONDON_BOROUGH_MEDIANS } from './londonBoroughMedians';
 import type { UkhpiAveragePriceKey } from './ukhpiAveragePriceKey';
 import { ukhpiAveragePriceKeyForPropertyTypes } from './ukhpiAveragePriceKey';
 import { fetchLatestAveragePriceForUkhpiSlug } from './ukhpiLinkedDataApi';
-import { fetchLondonBoroughUkhpiPricesViaSparql } from './ukhpiSparql';
+import { fetchLondonBoroughUkhpiPricesViaSparql, type SparqlBoroughPriceMap } from './ukhpiSparql';
 import { UKHPI_REGION_SLUG_BY_BOROUGH_ID } from './ukhpiRegionSlugByBoroughId';
 import { buildUkhpiTelemetry, logUkhpiResolutionTelemetry } from './ukhpiResolutionTelemetry';
 
@@ -19,6 +19,11 @@ export interface ResolvedLondonBoroughMedianRows {
   readonly ukhpiRefMonth?: string;
   /** Which UK HPI average-price field was used (single property type vs all dwellings). */
   readonly ukhpiPriceMeasure?: UkhpiAveragePriceKey;
+  /**
+   * Latest UK HPI observation per borough from the SPARQL pass (when present). Used for YoY
+   * **price momentum** without a second latest-price fetch.
+   */
+  readonly ukhpiLatestObservationByBoroughId?: SparqlBoroughPriceMap;
 }
 
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
@@ -160,6 +165,9 @@ export const resolveLondonBoroughMedianRows = async (
           priceSource,
           ukhpiPriceMeasure: priceKey,
           ...(refMonthMax !== undefined ? { ukhpiRefMonth: refMonthMax } : {}),
+          ...(sparqlMap !== null && sparqlMap.size > 0
+            ? { ukhpiLatestObservationByBoroughId: sparqlMap }
+            : {}),
         };
 
   if (successCount > 0) {

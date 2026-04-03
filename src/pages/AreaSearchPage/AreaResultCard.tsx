@@ -1,6 +1,7 @@
 import { Badge, Box, Button, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
 
+import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtcUkLong';
 import { schoolsDimensionExplanationLine } from '@shared/schools/schoolsDimensionExplanation';
 
 import { commuteModelDisplayLabel } from './commuteModelLabels';
@@ -116,6 +117,51 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
       value: `Score multiplied by ${m.commuteReliabilityFactor.toFixed(3)} (disruption or route volatility).`,
     });
   }
+  if (typeof m.futureTransportModel === 'string' && m.futureTransportModel.trim() !== '') {
+    rows.push({ label: 'Planned transport (spike) model', value: m.futureTransportModel });
+  }
+  if (typeof m.futureTransportNearestScheme === 'string') {
+    rows.push({
+      label: 'Nearest illustrative scheme',
+      value: m.futureTransportNearestScheme,
+    });
+  }
+  if (typeof m.futureTransportNearestPointLabel === 'string') {
+    rows.push({
+      label: 'Nearest waypoint label',
+      value: m.futureTransportNearestPointLabel,
+    });
+  }
+  if (
+    typeof m.futureTransportNearestKm === 'number' &&
+    Number.isFinite(m.futureTransportNearestKm)
+  ) {
+    rows.push({
+      label: 'Distance to nearest waypoint',
+      value: `${m.futureTransportNearestKm.toFixed(2)} km (straight-line)`,
+    });
+  }
+  if (
+    typeof m.futureTransportProximityScore === 'number' &&
+    Number.isFinite(m.futureTransportProximityScore)
+  ) {
+    rows.push({
+      label: 'Proximity score (display only)',
+      value: `${String(m.futureTransportProximityScore)} / 100`,
+    });
+  }
+  if (typeof m.futureTransportSourceUrl === 'string' && m.futureTransportSourceUrl.trim() !== '') {
+    rows.push({ label: 'Scheme source URL', value: m.futureTransportSourceUrl });
+  }
+  if (
+    typeof m.futureTransportDataLastReviewed === 'string' &&
+    m.futureTransportDataLastReviewed.trim() !== ''
+  ) {
+    rows.push({
+      label: 'Waypoint list last checked',
+      value: formatIsoDateUtcUkLong(m.futureTransportDataLastReviewed),
+    });
+  }
   if (rows.length === 0) {
     return null;
   }
@@ -229,6 +275,67 @@ export const AreaResultCard = ({
               ) : null}
             </Stack>
             <ScoreBar label="Crime (higher is better)" value={area.breakdown.crime} />
+            <Stack gap={1}>
+              <ScoreBar
+                label="Price momentum (UK HPI YoY, relative)"
+                value={area.breakdown.priceTrend}
+              />
+              <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                {typeof area.metadata?.priceTrendYoyPct === 'number' &&
+                Number.isFinite(area.metadata.priceTrendYoyPct)
+                  ? `Borough year-on-year ≈ ${area.metadata.priceTrendYoyPct.toFixed(1)}% (discovery only).`
+                  : area.metadata?.priceTrendModel === 'unavailable'
+                    ? 'Enable live UK HPI on the search API for YoY momentum.'
+                    : 'Relative rank among candidates in this search; not a forecast.'}
+              </Text>
+            </Stack>
+            {typeof area.metadata?.futureTransportProximityScore === 'number' &&
+            Number.isFinite(area.metadata.futureTransportProximityScore) ? (
+              <Stack gap={1}>
+                <ScoreBar
+                  label="Planned transport proximity (spike; not in total score)"
+                  value={area.metadata.futureTransportProximityScore}
+                />
+                <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                  Nearest illustrative waypoint:{' '}
+                  {typeof area.metadata.futureTransportNearestPointLabel === 'string'
+                    ? area.metadata.futureTransportNearestPointLabel
+                    : '—'}
+                  {' · '}
+                  {typeof area.metadata.futureTransportNearestScheme === 'string'
+                    ? area.metadata.futureTransportNearestScheme
+                    : '—'}
+                  {typeof area.metadata.futureTransportNearestKm === 'number' &&
+                  Number.isFinite(area.metadata.futureTransportNearestKm)
+                    ? ` (~${area.metadata.futureTransportNearestKm.toFixed(1)} km straight-line).`
+                    : '.'}{' '}
+                  {typeof area.metadata.futureTransportSourceUrl === 'string' ? (
+                    <>
+                      {' '}
+                      <a
+                        href={area.metadata.futureTransportSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: 'var(--chakra-colors-blue-600, #2563eb)',
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Scheme source
+                      </a>
+                    </>
+                  ) : null}
+                </Text>
+                {typeof area.metadata.futureTransportDataLastReviewed === 'string' &&
+                area.metadata.futureTransportDataLastReviewed.trim() !== '' ? (
+                  <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                    Waypoint list last checked:{' '}
+                    {formatIsoDateUtcUkLong(area.metadata.futureTransportDataLastReviewed)}. Not
+                    part of the headline score.
+                  </Text>
+                ) : null}
+              </Stack>
+            ) : null}
           </Stack>
           <ResultScoreDetails area={area} />
         </Stack>

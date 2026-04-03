@@ -39,6 +39,8 @@ export interface AreaSearchFormState {
   crimeWindowMonths: number;
   /** JSON object string for category → weight; invalid JSON falls back to defaults at submit. */
   crimeWeightsJson: string;
+  /** When true, UK HPI YoY borough momentum is blended into the composite score. */
+  includePriceTrendInComposite: boolean;
 }
 
 const toPlannerYyyyMmDd = (htmlDate: string): string | null => {
@@ -101,6 +103,7 @@ export const defaultFormState = (): AreaSearchFormState => ({
   schoolMaxMinutes: 20,
   crimeWindowMonths: 12,
   crimeWeightsJson: JSON.stringify(defaultCrimeWeights(), null, 2),
+  includePriceTrendInComposite: false,
 });
 
 /** Validates the area-search form and returns domain criteria (inner model). */
@@ -227,6 +230,9 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
       windowMonths: form.crimeWindowMonths,
       categoryWeights,
     },
+    ...(form.includePriceTrendInComposite
+      ? { scoring: { includePriceTrendInComposite: true } }
+      : {}),
   };
 };
 

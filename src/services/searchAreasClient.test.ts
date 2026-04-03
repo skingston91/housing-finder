@@ -28,6 +28,7 @@ describe('postSearchAreas', () => {
             commute: 70,
             schools: 70,
             crime: 70,
+            priceTrend: 50,
           },
         },
       ],

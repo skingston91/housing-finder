@@ -51,6 +51,11 @@ export interface CrimePreferences {
   readonly categoryWeights: Readonly<Record<string, number>>;
 }
 
+export interface AreaSearchScoring {
+  /** Blend UK HPI YoY **price momentum** into the composite total score. */
+  readonly includePriceTrendInComposite: boolean;
+}
+
 export interface AreaSearchCriteria {
   readonly maxPriceGbp: number;
   readonly maxPricePerM2Gbp?: number;
@@ -59,4 +64,5 @@ export interface AreaSearchCriteria {
   readonly commute: CommuteConstraints;
   readonly schools: SchoolPreferences;
   readonly crime: CrimePreferences;
+  readonly scoring?: AreaSearchScoring;
 }

@@ -1,13 +1,17 @@
 import { affordabilityLandRegistryAttribution } from '../affordability/affordabilityAttribution';
+import { ukhpiAveragePriceKeyForPropertyTypes } from '../affordability/ukhpiAveragePriceKey';
+import { normalizeYoYPctToScores } from '../affordability/priceTrendScoreFromYoY';
 import { resolveLondonBoroughMedianRows } from '../affordability/resolveLondonBoroughMedianRows';
+import { resolveLondonBoroughYoYPctByBoroughId } from '../affordability/resolveLondonBoroughYoY';
 import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
+import { plannedTransportProximityForPoint } from '../futureTransport/plannedTransportProximityForPoint';
 import type { OrsApiCredentials } from '../commute/orsDirections';
 import type { TflApiCredentials } from '../commute/tflJourney';
 import { createAsyncLimiter, type AsyncLimiter } from '../async/createAsyncLimiter';
 import { fetchStreetCrimes, sumWeightedCrimeCount } from '../policeUk/streetCrimes';
-import { compositeScore } from '../scoring/compositeScore';
+import { compositeScore, compositeScoreWithPriceTrend } from '../scoring/compositeScore';
 import type { RankedAreaDto, SearchAreasRequestBody } from '../searchAreasContract';
 import {
   SCHOOLS_PERFORMANCE_COVERAGE_PCT,
@@ -19,6 +23,7 @@ import { resolveSchoolsPerformanceAcademicYearForMetadata } from '../schools/res
 import { resolveSchoolsRankingMetadataModel } from '../schools/resolveSchoolsRankingMetadataModel';
 import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
 import { buildMapStyleAreaHeading } from './buildMapStyleAreaHeading';
+import type { SearchCandidate } from './workplaceGridCandidates';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
@@ -68,7 +73,8 @@ const weightedCrimeForPoint = async (
 
 /**
  * Rank candidate areas: **crime** from [data.police.uk](https://data.police.uk/);
- * **affordability** vs borough benchmarks (optional live UK HPI); **commute** TfL / ORS or straight-line; **schools** establishment sample distance.
+ * **affordability** vs borough benchmarks (optional live UK HPI); **commute** TfL / ORS or straight-line; **schools** establishment sample distance;
+ * optional **price momentum** (UK HPI YoY by borough, relative among candidates).
  */
 export const buildRankedAreas = async (
   body: SearchAreasRequestBody,
@@ -83,6 +89,24 @@ export const buildRankedAreas = async (
     propertyTypes: body.propertyTypes,
   });
 
+  const priceKey = ukhpiAveragePriceKeyForPropertyTypes(body.propertyTypes);
+  const yoyPctByBoroughId =
+    options?.useLiveUkhpiMedians === true
+      ? await resolveLondonBoroughYoYPctByBoroughId(
+          fetchImpl,
+          priceKey,
+          medianResolution.ukhpiLatestObservationByBoroughId,
+        )
+      : new Map<string, number | null>();
+
+  const priceTrendModel =
+    medianResolution.ukhpiLatestObservationByBoroughId !== undefined &&
+    medianResolution.ukhpiLatestObservationByBoroughId.size > 0
+      ? 'ukhpi-borough-yoy'
+      : 'unavailable';
+
+  const includePriceTrendInComposite = body.scoring?.includePriceTrendInComposite === true;
+
   const limitPoliceUk = createAsyncLimiter(POLICE_UK_MAX_CONCURRENT);
   const limitTflJourney = createAsyncLimiter(TFL_JOURNEY_MAX_CONCURRENT);
   const fetchForSearch: typeof fetch = (input, init) => {
@@ -94,8 +118,8 @@ export const buildRankedAreas = async (
   };
   const schoolsPerformanceAcademicYear = resolveSchoolsPerformanceAcademicYearForMetadata();
 
-  const rows = await Promise.all(
-    candidates.map(async (c) => {
+  const intermediate = await Promise.all(
+    candidates.map(async (c: SearchCandidate) => {
       const { total, months, failed } = await weightedCrimeForPoint(
         c.latitude,
         c.longitude,
@@ -116,81 +140,120 @@ export const buildRankedAreas = async (
         tfl: options?.tfl,
         openRouteService: options?.openRouteService,
       });
-      const breakdown = {
-        affordability: base.affordability,
-        commute: commuteRes.score,
-        schools: base.schools,
+      return {
+        c,
+        base,
+        commuteRes,
         crime,
+        total,
+        monthsYmLen: monthsYm.length,
+        failed,
       };
-      const score = compositeScore(breakdown);
-      const displayName =
-        candidateMode === 'workplace-grid'
-          ? buildMapStyleAreaHeading(body.workplace, c, medianResolution.rows)
-          : c.displayName;
-      const area: RankedAreaDto = {
-        id: c.id,
-        displayName,
-        centroidLatitude: c.latitude,
-        centroidLongitude: c.longitude,
-        score,
-        breakdown,
-        metadata: {
-          crimeWeightedTotal: total,
-          crimeMonthsRequested: body.crime.windowMonths,
-          crimeMonthsUsed: monthsYm.length,
-          crimeWindowCapMonths: MAX_CRIME_MONTHS,
-          policeUk: failed ? 'error' : 'ok',
-          dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
-          candidateMode,
-          affordabilityBorough: base.affordabilityBoroughName,
-          affordabilityModel: 'borough-median-indicator',
-          affordabilityPriceSource: medianResolution.priceSource,
-          ...(medianResolution.ukhpiRefMonth !== undefined
-            ? { ukhpiRefMonth: medianResolution.ukhpiRefMonth }
-            : {}),
-          ...(medianResolution.ukhpiPriceMeasure !== undefined
-            ? { ukhpiPriceMeasure: medianResolution.ukhpiPriceMeasure }
-            : {}),
-          landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
-          commuteModel: commuteRes.model,
-          ...(commuteRes.journeyMinutes !== undefined
-            ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
-            : {}),
-          ...(commuteRes.transitFailureCode !== undefined
-            ? { commuteTflFailureCode: commuteRes.transitFailureCode }
-            : {}),
-          ...(commuteRes.commuteAlternativeJourneyMinutes !== undefined
-            ? { commuteAlternativeJourneyMinutes: commuteRes.commuteAlternativeJourneyMinutes }
-            : {}),
-          ...(commuteRes.transitDisruptionHint !== undefined
-            ? { commuteTflDisruptionHint: commuteRes.transitDisruptionHint }
-            : {}),
-          ...(commuteRes.transitNationalSearchUsed === true
-            ? { commuteTflNationalSearchUsed: 1 }
-            : {}),
-          ...(commuteRes.commuteReliabilityFactor !== undefined
-            ? { commuteReliabilityFactor: commuteRes.commuteReliabilityFactor }
-            : {}),
-          ...(commuteRes.tflPlannerSummary !== undefined
-            ? { commuteTflPlannerSummary: commuteRes.tflPlannerSummary }
-            : {}),
-          ...(commuteRes.tflJourneyDurationMethod !== undefined
-            ? { commuteTflDurationMethod: commuteRes.tflJourneyDurationMethod }
-            : {}),
-          schoolsProximityModel: 'haversine-walk-estimate',
-          schoolsModel: resolveSchoolsRankingMetadataModel(),
-          schoolsDataAttribution: resolveSchoolsDataAttribution(),
-          schoolsPointsWithUrn: SCHOOLS_POINTS_WITH_URN,
-          schoolsPointsMatchedByUrn: SCHOOLS_POINTS_MATCHED_BY_URN,
-          schoolsPerformanceCoveragePct: SCHOOLS_PERFORMANCE_COVERAGE_PCT,
-          ...(schoolsPerformanceAcademicYear !== undefined
-            ? { schoolsPerformanceAcademicYear }
-            : {}),
-        },
-      };
-      return area;
     }),
   );
+
+  const rawYoyList = intermediate.map((row) => {
+    const v = yoyPctByBoroughId.get(row.base.affordabilityBoroughId);
+    return v === undefined ? null : v;
+  });
+  const priceTrendScores = normalizeYoYPctToScores(rawYoyList);
+
+  const rows: RankedAreaDto[] = intermediate.map((row, i) => {
+    const { c, base, commuteRes, crime, total, monthsYmLen, failed } = row;
+    const plannedTransport = plannedTransportProximityForPoint(c.latitude, c.longitude);
+    const rawYoyPct = rawYoyList[i] ?? null;
+    const priceTrend = priceTrendScores[i] ?? 50;
+    const breakdown = {
+      affordability: base.affordability,
+      commute: commuteRes.score,
+      schools: base.schools,
+      crime,
+      priceTrend,
+    };
+    const score = includePriceTrendInComposite
+      ? compositeScoreWithPriceTrend(breakdown)
+      : compositeScore({
+          affordability: breakdown.affordability,
+          commute: breakdown.commute,
+          schools: breakdown.schools,
+          crime: breakdown.crime,
+        });
+    const displayName =
+      candidateMode === 'workplace-grid'
+        ? buildMapStyleAreaHeading(body.workplace, c, medianResolution.rows)
+        : c.displayName;
+    return {
+      id: c.id,
+      displayName,
+      centroidLatitude: c.latitude,
+      centroidLongitude: c.longitude,
+      score,
+      breakdown,
+      metadata: {
+        crimeWeightedTotal: total,
+        crimeMonthsRequested: body.crime.windowMonths,
+        crimeMonthsUsed: monthsYmLen,
+        crimeWindowCapMonths: MAX_CRIME_MONTHS,
+        policeUk: failed ? 'error' : 'ok',
+        dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
+        candidateMode,
+        affordabilityBorough: base.affordabilityBoroughName,
+        affordabilityModel: 'borough-median-indicator',
+        affordabilityPriceSource: medianResolution.priceSource,
+        ...(medianResolution.ukhpiRefMonth !== undefined
+          ? { ukhpiRefMonth: medianResolution.ukhpiRefMonth }
+          : {}),
+        ...(medianResolution.ukhpiPriceMeasure !== undefined
+          ? { ukhpiPriceMeasure: medianResolution.ukhpiPriceMeasure }
+          : {}),
+        landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
+        commuteModel: commuteRes.model,
+        ...(commuteRes.journeyMinutes !== undefined
+          ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
+          : {}),
+        ...(commuteRes.transitFailureCode !== undefined
+          ? { commuteTflFailureCode: commuteRes.transitFailureCode }
+          : {}),
+        ...(commuteRes.commuteAlternativeJourneyMinutes !== undefined
+          ? { commuteAlternativeJourneyMinutes: commuteRes.commuteAlternativeJourneyMinutes }
+          : {}),
+        ...(commuteRes.transitDisruptionHint !== undefined
+          ? { commuteTflDisruptionHint: commuteRes.transitDisruptionHint }
+          : {}),
+        ...(commuteRes.transitNationalSearchUsed === true
+          ? { commuteTflNationalSearchUsed: 1 }
+          : {}),
+        ...(commuteRes.commuteReliabilityFactor !== undefined
+          ? { commuteReliabilityFactor: commuteRes.commuteReliabilityFactor }
+          : {}),
+        ...(commuteRes.tflPlannerSummary !== undefined
+          ? { commuteTflPlannerSummary: commuteRes.tflPlannerSummary }
+          : {}),
+        ...(commuteRes.tflJourneyDurationMethod !== undefined
+          ? { commuteTflDurationMethod: commuteRes.tflJourneyDurationMethod }
+          : {}),
+        schoolsProximityModel: 'haversine-walk-estimate',
+        schoolsModel: resolveSchoolsRankingMetadataModel(),
+        schoolsDataAttribution: resolveSchoolsDataAttribution(),
+        schoolsPointsWithUrn: SCHOOLS_POINTS_WITH_URN,
+        schoolsPointsMatchedByUrn: SCHOOLS_POINTS_MATCHED_BY_URN,
+        schoolsPerformanceCoveragePct: SCHOOLS_PERFORMANCE_COVERAGE_PCT,
+        ...(schoolsPerformanceAcademicYear !== undefined ? { schoolsPerformanceAcademicYear } : {}),
+        priceTrendModel,
+        ...(rawYoyPct !== null && Number.isFinite(rawYoyPct)
+          ? { priceTrendYoyPct: rawYoyPct }
+          : {}),
+        priceTrendIncludedInComposite: includePriceTrendInComposite ? 1 : 0,
+        futureTransportModel: plannedTransport.model,
+        futureTransportNearestKm: Math.round(plannedTransport.nearestKm * 1000) / 1000,
+        futureTransportNearestScheme: plannedTransport.schemeLabel,
+        futureTransportNearestPointLabel: plannedTransport.pointLabel,
+        futureTransportProximityScore: plannedTransport.proximityScore0To100,
+        futureTransportSourceUrl: plannedTransport.sourceUrl,
+        futureTransportDataLastReviewed: plannedTransport.dataLastReviewedIsoDate,
+      },
+    };
+  });
 
   return [...rows].sort((a, b) => b.score - a.score);
 };

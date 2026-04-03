@@ -57,6 +57,9 @@ describe('buildRankedAreas', () => {
     expect(first?.displayName).not.toContain('HQ');
     expect(first?.metadata?.policeUk).toBe('ok');
     expect(first?.metadata?.candidateMode).toBe('workplace-grid');
+    expect(first?.metadata?.futureTransportModel).toBe('london-planned-point-proximity-v1');
+    expect(typeof first?.metadata?.futureTransportProximityScore).toBe('number');
+    expect(first?.metadata?.futureTransportDataLastReviewed).toBe('2026-04-03');
     expect(fetchImpl.mock.calls.length).toBe(12);
   });
 

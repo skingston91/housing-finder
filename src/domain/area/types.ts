@@ -5,6 +5,8 @@ export interface AreaScoreBreakdown {
   readonly commute: number;
   readonly schools: number;
   readonly crime: number;
+  /** UK HPI YoY momentum among candidates (0–100); not a price forecast. */
+  readonly priceTrend: number;
 }
 
 export interface RankedArea {

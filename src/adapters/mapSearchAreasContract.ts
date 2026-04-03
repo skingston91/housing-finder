@@ -26,6 +26,11 @@ export const areaSearchCriteriaToRequestBody = (
     windowMonths: criteria.crime.windowMonths,
     categoryWeights: { ...criteria.crime.categoryWeights },
   },
+  ...(criteria.scoring !== undefined
+    ? {
+        scoring: { ...criteria.scoring },
+      }
+    : {}),
 });
 
 export const rankedAreaDtoToDomain = (dto: RankedAreaDto): RankedArea => ({

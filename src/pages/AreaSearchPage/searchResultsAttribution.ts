@@ -1,5 +1,7 @@
 import type { RankedArea } from '@/domain/area/types';
 
+import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtcUkLong';
+
 const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): string => {
   const src = metadata?.affordabilityPriceSource;
   let aff =
@@ -190,6 +192,23 @@ export const firstLandRegistryOglAttribution = (
     const v = a.metadata?.landRegistryOgl;
     if (typeof v === 'string' && v.trim().length > 0) {
       return v;
+    }
+  }
+  return undefined;
+};
+
+/** When API returns planned-transport spike metadata, explain straight-line waypoint proximity. */
+export const firstFutureTransportMethodologyNote = (
+  areas: readonly RankedArea[],
+): string | undefined => {
+  for (const a of areas) {
+    if (a.metadata?.futureTransportModel === 'london-planned-point-proximity-v1') {
+      const checked =
+        typeof a.metadata.futureTransportDataLastReviewed === 'string' &&
+        a.metadata.futureTransportDataLastReviewed.trim() !== ''
+          ? ` Waypoint list last checked: ${formatIsoDateUtcUkLong(a.metadata.futureTransportDataLastReviewed)}.`
+          : '';
+      return `Planned transport proximity (Greater London spike): straight-line distance to the nearest curated waypoint for publicly discussed schemes (see per-card source links); illustrative only—not a delivery date, engineering alignment, or part of the headline score.${checked}`;
     }
   }
   return undefined;

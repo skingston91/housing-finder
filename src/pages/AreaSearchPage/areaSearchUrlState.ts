@@ -80,6 +80,7 @@ interface WireForm {
   readonly schoolMaxMinutes?: unknown;
   readonly crimeWindowMonths?: unknown;
   readonly crimeWeightsJson?: unknown;
+  readonly includePriceTrendInComposite?: unknown;
 }
 
 const toFormState = (w: WireForm): AreaSearchFormState | null => {
@@ -183,6 +184,13 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
     return null;
   }
 
+  if (
+    w.includePriceTrendInComposite !== undefined &&
+    typeof w.includePriceTrendInComposite !== 'boolean'
+  ) {
+    return null;
+  }
+
   const maxPrice: number | '' = w.maxPriceGbp === '' ? '' : w.maxPriceGbp;
 
   return {
@@ -210,6 +218,8 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
     schoolMaxMinutes,
     crimeWindowMonths: w.crimeWindowMonths,
     crimeWeightsJson: w.crimeWeightsJson,
+    includePriceTrendInComposite:
+      typeof w.includePriceTrendInComposite === 'boolean' ? w.includePriceTrendInComposite : false,
   };
 };
 
@@ -241,6 +251,7 @@ export const encodeAreaSearchQueryParam = (form: AreaSearchFormState): string =>
     schoolMaxMinutes: form.schoolMaxMinutes,
     crimeWindowMonths: form.crimeWindowMonths,
     crimeWeightsJson: form.crimeWeightsJson,
+    includePriceTrendInComposite: form.includePriceTrendInComposite,
   };
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
 };

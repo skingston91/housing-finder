@@ -30,6 +30,7 @@ describe('createHttpAreaDiscoveryAdapter', () => {
               commute: 60,
               schools: 50,
               crime: 90,
+              priceTrend: 50,
             },
             metadata: { policeUk: 'ok' },
           },

@@ -539,6 +539,25 @@ export const AreaSearchCriteriaForm = ({
       </Stack>
 
       <Stack gap={2}>
+        <Heading size="md">Price momentum</Heading>
+        <Text fontSize="sm" color="fg.muted">
+          Optional second signal: UK HPI **year-on-year change** by borough (relative among your
+          candidates). Higher is stronger recent price growth; not a forecast or investment advice.
+          Requires live UK HPI on the search API.
+        </Text>
+        <Checkbox.Root
+          checked={form.includePriceTrendInComposite}
+          onCheckedChange={(d) => {
+            onChange({ ...form, includePriceTrendInComposite: Boolean(d.checked) });
+          }}
+        >
+          <Checkbox.HiddenInput />
+          <Checkbox.Control />
+          <Checkbox.Label>Include price momentum in total score</Checkbox.Label>
+        </Checkbox.Root>
+      </Stack>
+
+      <Stack gap={2}>
         <Heading size="md">Crime weighting</Heading>
         <Text fontSize="sm" color="fg.muted">
           Rolling window and JSON map of police.uk category → weight (higher = more impact on

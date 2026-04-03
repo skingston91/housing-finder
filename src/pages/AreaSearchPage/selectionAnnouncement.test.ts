@@ -10,7 +10,13 @@ const area = (id: string, name: string, score: number): RankedArea => ({
   centroidLatitude: 51.5,
   centroidLongitude: -0.1,
   score,
-  breakdown: { affordability: 50, commute: 50, schools: 50, crime: 50 },
+  breakdown: {
+    affordability: 50,
+    commute: 50,
+    schools: 50,
+    crime: 50,
+    priceTrend: 50,
+  },
 });
 
 describe('getSelectionAnnouncement', () => {

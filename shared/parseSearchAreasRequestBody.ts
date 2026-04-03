@@ -2,6 +2,7 @@ import type {
   CommuteModeDto,
   PropertyTypeDto,
   SchoolPhaseDto,
+  ScoringDto,
   SearchAreasRequestBody,
   TransitCommutePreferencesDto,
   TransitJourneyPreferenceDto,
@@ -324,6 +325,19 @@ export const parseSearchAreasRequestBody = (
     return { ok: false, error: 'crime.categoryWeights must be an object of non-negative numbers' };
   }
 
+  let scoring: ScoringDto | undefined;
+  if (raw.scoring !== undefined) {
+    if (!isRecord(raw.scoring)) {
+      return { ok: false, error: 'scoring must be an object' };
+    }
+    if (raw.scoring.includePriceTrendInComposite !== undefined) {
+      if (typeof raw.scoring.includePriceTrendInComposite !== 'boolean') {
+        return { ok: false, error: 'scoring.includePriceTrendInComposite must be a boolean' };
+      }
+      scoring = { includePriceTrendInComposite: raw.scoring.includePriceTrendInComposite };
+    }
+  }
+
   const value: SearchAreasRequestBody = {
     maxPriceGbp,
     maxPricePerM2Gbp: maxPricePerM2,
@@ -336,6 +350,7 @@ export const parseSearchAreasRequestBody = (
     },
     schools: { phases, maxWalkOrDriveMinutes: maxSchoolMinutes },
     crime: { windowMonths, categoryWeights },
+    ...(scoring !== undefined ? { scoring } : {}),
   };
   return { ok: true, value };
 };

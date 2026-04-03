@@ -1,5 +1,6 @@
 import { affordabilityLandRegistryAttribution } from './affordability/affordabilityAttribution';
 import { LONDON_BOROUGH_MEDIANS } from './affordability/londonBoroughMedians';
+import { plannedTransportProximityForPoint } from './futureTransport/plannedTransportProximityForPoint';
 import type { RankedAreaDto, SearchAreasRequestBody } from './searchAreasContract';
 import { compositeScore } from './scoring/compositeScore';
 import {
@@ -36,12 +37,19 @@ export const generateStubRankedAreas = (
       commute: dims.commute,
       schools: dims.schools,
       crime,
+      priceTrend: 50,
     };
-    const score = compositeScore(breakdown);
+    const score = compositeScore({
+      affordability: breakdown.affordability,
+      commute: breakdown.commute,
+      schools: breakdown.schools,
+      crime: breakdown.crime,
+    });
     const displayName =
       candidateMode === 'workplace-grid'
         ? buildMapStyleAreaHeading(body.workplace, c, LONDON_BOROUGH_MEDIANS)
         : c.displayName;
+    const plannedTransport = plannedTransportProximityForPoint(c.latitude, c.longitude);
     return {
       id: `stub-${String(i)}-${c.id}`,
       displayName,
@@ -63,6 +71,13 @@ export const generateStubRankedAreas = (
         schoolsPointsMatchedByUrn: SCHOOLS_POINTS_MATCHED_BY_URN,
         schoolsPerformanceCoveragePct: SCHOOLS_PERFORMANCE_COVERAGE_PCT,
         ...(schoolsPerformanceAcademicYear !== undefined ? { schoolsPerformanceAcademicYear } : {}),
+        futureTransportModel: plannedTransport.model,
+        futureTransportNearestKm: Math.round(plannedTransport.nearestKm * 1000) / 1000,
+        futureTransportNearestScheme: plannedTransport.schemeLabel,
+        futureTransportNearestPointLabel: plannedTransport.pointLabel,
+        futureTransportProximityScore: plannedTransport.proximityScore0To100,
+        futureTransportSourceUrl: plannedTransport.sourceUrl,
+        futureTransportDataLastReviewed: plannedTransport.dataLastReviewedIsoDate,
       },
     };
   });

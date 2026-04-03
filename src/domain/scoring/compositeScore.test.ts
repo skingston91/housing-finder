@@ -9,6 +9,7 @@ describe('compositeScore', () => {
       commute: 60,
       schools: 70,
       crime: 90,
+      priceTrend: 50,
     });
     expect(score).toBe(74);
   });
@@ -21,12 +22,15 @@ describe('compositeScore', () => {
           commute: 50,
           schools: 50,
           crime: 50,
+          priceTrend: 50,
         },
         {
-          affordability: 0,
-          commute: 0,
-          schools: 0,
-          crime: 0,
+          weights: {
+            affordability: 0,
+            commute: 0,
+            schools: 0,
+            crime: 0,
+          },
         },
       ),
     ).toBe(0);

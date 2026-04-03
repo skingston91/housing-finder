@@ -41,6 +41,9 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
               <Table.ColumnHeader scope="col" textAlign="end">
                 Crime
               </Table.ColumnHeader>
+              <Table.ColumnHeader scope="col" textAlign="end">
+                Price mom.
+              </Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -63,6 +66,9 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
                 </Table.Cell>
                 <Table.Cell textAlign="end" fontFamily="mono">
                   {String(a.breakdown.crime)}
+                </Table.Cell>
+                <Table.Cell textAlign="end" fontFamily="mono">
+                  {String(a.breakdown.priceTrend)}
                 </Table.Cell>
               </Table.Row>
             ))}

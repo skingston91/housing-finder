@@ -16,6 +16,7 @@ export const createRankedArea = (overrides: Partial<RankedArea> = {}): RankedAre
       commute: 55,
       schools: 70,
       crime: 65,
+      priceTrend: 50,
     },
     ...overrides,
   };

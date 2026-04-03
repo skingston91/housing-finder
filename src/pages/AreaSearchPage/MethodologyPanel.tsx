@@ -4,6 +4,7 @@ import type { RankedArea } from '@/domain/area/types';
 import {
   firstAffordabilityDiscoveryHint,
   firstDataPoliceUkAttribution,
+  firstFutureTransportMethodologyNote,
   firstLandRegistryOglAttribution,
   firstSchoolsCoverageHint,
   firstSchoolsDataAttribution,
@@ -39,6 +40,7 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
   const schoolsCoverage = firstSchoolsCoverageHint(areas);
   const schoolsYear = firstSchoolsPerformanceYearHint(areas);
   const affordabilityHonesty = firstAffordabilityDiscoveryHint(areas);
+  const futureTransport = firstFutureTransportMethodologyNote(areas);
   const lowCoverage = shouldWarnLowSchoolsCoverage(areas);
   const hasBody =
     policeUk !== undefined ||
@@ -46,7 +48,8 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
     schools !== undefined ||
     schoolsCoverage !== undefined ||
     schoolsYear !== undefined ||
-    affordabilityHonesty !== undefined;
+    affordabilityHonesty !== undefined ||
+    futureTransport !== undefined;
 
   return (
     <Stack gap={3}>
@@ -65,8 +68,12 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
         </Alert.Root>
       ) : null}
       <Text fontSize="sm" color="fg.muted">
-        Scores blend affordability, commute, schools, and crime using the sources below. Indicative
-        only—not admissions, catchment, or purchase advice.
+        Scores blend affordability, commute, schools, and crime; you can optionally include{' '}
+        <Text as="span" fontWeight="medium">
+          price momentum
+        </Text>{' '}
+        (UK HPI year-on-year change by borough, scaled relative to candidates in this search—not a
+        forecast). Indicative only—not admissions, catchment, or purchase advice.
       </Text>
       {hasBody ? (
         <Box as="details" borderWidth="1px" borderColor="gray.200" rounded="lg" p={3} bg="white">
@@ -87,6 +94,7 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
             {schools ? <Text>{schools}</Text> : null}
             {schoolsYear ? <Text>{schoolsYear}</Text> : null}
             {schoolsCoverage ? <Text>{schoolsCoverage}</Text> : null}
+            {futureTransport ? <Text>{futureTransport}</Text> : null}
           </Stack>
         </Box>
       ) : null}
