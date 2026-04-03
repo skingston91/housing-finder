@@ -60,7 +60,30 @@ describe('buildRankedAreas', () => {
     expect(first?.metadata?.futureTransportModel).toBe('london-planned-point-proximity-v1');
     expect(typeof first?.metadata?.futureTransportProximityScore).toBe('number');
     expect(first?.metadata?.futureTransportDataLastReviewed).toBe('2026-04-03');
+    expect(typeof first?.breakdown.sizeFit).toBe('number');
+    expect(first?.metadata?.sizeFitModel).toBe('not-requested');
     expect(fetchImpl.mock.calls.length).toBe(12);
+  });
+
+  it('computes size fit second score when sizeFit is requested', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify([{ category: 'burglary' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    const areas = await buildRankedAreas(
+      { ...minimalBody, sizeFit: { minFloorAreaM2: 95 } },
+      fetchImpl,
+      undefined,
+    );
+    expect(areas[0]?.metadata?.sizeFitModel).toBe('heuristic-inner-outer-london-v1');
+    expect(areas[0]?.metadata?.sizeFitUserMinM2).toBe(95);
+    expect(areas[0]?.metadata?.sizeFitTypicalM2Coverage).toBe('heuristic-only');
+    expect(areas[0]?.metadata?.sizeFitEpcGeneratedAt).toBeUndefined();
+    expect(typeof areas[0]?.breakdown.sizeFit).toBe('number');
   });
 
   it('uses TfL for transit when credentials provided', async () => {

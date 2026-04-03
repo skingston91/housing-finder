@@ -56,6 +56,11 @@ export interface AreaSearchScoring {
   readonly includePriceTrendInComposite: boolean;
 }
 
+export interface AreaSearchSizeFit {
+  /** Minimum total internal floor area (m²). Second score only; London heuristic. */
+  readonly minFloorAreaM2: number;
+}
+
 export interface AreaSearchCriteria {
   readonly maxPriceGbp: number;
   readonly maxPricePerM2Gbp?: number;
@@ -65,4 +70,5 @@ export interface AreaSearchCriteria {
   readonly schools: SchoolPreferences;
   readonly crime: CrimePreferences;
   readonly scoring?: AreaSearchScoring;
+  readonly sizeFit?: AreaSearchSizeFit;
 }

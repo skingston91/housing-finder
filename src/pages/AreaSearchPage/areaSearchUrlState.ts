@@ -81,6 +81,8 @@ interface WireForm {
   readonly crimeWindowMonths?: unknown;
   readonly crimeWeightsJson?: unknown;
   readonly includePriceTrendInComposite?: unknown;
+  readonly minInternalFloorArea?: unknown;
+  readonly minInternalFloorAreaUnit?: unknown;
 }
 
 const toFormState = (w: WireForm): AreaSearchFormState | null => {
@@ -191,6 +193,21 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
     return null;
   }
 
+  let minInternalFloorArea: number | '' = '';
+  if (w.minInternalFloorArea !== undefined && w.minInternalFloorArea !== '') {
+    if (typeof w.minInternalFloorArea !== 'number') {
+      return null;
+    }
+    minInternalFloorArea = w.minInternalFloorArea;
+  }
+  let minInternalFloorAreaUnit: 'sqft' | 'm2' = 'sqft';
+  if (w.minInternalFloorAreaUnit !== undefined) {
+    if (w.minInternalFloorAreaUnit !== 'sqft' && w.minInternalFloorAreaUnit !== 'm2') {
+      return null;
+    }
+    minInternalFloorAreaUnit = w.minInternalFloorAreaUnit;
+  }
+
   const maxPrice: number | '' = w.maxPriceGbp === '' ? '' : w.maxPriceGbp;
 
   return {
@@ -220,6 +237,8 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
     crimeWeightsJson: w.crimeWeightsJson,
     includePriceTrendInComposite:
       typeof w.includePriceTrendInComposite === 'boolean' ? w.includePriceTrendInComposite : false,
+    minInternalFloorArea,
+    minInternalFloorAreaUnit,
   };
 };
 
@@ -252,6 +271,8 @@ export const encodeAreaSearchQueryParam = (form: AreaSearchFormState): string =>
     crimeWindowMonths: form.crimeWindowMonths,
     crimeWeightsJson: form.crimeWeightsJson,
     includePriceTrendInComposite: form.includePriceTrendInComposite,
+    minInternalFloorArea: form.minInternalFloorArea,
+    minInternalFloorAreaUnit: form.minInternalFloorAreaUnit,
   };
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
 };

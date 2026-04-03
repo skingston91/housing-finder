@@ -5,6 +5,8 @@ import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtc
 import { schoolsDimensionExplanationLine } from '@shared/schools/schoolsDimensionExplanation';
 
 import { commuteModelDisplayLabel } from './commuteModelLabels';
+import { SIZE_FIT_SCORE_DETAILS_READING, sizeFitResultCardExplainer } from './sizeFitUserContext';
+import { isSizeFitSecondScoreActive } from './sizeFitSearchActive';
 import { areaProvenanceDescription, hasCrimeMetadataDetails } from './searchResultsAttribution';
 import { ScoreBar } from './ScoreBar';
 
@@ -162,6 +164,41 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
       value: formatIsoDateUtcUkLong(m.futureTransportDataLastReviewed),
     });
   }
+  if (isSizeFitSecondScoreActive(m)) {
+    rows.push({ label: 'Floor-area fit model', value: String(m.sizeFitModel) });
+    if (
+      typeof m.sizeFitTypicalM2Coverage === 'string' &&
+      m.sizeFitTypicalM2Coverage.trim() !== ''
+    ) {
+      rows.push({
+        label: 'Typical m² coverage (this borough)',
+        value: m.sizeFitTypicalM2Coverage.trim(),
+      });
+    }
+    if (typeof m.sizeFitEpcGeneratedAt === 'string' && m.sizeFitEpcGeneratedAt.trim() !== '') {
+      const isoDay = m.sizeFitEpcGeneratedAt.trim().slice(0, 10);
+      rows.push({
+        label: 'EPC median bundle generated',
+        value: formatIsoDateUtcUkLong(isoDay),
+      });
+    }
+    rows.push({ label: 'How to read this', value: SIZE_FIT_SCORE_DETAILS_READING });
+    if (typeof m.sizeFitUserMinM2 === 'number' && Number.isFinite(m.sizeFitUserMinM2)) {
+      rows.push({
+        label: 'Your minimum floor area (m²)',
+        value: m.sizeFitUserMinM2.toFixed(2),
+      });
+    }
+    if (
+      typeof m.sizeFitRawHeadroomRatio === 'number' &&
+      Number.isFinite(m.sizeFitRawHeadroomRatio)
+    ) {
+      rows.push({
+        label: 'Typical vs your minimum (ratio)',
+        value: m.sizeFitRawHeadroomRatio.toFixed(3),
+      });
+    }
+  }
   if (rows.length === 0) {
     return null;
   }
@@ -192,8 +229,9 @@ export const AreaResultCard = ({
   onSelectArea,
   compare,
 }: AreaResultCardProps) => {
+  const meta = area.metadata;
   const interactive = onSelectArea !== undefined;
-  const schoolsLine = schoolsDimensionExplanationLine(area.metadata);
+  const schoolsLine = schoolsDimensionExplanationLine(meta);
 
   return (
     <Card.Root
@@ -289,6 +327,20 @@ export const AreaResultCard = ({
                     : 'Relative rank among candidates in this search; not a forecast.'}
               </Text>
             </Stack>
+            {isSizeFitSecondScoreActive(meta) ? (
+              <Stack gap={1}>
+                <ScoreBar
+                  label="Floor-area fit (second score, not in total)"
+                  value={area.breakdown.sizeFit}
+                />
+                <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                  {sizeFitResultCardExplainer(
+                    typeof meta?.sizeFitUserMinM2 === 'number' ? meta.sizeFitUserMinM2 : undefined,
+                    meta,
+                  )}
+                </Text>
+              </Stack>
+            ) : null}
             {typeof area.metadata?.futureTransportProximityScore === 'number' &&
             Number.isFinite(area.metadata.futureTransportProximityScore) ? (
               <Stack gap={1}>

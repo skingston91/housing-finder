@@ -9,7 +9,11 @@ import {
   firstSchoolsCoverageHint,
   firstSchoolsDataAttribution,
   firstSchoolsPerformanceYearHint,
+  firstSizeFitMethodologyNote,
 } from './searchResultsAttribution';
+
+import { SIZE_FIT_SUMMARY_WHEN_ACTIVE } from './sizeFitUserContext';
+import { isSizeFitSecondScoreActive } from './sizeFitSearchActive';
 
 /** When DfE URN performance is on but few establishment points join, warn clearly. */
 export const LOW_SCHOOLS_COVERAGE_THRESHOLD_PCT = 50;
@@ -41,6 +45,8 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
   const schoolsYear = firstSchoolsPerformanceYearHint(areas);
   const affordabilityHonesty = firstAffordabilityDiscoveryHint(areas);
   const futureTransport = firstFutureTransportMethodologyNote(areas);
+  const sizeFit = firstSizeFitMethodologyNote(areas);
+  const sizeFitActive = areas.some((a) => isSizeFitSecondScoreActive(a.metadata));
   const lowCoverage = shouldWarnLowSchoolsCoverage(areas);
   const hasBody =
     policeUk !== undefined ||
@@ -49,7 +55,8 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
     schoolsCoverage !== undefined ||
     schoolsYear !== undefined ||
     affordabilityHonesty !== undefined ||
-    futureTransport !== undefined;
+    futureTransport !== undefined ||
+    sizeFit !== undefined;
 
   return (
     <Stack gap={3}>
@@ -74,6 +81,7 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
         </Text>{' '}
         (UK HPI year-on-year change by borough, scaled relative to candidates in this search—not a
         forecast). Indicative only—not admissions, catchment, or purchase advice.
+        {sizeFitActive ? ` ${SIZE_FIT_SUMMARY_WHEN_ACTIVE}` : ''}
       </Text>
       {hasBody ? (
         <Box as="details" borderWidth="1px" borderColor="gray.200" rounded="lg" p={3} bg="white">
@@ -95,6 +103,7 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
             {schoolsYear ? <Text>{schoolsYear}</Text> : null}
             {schoolsCoverage ? <Text>{schoolsCoverage}</Text> : null}
             {futureTransport ? <Text>{futureTransport}</Text> : null}
+            {sizeFit ? <Text>{sizeFit}</Text> : null}
           </Stack>
         </Box>
       ) : null}

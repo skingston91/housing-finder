@@ -1,6 +1,9 @@
 import { Box, Heading, Table, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
 
+import { SIZE_FIT_COMPARE_SUPPLEMENT } from './sizeFitUserContext';
+import { isSizeFitSecondScoreActive } from './sizeFitSearchActive';
+
 export interface AreaComparePanelProps {
   readonly areas: readonly RankedArea[];
 }
@@ -9,6 +12,7 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
   if (areas.length < 2) {
     return null;
   }
+  const showSizeFit = areas.some((a) => isSizeFitSecondScoreActive(a.metadata));
   return (
     <Box
       borderWidth="1px"
@@ -44,6 +48,11 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
               <Table.ColumnHeader scope="col" textAlign="end">
                 Price mom.
               </Table.ColumnHeader>
+              {showSizeFit ? (
+                <Table.ColumnHeader scope="col" textAlign="end">
+                  Size fit
+                </Table.ColumnHeader>
+              ) : null}
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -70,6 +79,11 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
                 <Table.Cell textAlign="end" fontFamily="mono">
                   {String(a.breakdown.priceTrend)}
                 </Table.Cell>
+                {showSizeFit ? (
+                  <Table.Cell textAlign="end" fontFamily="mono">
+                    {String(a.breakdown.sizeFit)}
+                  </Table.Cell>
+                ) : null}
               </Table.Row>
             ))}
           </Table.Body>
@@ -77,6 +91,7 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
       </Box>
       <Text fontSize="xs" color="fg.muted" mt={3}>
         Same scores as the cards; for discovery only—not admissions or conveyancing advice.
+        {showSizeFit ? SIZE_FIT_COMPARE_SUPPLEMENT : ''}
       </Text>
     </Box>
   );

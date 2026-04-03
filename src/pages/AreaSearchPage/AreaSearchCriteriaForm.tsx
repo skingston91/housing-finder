@@ -18,6 +18,7 @@ import type {
 import { TFL_SUGGESTED_LINE_IDS } from '@shared/commute/tflSuggestedLondonLineIds';
 
 import type { AreaSearchFormState } from './buildSearchAreasRequest';
+import { SIZE_FIT_FORM_INTRO } from './sizeFitUserContext';
 
 const PROPERTY_OPTIONS: readonly { value: PropertyType; label: string }[] = [
   { value: 'flat', label: 'Flat' },
@@ -164,6 +165,57 @@ export const AreaSearchCriteriaForm = ({
               <Checkbox.Label>{opt.label}</Checkbox.Label>
             </Checkbox.Root>
           ))}
+        </Grid>
+      </Stack>
+
+      <Stack gap={2}>
+        <Heading size="md">Minimum internal floor area (optional)</Heading>
+        <Text fontSize="sm" color="fg.muted">
+          {SIZE_FIT_FORM_INTRO}
+        </Text>
+        <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4} alignItems="flex-end">
+          <Stack gap={1}>
+            <Text fontWeight="medium">Minimum floor area</Text>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              placeholder="e.g. 1000 (sq ft) or 95 (m²)"
+              value={form.minInternalFloorArea === '' ? '' : String(form.minInternalFloorArea)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === '') {
+                  onChange({ ...form, minInternalFloorArea: '' });
+                  return;
+                }
+                const v = Number(raw);
+                onChange({
+                  ...form,
+                  minInternalFloorArea: Number.isFinite(v) ? v : form.minInternalFloorArea,
+                });
+              }}
+              aria-label="Minimum internal floor area optional"
+            />
+          </Stack>
+          <Stack gap={1}>
+            <Text fontWeight="medium">Unit</Text>
+            <NativeSelect.Root>
+              <NativeSelect.Field
+                value={form.minInternalFloorAreaUnit}
+                onChange={(e) => {
+                  const u = e.target.value;
+                  if (u === 'sqft' || u === 'm2') {
+                    onChange({ ...form, minInternalFloorAreaUnit: u });
+                  }
+                }}
+                aria-label="Minimum floor area unit"
+              >
+                <option value="sqft">Square feet</option>
+                <option value="m2">Square metres</option>
+              </NativeSelect.Field>
+              <NativeSelect.Indicator />
+            </NativeSelect.Root>
+          </Stack>
         </Grid>
       </Stack>
 

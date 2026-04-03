@@ -1,11 +1,17 @@
 import { areaSearchCriteriaToRequestBody } from '@/adapters/mapSearchAreasContract';
 import type {
   AreaSearchCriteria,
+  AreaSearchSizeFit,
   CommuteConstraints,
   PropertyType,
   TransitJourneyPreference,
 } from '@/domain/criteria/types';
 import type { SearchAreasRequestBody } from '@shared/searchAreasContract';
+
+/** Convert imperial floor area to m² (exact definition of international foot). */
+const SQ_FT_TO_SQM = 0.09290304;
+const SIZE_FIT_MIN_M2 = 8;
+const SIZE_FIT_MAX_M2 = 1500;
 
 export interface AreaSearchFormState {
   /** Empty while the user clears the field to type a new value (avoids `Number('')` → 0). */
@@ -41,6 +47,9 @@ export interface AreaSearchFormState {
   crimeWeightsJson: string;
   /** When true, UK HPI YoY borough momentum is blended into the composite score. */
   includePriceTrendInComposite: boolean;
+  /** Optional minimum internal floor area; empty when not used. */
+  minInternalFloorArea: number | '';
+  minInternalFloorAreaUnit: 'sqft' | 'm2';
 }
 
 const toPlannerYyyyMmDd = (htmlDate: string): string | null => {
@@ -104,6 +113,8 @@ export const defaultFormState = (): AreaSearchFormState => ({
   crimeWindowMonths: 12,
   crimeWeightsJson: JSON.stringify(defaultCrimeWeights(), null, 2),
   includePriceTrendInComposite: false,
+  minInternalFloorArea: '',
+  minInternalFloorAreaUnit: 'sqft',
 });
 
 /** Validates the area-search form and returns domain criteria (inner model). */
@@ -179,6 +190,16 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
     return null;
   }
 
+  let sizeFit: AreaSearchSizeFit | undefined;
+  if (form.minInternalFloorArea !== '') {
+    const v = form.minInternalFloorArea;
+    const m2 = form.minInternalFloorAreaUnit === 'sqft' ? v * SQ_FT_TO_SQM : v;
+    if (!Number.isFinite(m2) || m2 < SIZE_FIT_MIN_M2 || m2 > SIZE_FIT_MAX_M2) {
+      return null;
+    }
+    sizeFit = { minFloorAreaM2: Math.round(m2 * 100) / 100 };
+  }
+
   const commute: CommuteConstraints =
     form.commuteMode === 'transit'
       ? {
@@ -233,6 +254,7 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
     ...(form.includePriceTrendInComposite
       ? { scoring: { includePriceTrendInComposite: true } }
       : {}),
+    ...(sizeFit !== undefined ? { sizeFit } : {}),
   };
 };
 

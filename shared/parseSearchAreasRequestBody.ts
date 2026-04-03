@@ -4,6 +4,7 @@ import type {
   SchoolPhaseDto,
   ScoringDto,
   SearchAreasRequestBody,
+  SizeFitDto,
   TransitCommutePreferencesDto,
   TransitJourneyPreferenceDto,
 } from './searchAreasContract';
@@ -338,6 +339,24 @@ export const parseSearchAreasRequestBody = (
     }
   }
 
+  let sizeFit: SizeFitDto | undefined;
+  if (raw.sizeFit !== undefined) {
+    if (!isRecord(raw.sizeFit)) {
+      return { ok: false, error: 'sizeFit must be an object' };
+    }
+    const minM2 = parsePositiveNumber(raw.sizeFit.minFloorAreaM2, 'sizeFit.minFloorAreaM2');
+    if (minM2 === null) {
+      return { ok: false, error: 'sizeFit.minFloorAreaM2 must be a positive number' };
+    }
+    if (minM2 < 8 || minM2 > 1500) {
+      return {
+        ok: false,
+        error: 'sizeFit.minFloorAreaM2 must be between 8 and 1500 square metres',
+      };
+    }
+    sizeFit = { minFloorAreaM2: Math.round(minM2 * 100) / 100 };
+  }
+
   const value: SearchAreasRequestBody = {
     maxPriceGbp,
     maxPricePerM2Gbp: maxPricePerM2,
@@ -351,6 +370,7 @@ export const parseSearchAreasRequestBody = (
     schools: { phases, maxWalkOrDriveMinutes: maxSchoolMinutes },
     crime: { windowMonths, categoryWeights },
     ...(scoring !== undefined ? { scoring } : {}),
+    ...(sizeFit !== undefined ? { sizeFit } : {}),
   };
   return { ok: true, value };
 };

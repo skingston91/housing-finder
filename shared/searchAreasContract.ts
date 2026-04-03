@@ -77,6 +77,15 @@ export interface ScoringDto {
   readonly includePriceTrendInComposite: boolean;
 }
 
+/**
+ * Optional **second score** (not in headline composite): how well a borough’s **illustrative**
+ * typical internal floor area matches your minimum, for **London** only.
+ */
+export interface SizeFitDto {
+  /** Minimum total internal floor area in square metres. */
+  readonly minFloorAreaM2: number;
+}
+
 export interface SearchAreasRequestBody {
   readonly maxPriceGbp: number;
   readonly maxPricePerM2Gbp?: number;
@@ -86,6 +95,7 @@ export interface SearchAreasRequestBody {
   readonly schools: SchoolsDto;
   readonly crime: CrimeDto;
   readonly scoring?: ScoringDto;
+  readonly sizeFit?: SizeFitDto;
 }
 
 export interface AreaScoreBreakdownDto {
@@ -95,6 +105,11 @@ export interface AreaScoreBreakdownDto {
   readonly crime: number;
   /** Relative 0–100 momentum from UK HPI YoY among this search’s candidates (borough-level). */
   readonly priceTrend: number;
+  /**
+   * 0–100 **second score** only: relative headroom vs {@link SizeFitDto} among candidates.
+   * **Not** blended into {@link RankedAreaDto.score}.
+   */
+  readonly sizeFit: number;
 }
 
 export interface RankedAreaDto {
@@ -104,6 +119,10 @@ export interface RankedAreaDto {
   readonly centroidLongitude: number;
   readonly score: number;
   readonly breakdown: AreaScoreBreakdownDto;
+  /**
+   * Includes domain-specific keys (e.g. `sizeFitModel`, `sizeFitTypicalM2Coverage`, `sizeFitEpcGeneratedAt`,
+   * `commuteModel`, …) as `string | number` for JSON transport.
+   */
   readonly metadata?: Readonly<Record<string, string | number>>;
 }
 

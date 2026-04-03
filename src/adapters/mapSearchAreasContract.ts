@@ -31,6 +31,11 @@ export const areaSearchCriteriaToRequestBody = (
         scoring: { ...criteria.scoring },
       }
     : {}),
+  ...(criteria.sizeFit !== undefined
+    ? {
+        sizeFit: { minFloorAreaM2: criteria.sizeFit.minFloorAreaM2 },
+      }
+    : {}),
 });
 
 export const rankedAreaDtoToDomain = (dto: RankedAreaDto): RankedArea => ({

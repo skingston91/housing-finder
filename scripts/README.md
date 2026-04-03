@@ -50,3 +50,21 @@ npm run check:dfe-manifest -- --min-coverage 50 --max-dropped-no-mapped-pct 40 -
 ```
 
 **Runtime note:** ingested school coordinates and performance are **bundled** into the API build—there are no live DfE HTTP calls per search. Ranking metadata exposes join quality (`schoolsPointsMatchedByUrn`, `schoolsPointsWithUrn`, `schoolsPerformanceCoveragePct`) so low-coverage releases are visible during QA.
+
+## Domestic EPC — London borough × property-type floor medians
+
+1. Register for API access at [EPC Open Data Communities](https://epc.opendatacommunities.org/) (MHCLG; Open Government Licence—follow their terms).
+2. Set **HTTP Basic** credentials (same as the site documents—Base64 of `email:api-key`):
+
+   - **`EPC_EMAIL`** and **`EPC_API_KEY`**, or
+   - **`EPC_BASIC_TOKEN`** — optional; if set, used as the full Base64 payload (no `Basic ` prefix in the value).
+
+3. Run (warn: **many** paginated requests—31 boroughs × several property-type slices; takes a while and uses API quota):
+
+```bash
+EPC_EMAIL=you@example.com EPC_API_KEY=secret npm run ingest:epc-london-medians
+```
+
+This overwrites `shared/sizeFit/londonBoroughEpcMedianFloorM2.generated.ts` with **median total floor area (m²)** per London borough slug and app property-type bucket, plus `LONDON_EPC_MEDIAN_GENERATED_ISO`. Cells with **fewer than 20** certificates are omitted at ingest time; search-time scoring **matches** that threshold via `EPC_MEDIAN_MIN_SAMPLE` in `shared/sizeFit/resolveTypicalFloorM2ForBorough.ts`. **Regenerate periodically** (e.g. quarterly) so bundled medians stay reasonably fresh.
+
+**Classification** in `scripts/ingest-epc-london-floor-medians.mjs` must stay aligned with `shared/sizeFit/epcCertificateRowClassification.ts`.

@@ -14,6 +14,14 @@ import { resolveSchoolsPerformanceAcademicYearForMetadata } from './schools/reso
 import { resolveSchoolsRankingMetadataModel } from './schools/resolveSchoolsRankingMetadataModel';
 import { buildMapStyleAreaHeading } from './rankAreas/buildMapStyleAreaHeading';
 import { resolveSearchCandidates } from './rankAreas/workplaceGridCandidates';
+import { LONDON_EPC_MEDIAN_GENERATED_ISO } from './sizeFit/londonBoroughEpcMedianFloorM2.generated';
+import { normalizeSizeFitRatiosToScores } from './sizeFit/normalizeSizeFitRatiosToScores';
+import {
+  resolveTypicalFloorM2ForBorough,
+  sizeFitAggregateModelIdForSearch,
+  typicalM2CoverageForBorough,
+} from './sizeFit/resolveTypicalFloorM2ForBorough';
+import { sizeFitHeadroomRatio } from './sizeFit/sizeFitHeadroomRatio';
 
 /** Fully stubbed crime; non-crime dimensions match the live ranking heuristics (no police.uk). */
 export const generateStubRankedAreas = (
@@ -24,20 +32,44 @@ export const generateStubRankedAreas = (
   const n = Math.min(count, candidates.length);
   const seed = body.maxPriceGbp % 97;
   const schoolsPerformanceAcademicYear = resolveSchoolsPerformanceAcademicYearForMetadata();
-  return Array.from({ length: n }, (_, i) => {
+  const sizeFitMinM2 = body.sizeFit?.minFloorAreaM2;
+
+  const prepared = Array.from({ length: n }, (_, i) => {
     const c = candidates[i];
     if (!c) {
       throw new Error('stub: index out of range');
     }
     const dims = scoreNonCrimeDimensions(body, c.latitude, c.longitude);
+    return { c, dims };
+  });
+
+  const sizeFitAggregateModel =
+    sizeFitMinM2 === undefined ? ('not-requested' as const) : sizeFitAggregateModelIdForSearch();
+  const sizeFitRawRatios =
+    sizeFitMinM2 === undefined
+      ? prepared.map(() => null)
+      : prepared.map((p) =>
+          sizeFitHeadroomRatio(
+            p.dims.affordabilityBoroughId,
+            body.propertyTypes,
+            sizeFitMinM2,
+            (bid, t) => resolveTypicalFloorM2ForBorough(bid, t).m2,
+          ),
+        );
+  const sizeFitScores = normalizeSizeFitRatiosToScores(sizeFitRawRatios);
+
+  return prepared.map((row, i) => {
+    const { c, dims } = row;
     const base = 45 + ((seed + i * 7) % 40);
     const crime = Math.min(100, base + 10 - (i % 6));
+    const rawSizeRatio = sizeFitRawRatios[i] ?? null;
     const breakdown = {
       affordability: dims.affordability,
       commute: dims.commute,
       schools: dims.schools,
       crime,
       priceTrend: 50,
+      sizeFit: sizeFitScores[i] ?? 50,
     };
     const score = compositeScore({
       affordability: breakdown.affordability,
@@ -78,6 +110,26 @@ export const generateStubRankedAreas = (
         futureTransportProximityScore: plannedTransport.proximityScore0To100,
         futureTransportSourceUrl: plannedTransport.sourceUrl,
         futureTransportDataLastReviewed: plannedTransport.dataLastReviewedIsoDate,
+        ...(sizeFitMinM2 !== undefined
+          ? {
+              sizeFitModel: sizeFitAggregateModel,
+              sizeFitUserMinM2: sizeFitMinM2,
+              sizeFitTypicalM2Coverage: typicalM2CoverageForBorough(
+                dims.affordabilityBoroughId,
+                body.propertyTypes,
+              ),
+              sizeFitIncludedInComposite: 0,
+              ...(LONDON_EPC_MEDIAN_GENERATED_ISO !== null
+                ? { sizeFitEpcGeneratedAt: LONDON_EPC_MEDIAN_GENERATED_ISO }
+                : {}),
+              ...(rawSizeRatio !== null && Number.isFinite(rawSizeRatio)
+                ? { sizeFitRawHeadroomRatio: Math.round(rawSizeRatio * 1000) / 1000 }
+                : {}),
+            }
+          : {
+              sizeFitModel: 'not-requested',
+              sizeFitIncludedInComposite: 0,
+            }),
       },
     };
   });

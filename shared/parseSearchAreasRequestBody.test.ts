@@ -101,4 +101,33 @@ describe('parseSearchAreasRequestBody', () => {
     });
     expect(r.ok).toBe(false);
   });
+
+  it('accepts optional sizeFit.minFloorAreaM2', () => {
+    const raw = {
+      maxPriceGbp: 400_000,
+      propertyTypes: ['semi_detached'],
+      workplace: { label: 'HQ', latitude: 51.5, longitude: -0.1 },
+      commute: { maxMinutes: 30, mode: 'driving' },
+      schools: { phases: ['primary'] },
+      crime: { windowMonths: 12, categoryWeights: { x: 1 } },
+      sizeFit: { minFloorAreaM2: 93 },
+    };
+    const r = parseSearchAreasRequestBody(raw);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.value.sizeFit?.minFloorAreaM2).toBe(93);
+    }
+  });
+
+  it('rejects sizeFit.minFloorAreaM2 out of range', () => {
+    const base = {
+      maxPriceGbp: 400_000,
+      propertyTypes: ['flat'],
+      workplace: { label: 'HQ', latitude: 51.5, longitude: -0.1 },
+      commute: { maxMinutes: 30, mode: 'driving' },
+      schools: { phases: ['primary'] },
+      crime: { windowMonths: 12, categoryWeights: { x: 1 } },
+    };
+    expect(parseSearchAreasRequestBody({ ...base, sizeFit: { minFloorAreaM2: 2 } }).ok).toBe(false);
+  });
 });

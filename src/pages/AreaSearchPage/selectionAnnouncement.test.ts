@@ -16,6 +16,7 @@ const area = (id: string, name: string, score: number): RankedArea => ({
     schools: 50,
     crime: 50,
     priceTrend: 50,
+    sizeFit: 50,
   },
 });
 

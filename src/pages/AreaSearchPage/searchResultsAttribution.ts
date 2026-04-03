@@ -2,6 +2,11 @@ import type { RankedArea } from '@/domain/area/types';
 
 import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtcUkLong';
 
+import {
+  SIZE_FIT_METHODOLOGY_NOTE_BUNDLED_EPC,
+  SIZE_FIT_METHODOLOGY_NOTE_HEURISTIC,
+} from './sizeFitUserContext';
+
 const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): string => {
   const src = metadata?.affordabilityPriceSource;
   let aff =
@@ -198,6 +203,19 @@ export const firstLandRegistryOglAttribution = (
 };
 
 /** When API returns planned-transport spike metadata, explain straight-line waypoint proximity. */
+/** When size-fit second score is active, spell out bundled EPC vs heuristic limitations. */
+export const firstSizeFitMethodologyNote = (areas: readonly RankedArea[]): string | undefined => {
+  for (const a of areas) {
+    if (a.metadata?.sizeFitModel === 'london-mhclg-epc-median-v1') {
+      return SIZE_FIT_METHODOLOGY_NOTE_BUNDLED_EPC;
+    }
+    if (a.metadata?.sizeFitModel === 'heuristic-inner-outer-london-v1') {
+      return SIZE_FIT_METHODOLOGY_NOTE_HEURISTIC;
+    }
+  }
+  return undefined;
+};
+
 export const firstFutureTransportMethodologyNote = (
   areas: readonly RankedArea[],
 ): string | undefined => {

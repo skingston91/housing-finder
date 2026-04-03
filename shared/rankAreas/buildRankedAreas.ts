@@ -21,6 +21,14 @@ import {
 import { resolveSchoolsDataAttribution } from '../schools/resolveSchoolsDataAttribution';
 import { resolveSchoolsPerformanceAcademicYearForMetadata } from '../schools/resolveSchoolsPerformanceAcademicYearForMetadata';
 import { resolveSchoolsRankingMetadataModel } from '../schools/resolveSchoolsRankingMetadataModel';
+import { LONDON_EPC_MEDIAN_GENERATED_ISO } from '../sizeFit/londonBoroughEpcMedianFloorM2.generated';
+import { normalizeSizeFitRatiosToScores } from '../sizeFit/normalizeSizeFitRatiosToScores';
+import {
+  resolveTypicalFloorM2ForBorough,
+  sizeFitAggregateModelIdForSearch,
+  typicalM2CoverageForBorough,
+} from '../sizeFit/resolveTypicalFloorM2ForBorough';
+import { sizeFitHeadroomRatio } from '../sizeFit/sizeFitHeadroomRatio';
 import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
 import { buildMapStyleAreaHeading } from './buildMapStyleAreaHeading';
 import type { SearchCandidate } from './workplaceGridCandidates';
@@ -158,17 +166,36 @@ export const buildRankedAreas = async (
   });
   const priceTrendScores = normalizeYoYPctToScores(rawYoyList);
 
+  const sizeFitMinM2 = body.sizeFit?.minFloorAreaM2;
+  const sizeFitAggregateModel =
+    sizeFitMinM2 === undefined ? ('not-requested' as const) : sizeFitAggregateModelIdForSearch();
+  const sizeFitRawRatios =
+    sizeFitMinM2 === undefined
+      ? intermediate.map(() => null)
+      : intermediate.map((row) =>
+          sizeFitHeadroomRatio(
+            row.base.affordabilityBoroughId,
+            body.propertyTypes,
+            sizeFitMinM2,
+            (bid, t) => resolveTypicalFloorM2ForBorough(bid, t).m2,
+          ),
+        );
+  const sizeFitScores = normalizeSizeFitRatiosToScores(sizeFitRawRatios);
+
   const rows: RankedAreaDto[] = intermediate.map((row, i) => {
     const { c, base, commuteRes, crime, total, monthsYmLen, failed } = row;
     const plannedTransport = plannedTransportProximityForPoint(c.latitude, c.longitude);
     const rawYoyPct = rawYoyList[i] ?? null;
     const priceTrend = priceTrendScores[i] ?? 50;
+    const rawSizeRatio = sizeFitRawRatios[i] ?? null;
+    const sizeFit = sizeFitScores[i] ?? 50;
     const breakdown = {
       affordability: base.affordability,
       commute: commuteRes.score,
       schools: base.schools,
       crime,
       priceTrend,
+      sizeFit,
     };
     const score = includePriceTrendInComposite
       ? compositeScoreWithPriceTrend(breakdown)
@@ -251,6 +278,26 @@ export const buildRankedAreas = async (
         futureTransportProximityScore: plannedTransport.proximityScore0To100,
         futureTransportSourceUrl: plannedTransport.sourceUrl,
         futureTransportDataLastReviewed: plannedTransport.dataLastReviewedIsoDate,
+        ...(sizeFitMinM2 !== undefined
+          ? {
+              sizeFitModel: sizeFitAggregateModel,
+              sizeFitUserMinM2: sizeFitMinM2,
+              sizeFitTypicalM2Coverage: typicalM2CoverageForBorough(
+                base.affordabilityBoroughId,
+                body.propertyTypes,
+              ),
+              sizeFitIncludedInComposite: 0,
+              ...(LONDON_EPC_MEDIAN_GENERATED_ISO !== null
+                ? { sizeFitEpcGeneratedAt: LONDON_EPC_MEDIAN_GENERATED_ISO }
+                : {}),
+              ...(rawSizeRatio !== null && Number.isFinite(rawSizeRatio)
+                ? { sizeFitRawHeadroomRatio: Math.round(rawSizeRatio * 1000) / 1000 }
+                : {}),
+            }
+          : {
+              sizeFitModel: 'not-requested',
+              sizeFitIncludedInComposite: 0,
+            }),
       },
     };
   });

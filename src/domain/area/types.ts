@@ -7,6 +7,8 @@ export interface AreaScoreBreakdown {
   readonly crime: number;
   /** UK HPI YoY momentum among candidates (0–100); not a price forecast. */
   readonly priceTrend: number;
+  /** London heuristic floor-area headroom (0–100); not in headline {@link RankedArea.score}. */
+  readonly sizeFit: number;
 }
 
 export interface RankedArea {
