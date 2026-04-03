@@ -19,6 +19,11 @@ export const schoolsDimensionExplanationLine = (
   const matched = metadata.schoolsPointsMatchedByUrn;
   const withUrn = metadata.schoolsPointsWithUrn;
 
+  const proximity =
+    metadata.schoolsProximityModel === 'haversine-walk-estimate'
+      ? ' Straight-line distance; optional cap uses estimated walk time (5 km/h), not street routing.'
+      : '';
+
   if (model === 'gias-open-data-sample-dfe-performance-urn-map') {
     let s =
       'Distance to schools matching your phases, blended with DfE performance where we have a URN match.';
@@ -36,13 +41,13 @@ export const schoolsDimensionExplanationLine = (
     ) {
       s += ` URN match rate on sample points: ${cov.toFixed(0)}% (${matched.toString()}/${withUrn.toString()}).`;
     }
-    return s;
+    return `${s}${proximity}`;
   }
   if (model === 'gias-open-data-sample-performance-seed-prototype') {
-    return 'Distance to schools matching your phases, blended with illustrative performance seeds (ingest DfE CSVs for official measures).';
+    return `Distance to schools matching your phases, blended with illustrative performance seeds (ingest DfE CSVs for official measures).${proximity}`;
   }
   if (model === 'gias-open-data-sample') {
-    return 'Distance to schools matching your phases (no performance blend in this build).';
+    return `Distance to schools matching your phases (no performance blend in this build).${proximity}`;
   }
   return null;
 };

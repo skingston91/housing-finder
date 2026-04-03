@@ -10,6 +10,7 @@ import {
   type TflTransitFailureCode,
   type TflTransitPlannerPreferences,
 } from './tflJourney';
+import { formatTflPlannerSlotSummary } from './tflPlannerSummary';
 
 export type CommuteModelId =
   | 'tfl-unified-api'
@@ -33,6 +34,10 @@ export interface CommuteScoreResult {
   readonly transitNationalSearchUsed?: boolean;
   /** Product of reliability multipliers when below 1 (disruption / route volatility). */
   readonly commuteReliabilityFactor?: number;
+  /** Human-readable TfL planner time window (transit only). */
+  readonly tflPlannerSummary?: string;
+  /** How transit duration was aggregated from TfL’s journey list. */
+  readonly tflJourneyDurationMethod?: 'median-first-three-qualifying';
 }
 
 export interface ResolveCommuteScoreRoutingOptions {
@@ -88,10 +93,15 @@ export const resolveCommuteScore = async (
         primaryJourneyMinutes: tflRes.minutes,
         alternativeJourneyMinutes: alt,
       });
+      const tflPlannerSummary = formatTflPlannerSlotSummary(plannerPrefs, Date.now());
       return {
         score: reliability.score,
         model: 'tfl-unified-api',
         journeyMinutes: Math.round(tflRes.minutes * 10) / 10,
+        tflPlannerSummary,
+        ...(tflRes.durationMethod !== undefined
+          ? { tflJourneyDurationMethod: tflRes.durationMethod }
+          : {}),
         ...(reliability.factor < 1 ? { commuteReliabilityFactor: reliability.factor } : {}),
         ...(alt !== undefined
           ? { commuteAlternativeJourneyMinutes: Math.round(alt * 10) / 10 }

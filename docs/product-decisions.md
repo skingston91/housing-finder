@@ -19,6 +19,11 @@ Decisions below drive the first implementation pass. Change this file when requi
 - **Schools:** primary / secondary / sixth form, distance or time to schools, faith filters, performance metrics — **all targeted**; MVP may stub some signals until DfE/open data ingestion exists.
 - **Crime:** **category-weighted** scores, default **12-month** window; weights and window should be **user-customisable** in product terms (UI may ship incrementally).
 
+## Operations and roadmap (links)
+
+- **Production deploy checklist:** [production-readiness.md](../production-readiness.md).
+- **From areas → listings / specific places:** [product/roadmap-specific-places.md](./product/roadmap-specific-places.md).
+
 ## Deferred product items (record)
 
 - **Shareable search URLs / query-param state** — **Implemented (v1):** criteria serialize to **`q`** (base64url JSON, versioned payload) on the area search route; opening or sharing the URL hydrates the form. Ranked **results** are not stored in the URL (re-run search after load). Keep `encode`/`decode` in `src/pages/AreaSearchPage/areaSearchUrlState.ts` aligned with `buildSearchAreasRequest`. Design note: [area-search-design-spec.md](./design/area-search-design-spec.md). Trust/compare UI spec: [area-search-trust-methodology-compare-spec.md](./design/area-search-trust-methodology-compare-spec.md).

@@ -22,6 +22,12 @@ describe('schoolsDimensionExplanationLine', () => {
         schoolsPointsWithUrn: 16,
       }),
     ).toMatch(/61%/);
+    expect(
+      schoolsDimensionExplanationLine({
+        schoolsModel: 'gias-open-data-sample-dfe-performance-urn-map',
+        schoolsProximityModel: 'haversine-walk-estimate',
+      }),
+    ).toMatch(/Straight-line distance/);
   });
 
   it('describes seed prototype model', () => {

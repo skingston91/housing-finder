@@ -10,7 +10,7 @@
 - Give a **single plain-language line** for how the **schools** dimension was computed (metadata-driven; no new API fields required).
 - Let users **compare 2–3 areas** on dimension scores side-by-side after a search.
 
-**Non-goals (this iteration):** shareable URLs / query-param state — see [product-decisions.md](../product-decisions.md).
+**URL / shareable criteria:** Implemented — form state syncs to **`q`** on the area search route (criteria only; results are not in the URL). See [product-decisions.md](../product-decisions.md) and [area-search-ux-polish-spec.md](./area-search-ux-polish-spec.md).
 
 ## Structure
 
@@ -22,7 +22,7 @@
 
 ## User flow
 
-1. After a successful search, user sees **Results** heading, then a **one-line methodology summary**, optional **low schools coverage** warning, then **collapsible** “Data sources and methodology” with full lines (police, Land Registry, schools, year, coverage).
+1. After a successful search, user sees **Results** heading, **ranked cards** and **map** first, then **compare** when applicable; **trust** content (commute accordion, straight-line warning when applicable, methodology summary + optional low-schools warning + collapsible “Data sources and methodology”) appears **below** map/compare so the ranked list stays the primary outcome. See [area-search-ux-polish-spec.md](./area-search-ux-polish-spec.md).
 2. Each result card shows dimension bars; under **Schools**, a **muted one-line** explanation from metadata.
 3. User can add up to **three** areas to **Compare** via a secondary control on the card (does not change map selection). When **≥ 2** areas are selected, a **comparison strip** shows a compact table of scores.
 
@@ -40,9 +40,9 @@
 
 ## Acceptance criteria
 
-- [x] When results load, user sees a methodology **summary** without scrolling past the map (unless viewport is tiny).
+- [x] When results load, user sees methodology **summary** in the trust stack **after** ranked cards and map (list-first layout); on short viewports, methodology may require scroll — acceptable if cards remain above the map in DOM order.
 - [x] Expanding methodology shows at least the same attribution content as the previous flat alert block.
 - [x] When `schoolsModel` is `gias-open-data-sample-dfe-performance-urn-map`, `schoolsPointsWithUrn > 0`, and `schoolsPerformanceCoveragePct < 50`, a **warning** alert appears above the collapsible.
 - [x] Each card shows a **schools explanation** line when metadata supports it; line is absent or minimal when not applicable.
 - [x] User can select **0–3** compare slots; with **2+** selected, a comparison table lists those areas with the four dimension scores and composite score.
-- [x] Shareable URLs remain **out of scope** (documented in product decisions).
+- [x] Shareable criteria via **`q`** are implemented ([product-decisions.md](../product-decisions.md)); ranked results are not in the URL.

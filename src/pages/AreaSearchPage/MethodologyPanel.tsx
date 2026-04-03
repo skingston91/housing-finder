@@ -2,6 +2,7 @@ import { Alert, Box, Stack, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
 
 import {
+  firstAffordabilityDiscoveryHint,
   firstDataPoliceUkAttribution,
   firstLandRegistryOglAttribution,
   firstSchoolsCoverageHint,
@@ -37,13 +38,15 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
   const schools = firstSchoolsDataAttribution(areas);
   const schoolsCoverage = firstSchoolsCoverageHint(areas);
   const schoolsYear = firstSchoolsPerformanceYearHint(areas);
+  const affordabilityHonesty = firstAffordabilityDiscoveryHint(areas);
   const lowCoverage = shouldWarnLowSchoolsCoverage(areas);
   const hasBody =
     policeUk !== undefined ||
     landRegistry !== undefined ||
     schools !== undefined ||
     schoolsCoverage !== undefined ||
-    schoolsYear !== undefined;
+    schoolsYear !== undefined ||
+    affordabilityHonesty !== undefined;
 
   return (
     <Stack gap={3}>
@@ -78,6 +81,7 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
             Data sources and methodology
           </Box>
           <Stack gap={2} mt={3} fontSize="sm">
+            {affordabilityHonesty ? <Text>{affordabilityHonesty}</Text> : null}
             {policeUk ? <Text>{policeUk}</Text> : null}
             {landRegistry ? <Text>{landRegistry}</Text> : null}
             {schools ? <Text>{schools}</Text> : null}

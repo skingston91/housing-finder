@@ -22,6 +22,8 @@ export const AreaSearchPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [geocodePending, setGeocodePending] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [geocodeSuccessMessage, setGeocodeSuccessMessage] = useState<string | null>(null);
+  const geocodeSuccessTimeoutRef = useRef<number | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [selectionLiveMessage, setSelectionLiveMessage] = useState('');
@@ -37,6 +39,10 @@ export const AreaSearchPage = () => {
       if (copyLinkTimeoutRef.current !== null) {
         window.clearTimeout(copyLinkTimeoutRef.current);
         copyLinkTimeoutRef.current = null;
+      }
+      if (geocodeSuccessTimeoutRef.current !== null) {
+        window.clearTimeout(geocodeSuccessTimeoutRef.current);
+        geocodeSuccessTimeoutRef.current = null;
       }
     };
   }, []);
@@ -89,6 +95,11 @@ export const AreaSearchPage = () => {
 
   const handleGeocodeFromLabel = useCallback(async () => {
     setGeocodeError(null);
+    setGeocodeSuccessMessage(null);
+    if (geocodeSuccessTimeoutRef.current !== null) {
+      window.clearTimeout(geocodeSuccessTimeoutRef.current);
+      geocodeSuccessTimeoutRef.current = null;
+    }
     const q = form.workplaceLabel.trim();
     if (q.length < 2) {
       setGeocodeError('Enter a workplace name (at least 2 characters).');
@@ -103,6 +114,13 @@ export const AreaSearchPage = () => {
         workplaceLat: res.latitude,
         workplaceLng: res.longitude,
       }));
+      setGeocodeSuccessMessage(
+        'Coordinates filled from your label. You can search or adjust them.',
+      );
+      geocodeSuccessTimeoutRef.current = window.setTimeout(() => {
+        setGeocodeSuccessMessage(null);
+        geocodeSuccessTimeoutRef.current = null;
+      }, 5000);
     } catch (e) {
       setGeocodeError(e instanceof Error ? e.message : 'Geocode failed');
     } finally {
@@ -145,6 +163,12 @@ export const AreaSearchPage = () => {
     setAreas([]);
     setError(null);
     setHasSearched(false);
+    setGeocodeError(null);
+    setGeocodeSuccessMessage(null);
+    if (geocodeSuccessTimeoutRef.current !== null) {
+      window.clearTimeout(geocodeSuccessTimeoutRef.current);
+      geocodeSuccessTimeoutRef.current = null;
+    }
     resetSearchUrlBar();
   }, [resetSearchUrlBar]);
 
@@ -185,7 +209,7 @@ export const AreaSearchPage = () => {
     const criteria = buildAreaSearchCriteria(form);
     if (!criteria) {
       setError(
-        'Check your inputs — max price (at least £1), property types, workplace, schools, and crime JSON must be valid.',
+        'Cannot search yet: set max price to at least £1, choose at least one property type, enter a workplace with latitude and longitude (use “Fill coordinates from label” if needed), and ensure school phases and crime weights are valid.',
       );
       return;
     }
@@ -283,6 +307,7 @@ export const AreaSearchPage = () => {
                 }}
                 geocodeFromLabelPending={geocodePending}
                 geocodeFromLabelError={geocodeError}
+                geocodeFromLabelSuccess={geocodeSuccessMessage}
               />
             </Box>
 

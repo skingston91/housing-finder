@@ -25,7 +25,7 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
   }
   const rows: { label: string; value: string }[] = [];
   if (typeof m.affordabilityBorough === 'string') {
-    rows.push({ label: 'Affordability (borough median ref)', value: m.affordabilityBorough });
+    rows.push({ label: 'Affordability (borough reference)', value: m.affordabilityBorough });
   }
   if (hasCrimeMetadataDetails(m)) {
     if (typeof m.crimeMonthsRequested === 'number') {
@@ -61,6 +61,18 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
     rows.push({
       label: 'Commute model',
       value: commuteModelDisplayLabel(m.commuteModel),
+    });
+  }
+  if (typeof m.commuteTflPlannerSummary === 'string' && m.commuteTflPlannerSummary.trim() !== '') {
+    rows.push({
+      label: 'Transit planner slot',
+      value: m.commuteTflPlannerSummary.trim(),
+    });
+  }
+  if (m.commuteTflDurationMethod === 'median-first-three-qualifying') {
+    rows.push({
+      label: 'Transit duration',
+      value: 'Median of up to the first three qualifying TfL journey options.',
     });
   }
   if (typeof m.commuteJourneyMinutes === 'number') {

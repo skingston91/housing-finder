@@ -62,6 +62,8 @@ export interface TflTransitJourneyResult {
   readonly alternativeJourneyMinutes?: number;
   /** Short user-facing hint when the chosen journey references disruption payloads. */
   readonly disruptionHint?: string;
+  /** How {@link minutes} was derived from TfL’s ranked journey list. */
+  readonly durationMethod?: 'median-first-three-qualifying';
 }
 
 interface CacheEntry {
@@ -121,7 +123,8 @@ const prefsKey = (p: TflTransitPlannerPreferences | undefined): string => {
   });
 };
 
-const mergeTflPlannerDeparturePrefs = (
+/** Exported for commute summary copy (same merge as Journey Planner requests). */
+export const mergeTflPlannerDeparturePrefs = (
   prefs: TflTransitPlannerPreferences | undefined,
   referenceMs: number,
 ): TflTransitPlannerPreferences | undefined => {
@@ -308,6 +311,24 @@ interface JourneyPickOk {
   readonly disruptionHint?: string;
 }
 
+const medianMinutes = (values: readonly number[]): number => {
+  if (values.length === 0) {
+    return NaN;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) {
+    const v = sorted[mid];
+    return v ?? NaN;
+  }
+  const lo = sorted[mid - 1];
+  const hi = sorted[mid];
+  if (lo === undefined || hi === undefined) {
+    return NaN;
+  }
+  return (lo + hi) / 2;
+};
+
 const selectJourney = (
   json: Record<string, unknown>,
   prefs: TflTransitPlannerPreferences | undefined,
@@ -359,12 +380,19 @@ const selectJourney = (
     return { error: 'no_journey_after_filters' };
   }
 
-  const first = qualifying[0];
-  if (first === undefined) {
+  const aggregateSlice = qualifying.slice(0, Math.min(3, qualifying.length));
+  const durations: number[] = [];
+  for (const j of aggregateSlice) {
+    const m = journeyDurationMinutes(j);
+    if (m !== null) {
+      durations.push(m);
+    }
+  }
+  if (durations.length === 0) {
     return { error: 'invalid_payload' };
   }
-  const mins = journeyDurationMinutes(first);
-  if (mins === null) {
+  const mins = medianMinutes(durations);
+  if (!Number.isFinite(mins)) {
     return { error: 'invalid_payload' };
   }
 
@@ -379,10 +407,19 @@ const selectJourney = (
     }
   }
 
+  let disruptionHint: string | undefined;
+  for (const j of aggregateSlice) {
+    const h = disruptionHintFromJourney(j);
+    if (h !== undefined) {
+      disruptionHint = h;
+      break;
+    }
+  }
+
   return {
     minutes: mins,
     alternativeJourneyMinutes,
-    disruptionHint: disruptionHintFromJourney(first),
+    disruptionHint,
   };
 };
 
@@ -513,6 +550,7 @@ const outcomeFromJson = (
     nationalSearchUsed,
     alternativeJourneyMinutes: picked.alternativeJourneyMinutes,
     disruptionHint: picked.disruptionHint,
+    durationMethod: 'median-first-three-qualifying',
   };
 };
 

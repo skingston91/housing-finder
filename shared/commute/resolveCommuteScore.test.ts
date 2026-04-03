@@ -74,8 +74,12 @@ describe('resolveCommuteScore', () => {
       tfl: { appKey: 'y' },
     });
     expect(r.commuteAlternativeJourneyMinutes).toBe(35);
+    // Median of 20 and 35 min = 27.5 min primary for scoring
+    expect(r.journeyMinutes).toBe(27.5);
     expect(r.commuteReliabilityFactor).toBeCloseTo(0.97, 5);
     expect(r.score).toBe(97);
+    expect(r.tflJourneyDurationMethod).toBe('median-first-three-qualifying');
+    expect(r.tflPlannerSummary).toMatch(/TfL|08:30|timetable/i);
   });
 
   it('falls back when TfL returns no journey (including national retry)', async () => {

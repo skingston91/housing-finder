@@ -3,11 +3,15 @@ import type { RankedArea } from '@/domain/area/types';
 const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): string => {
   const src = metadata?.affordabilityPriceSource;
   let aff =
-    'Affordability compares your budget to an indicative median for the nearest London borough (OGL-style disclosure).';
+    'Affordability compares your budget to an indicative borough-level price reference for the nearest London borough (OGL-style disclosure).';
   if (src === 'ukhpi-linked-data' || src === 'ukhpi-partial-static-fallback') {
     aff =
-      'Affordability compares your budget to HM Land Registry UK HPI average prices for the nearest London borough where available (OGL — discovery only).';
+      'Affordability compares your budget to HM Land Registry UK HPI average prices for the nearest London borough where available (OGL — discovery only). UK HPI publishes averages, not medians or street-level prices; it is indicative only, not a valuation.';
   }
+  const proximityNote =
+    metadata?.schoolsProximityModel === 'haversine-walk-estimate'
+      ? ' Distance is straight-line (haversine) to establishment points; an optional school time cap uses estimated walk speed (5 km/h), not door-to-door routing.'
+      : '';
   const statedPerfYear = metadata?.schoolsPerformanceAcademicYear;
   const perfYear =
     metadata?.schoolsModel === 'gias-open-data-sample-dfe-performance-urn-map' &&
@@ -17,12 +21,12 @@ const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): strin
       : '';
   const schools =
     metadata?.schoolsModel === 'gias-open-data-sample-dfe-performance-urn-map'
-      ? ` Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in performance signals from ingested DfE open-data CSVs keyed by school URN (indicative mapping — verify columns and year for your use case).${perfYear}`
+      ? ` Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in performance signals from ingested DfE open-data CSVs keyed by school URN (indicative mapping — verify columns and year for your use case).${perfYear}${proximityNote}`
       : metadata?.schoolsModel === 'gias-open-data-sample-performance-seed-prototype'
-        ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in a prototype performance signal from seed metadata (replace with official DfE/open performance tables later).'
+        ? ` Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only) and blend in a prototype performance signal from seed metadata (replace with official DfE/open performance tables later).${proximityNote}`
         : metadata?.schoolsModel === 'gias-open-data-sample'
-          ? ' Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).'
-          : ' Schools use distance to a small reference seed set.';
+          ? ` Schools use distance to an expanded sample of London state-school-style coordinates (DfE/GIAS family, OGL — discovery only).${proximityNote}`
+          : ` Schools use distance to a small reference seed set.${proximityNote}`;
   return `${aff}${schools}`;
 };
 
@@ -45,9 +49,17 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
     return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
   }
   if (metadata.commuteModel === 'tfl-unified-api') {
-    const parts: string[] = [
-      ' Commute (transit) uses Transport for London journey planning (TFL_APP_KEY on the search Lambda; TfL requires app_key only). Unless you set date and time (or opt out), the planner uses the next eligible weekday 08:30 departure in Europe/London; requests use timetable-style options (useRealTimeLiveArrivals=false, walkingSpeed=average), not live departure boards.',
-    ];
+    const plannerLine =
+      typeof metadata.commuteTflPlannerSummary === 'string' &&
+      metadata.commuteTflPlannerSummary.trim() !== ''
+        ? ` ${metadata.commuteTflPlannerSummary.trim()}`
+        : ' Commute (transit) uses Transport for London journey planning (TFL_APP_KEY on the search Lambda; TfL requires app_key only). Unless you set date and time (or opt out), the planner uses the next eligible weekday 08:30 departure in Europe/London; requests use timetable-style options (useRealTimeLiveArrivals=false, walkingSpeed=average), not live departure boards.';
+    const parts: string[] = [plannerLine];
+    if (metadata.commuteTflDurationMethod === 'median-first-three-qualifying') {
+      parts.push(
+        'Duration uses the median of up to the first three qualifying journey options TfL returns for that origin/destination (same filters).',
+      );
+    }
     if (typeof metadata.commuteTflDisruptionHint === 'string') {
       parts.push(metadata.commuteTflDisruptionHint.trim());
     }
@@ -87,6 +99,20 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
 
 const proxyBlock = (metadata: RankedArea['metadata']): string =>
   `${affordabilityAndSchoolsSummary(metadata)}${commuteSummary(metadata)}`;
+
+/** One-line honesty hint for affordability (UK HPI vs static table) from the first result. */
+export const firstAffordabilityDiscoveryHint = (
+  areas: readonly RankedArea[],
+): string | undefined => {
+  const src = areas[0]?.metadata?.affordabilityPriceSource;
+  if (src === 'ukhpi-linked-data' || src === 'ukhpi-partial-static-fallback') {
+    return 'Affordability uses HM Land Registry UK HPI borough averages (not medians or address-level prices). Indicative discovery only—not a valuation.';
+  }
+  if (src === 'static-london-borough-table') {
+    return 'Affordability uses a static in-repo London borough reference table when live HPI is off—indicative only.';
+  }
+  return undefined;
+};
 
 /** First non-empty `schoolsDataAttribution` string across results (shared OGL/DfE line). */
 export const firstSchoolsDataAttribution = (areas: readonly RankedArea[]): string | undefined => {

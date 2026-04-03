@@ -171,6 +171,13 @@ export const buildRankedAreas = async (
           ...(commuteRes.commuteReliabilityFactor !== undefined
             ? { commuteReliabilityFactor: commuteRes.commuteReliabilityFactor }
             : {}),
+          ...(commuteRes.tflPlannerSummary !== undefined
+            ? { commuteTflPlannerSummary: commuteRes.tflPlannerSummary }
+            : {}),
+          ...(commuteRes.tflJourneyDurationMethod !== undefined
+            ? { commuteTflDurationMethod: commuteRes.tflJourneyDurationMethod }
+            : {}),
+          schoolsProximityModel: 'haversine-walk-estimate',
           schoolsModel: resolveSchoolsRankingMetadataModel(),
           schoolsDataAttribution: resolveSchoolsDataAttribution(),
           schoolsPointsWithUrn: SCHOOLS_POINTS_WITH_URN,

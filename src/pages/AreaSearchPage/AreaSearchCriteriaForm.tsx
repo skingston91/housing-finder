@@ -56,6 +56,8 @@ export interface AreaSearchCriteriaFormProps {
   readonly onGeocodeFromLabel?: () => void;
   readonly geocodeFromLabelPending?: boolean;
   readonly geocodeFromLabelError?: string | null;
+  /** Short confirmation after coordinates were filled from the label (cleared by parent). */
+  readonly geocodeFromLabelSuccess?: string | null;
 }
 
 export const AreaSearchCriteriaForm = ({
@@ -67,6 +69,7 @@ export const AreaSearchCriteriaForm = ({
   onGeocodeFromLabel,
   geocodeFromLabelPending = false,
   geocodeFromLabelError = null,
+  geocodeFromLabelSuccess = null,
 }: AreaSearchCriteriaFormProps) => {
   const toggleProperty = (value: PropertyType, checked: boolean): void => {
     const next = new Set(form.propertyTypes);
@@ -100,7 +103,9 @@ export const AreaSearchCriteriaForm = ({
       <Stack gap={1}>
         <Heading size="md">Affordability</Heading>
         <Text fontSize="sm" color="fg.muted">
-          Max price and optional ceiling on £/m² (Land Registry–driven aggregates later).
+          Max price and optional ceiling on £/m². Scores use borough-level UK HPI averages when live
+          data is enabled (averages, not medians or street-level prices)—discovery only, not a
+          valuation.
         </Text>
         <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4}>
           <Stack gap={1}>
@@ -190,6 +195,10 @@ export const AreaSearchCriteriaForm = ({
               {geocodeFromLabelError ? (
                 <Text fontSize="sm" color="red.600" mt={1}>
                   {geocodeFromLabelError}
+                </Text>
+              ) : geocodeFromLabelSuccess ? (
+                <Text fontSize="sm" color="fg.success" mt={1} role="status">
+                  {geocodeFromLabelSuccess}
                 </Text>
               ) : (
                 <Text fontSize="xs" color="fg.muted" mt={1}>

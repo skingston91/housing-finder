@@ -4,6 +4,7 @@ import type { RankedArea } from '@/domain/area/types';
 
 import {
   areaProvenanceDescription,
+  firstAffordabilityDiscoveryHint,
   firstDataPoliceUkAttribution,
   firstLandRegistryOglAttribution,
   firstSchoolsCoverageHint,
@@ -36,6 +37,18 @@ describe('searchResultsAttribution', () => {
         area({ dataPoliceUk: 'Contains police.uk' }),
       ]),
     ).toBe('Contains police.uk');
+  });
+
+  it('firstAffordabilityDiscoveryHint reflects UK HPI vs static table', () => {
+    expect(
+      firstAffordabilityDiscoveryHint([area({ affordabilityPriceSource: 'ukhpi-linked-data' })]),
+    ).toMatch(/UK HPI borough averages/);
+    expect(
+      firstAffordabilityDiscoveryHint([
+        area({ affordabilityPriceSource: 'static-london-borough-table' }),
+      ]),
+    ).toMatch(/static in-repo/);
+    expect(firstAffordabilityDiscoveryHint([area({ foo: 1 })])).toBeUndefined();
   });
 
   it('firstLandRegistryOglAttribution returns first string', () => {

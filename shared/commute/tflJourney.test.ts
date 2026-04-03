@@ -209,8 +209,26 @@ describe('fetchTflTransitJourney', () => {
         avoidLineIds: ['victoria'],
       },
     );
+    // Only the non–Victoria journey qualifies; median of one option is that duration.
     expect(r.minutes).toBe(15);
+    expect(r.durationMethod).toBe('median-first-three-qualifying');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses median of first three journeys when TfL returns three options', async () => {
+    const payload = {
+      journeys: [
+        { duration: 600, legs: [] },
+        { duration: 1200, legs: [] },
+        { duration: 1800, legs: [] },
+      ],
+    };
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+    const r = await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBe(20);
+    expect(r.durationMethod).toBe('median-first-three-qualifying');
   });
 
   it('uses a separate cache entry when planner preferences differ', async () => {

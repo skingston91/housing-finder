@@ -12,7 +12,7 @@
 
 | Area            | Location                                                                                     |
 | --------------- | -------------------------------------------------------------------------------------------- |
-| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`                                                |
+| Page shell      | `src/pages/AreaSearchPage/AreaSearchPage.tsx`, `AreaSearchResultsColumn.tsx`                 |
 | Criteria form   | `src/pages/AreaSearchPage/AreaSearchCriteriaForm.tsx`                                        |
 | Request builder | `src/pages/AreaSearchPage/buildSearchAreasRequest.ts` (`buildAreaSearchCriteria` → domain)   |
 | Result card     | `src/pages/AreaSearchPage/AreaResultCard.tsx`                                                |
@@ -37,8 +37,8 @@
 
 ## Data and state
 
-- **Local React state** only (no auth): form state (`AreaSearchFormState`), `areas` (domain `RankedArea[]`), `loading`, `error`, `selectedAreaId` (list ↔ map).
-- **URL state:** **deferred** — shareable links / query params are not implemented; see [product-decisions.md](../product-decisions.md) and [area-search-trust-methodology-compare-spec.md](./area-search-trust-methodology-compare-spec.md).
+- **Local React state** only (no auth): form state (`AreaSearchFormState`), `areas` (domain `RankedArea[]`), `loading`, `error`, `selectedAreaId` (list ↔ map), compare/URL messaging, etc.
+- **URL state:** **Implemented** — criteria serialize to **`q`** (base64url JSON) on the area search route; opening or sharing the URL hydrates the form. Ranked **results** are not stored in the URL (user re-runs search). See [product-decisions.md](../product-decisions.md), `src/pages/AreaSearchPage/areaSearchUrlState.ts`, and [area-search-ux-polish-spec.md](./area-search-ux-polish-spec.md).
 
 ## Visual and UX consistency (Jitty-inspired, light)
 
@@ -75,6 +75,7 @@
 
 ## Follow-ups
 
+- Layout and hierarchy refinements: [area-search-ux-polish-spec.md](./area-search-ux-polish-spec.md).
 - Map pane and attribution block (`docs/data-sources.md`).
 - Debounce + loading skeletons if criteria become heavy.
 - Replace stub metadata with real provenance (Land Registry, police.uk, DfE).

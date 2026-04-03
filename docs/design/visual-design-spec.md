@@ -24,3 +24,5 @@ Light, marketing-style shell inspired by [Jitty](https://jitty.com/): plenty of 
 - Default Chakra transitions only; avoid distracting animation on data-heavy views.
 
 When the design system grows, align Chakra **semantic tokens** in `src/theme/theme.ts` and reference this file from `.cursor/agents/designer.md`.
+
+**Area Search** layout and feedback colours follow [area-search-ux-polish-spec.md](./area-search-ux-polish-spec.md) (e.g. `fg.warning` / `fg.success` for inline URL and copy messages).
