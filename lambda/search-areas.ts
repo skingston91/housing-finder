@@ -4,6 +4,7 @@ import { parseSearchAreasRequestBody } from '../shared/parseSearchAreasRequestBo
 import { buildRankedAreas } from '../shared/rankAreas/buildRankedAreas';
 import { resolveSchoolsPerformanceAcademicYearForMetadata } from '../shared/schools/resolveSchoolsPerformanceAcademicYearForMetadata';
 import { resolveSecretString } from '../shared/secrets/apiSecrets';
+import { validateSearchAreasRoutingKeys } from '../shared/searchAreas/validateSearchAreasRoutingKeys';
 
 import { jsonResponse } from './http';
 
@@ -27,6 +28,16 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
   const tflAppKey = await resolveSecretString('TFL_APP_KEY');
   const orsApiKey = await resolveSecretString('ORS_API_KEY');
+  const routingStrict = process.env.SEARCH_AREAS_ROUTING_STRICT?.trim() === '1';
+  const routingError = validateSearchAreasRoutingKeys(
+    parsed.value,
+    tflAppKey,
+    orsApiKey,
+    routingStrict,
+  );
+  if (routingError !== null) {
+    return jsonResponse(400, { error: routingError });
+  }
   const useLiveUkhpiMedians = process.env.UKHPI_LIVE?.trim() !== '0';
   const routing =
     (tflAppKey !== undefined && tflAppKey !== '') || (orsApiKey !== undefined && orsApiKey !== '')
@@ -39,6 +50,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     ...routing,
     useLiveUkhpiMedians,
   });
+  const tflFallbackAreas = areas.filter(
+    (a) => a.metadata?.commuteModel === 'tfl-fallback-straight-line',
+  ).length;
+  const tflNationalSearchOk = areas.filter(
+    (a) => a.metadata?.commuteTflNationalSearchUsed === 1,
+  ).length;
   if (areas.length > 0) {
     const meta = areas[0]?.metadata;
     console.info(
@@ -54,6 +71,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         candidateMode: meta?.candidateMode,
         policeUk: meta?.policeUk,
         affordabilityPriceSource: meta?.affordabilityPriceSource,
+        tflFallbackAreas,
+        tflNationalSearchOkAreas: tflNationalSearchOk,
       }),
     );
   }

@@ -21,6 +21,16 @@ Parameters:
     Description: Optional OpenRouteService API key for driving/cycling/walking commute directions (transit still uses TfL).
     NoEcho: true
 
+  SearchAreasRoutingStrict:
+    Type: String
+    Default: '0'
+    AllowedValues:
+      - '0'
+      - '1'
+    Description: >
+      When '1', POST /api/search-areas returns 400 if commute mode needs TfL (transit) or OpenRouteService (drive/cycle/walk) but the key is empty — no silent straight-line fallback.
+      Use '0' for local SAM without keys. Set '1' for production stacks where both keys should be configured.
+
   CorsAdditionalOrigin:
     Type: String
     Default: ''
@@ -105,6 +115,7 @@ Resources:
         Variables:
           TFL_APP_KEY: !Ref TflAppKey
           ORS_API_KEY: !Ref OrsApiKey
+          SEARCH_AREAS_ROUTING_STRICT: !Ref SearchAreasRoutingStrict
           UKHPI_LIVE: ''
       Events:
         SearchAreas:

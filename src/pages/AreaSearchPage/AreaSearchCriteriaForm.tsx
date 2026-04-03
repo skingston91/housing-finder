@@ -10,7 +10,12 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react';
-import type { CommuteConstraints, PropertyType } from '@/domain/criteria/types';
+import type {
+  CommuteConstraints,
+  PropertyType,
+  TransitJourneyPreference,
+} from '@/domain/criteria/types';
+import { TFL_SUGGESTED_LINE_IDS } from '@shared/commute/tflSuggestedLondonLineIds';
 
 import type { AreaSearchFormState } from './buildSearchAreasRequest';
 
@@ -25,10 +30,16 @@ const PROPERTY_OPTIONS: readonly { value: PropertyType; label: string }[] = [
 
 const COMMUTE_OPTIONS: readonly { value: CommuteConstraints['mode']; label: string }[] = [
   { value: 'driving', label: 'Driving' },
-  { value: 'transit', label: 'Transit (tube/train/bus proxy)' },
+  { value: 'transit', label: 'Transit (TfL Journey Planner when API key is set)' },
   { value: 'cycling', label: 'Cycling' },
   { value: 'walking', label: 'Walking' },
 ] as const;
+
+const TRANSIT_PLANNER_OPTIONS: readonly { value: TransitJourneyPreference; label: string }[] = [
+  { value: 'least_time', label: 'Fastest (least time)' },
+  { value: 'least_interchange', label: 'Fewest changes' },
+  { value: 'least_walking', label: 'Least walking' },
+];
 
 const SCHOOL_PHASE_OPTIONS = [
   { value: 'primary' as const, label: 'Primary' },
@@ -268,6 +279,217 @@ export const AreaSearchCriteriaForm = ({
             />
           </Stack>
         </Grid>
+        {form.commuteMode === 'transit' ? (
+          <Stack gap={3} pl={{ md: 1 }} borderLeftWidth={{ md: '1px' }} borderColor="border.subtle">
+            <Text fontSize="sm" fontWeight="medium">
+              Transit planner (TfL)
+            </Text>
+            <Stack gap={1}>
+              <Text fontSize="sm">Optimise for</Text>
+              <NativeSelect.Root>
+                <NativeSelect.Field
+                  value={form.transitJourneyPreference}
+                  onChange={(e) => {
+                    onChange({
+                      ...form,
+                      transitJourneyPreference: e.target.value as TransitJourneyPreference,
+                    });
+                  }}
+                  aria-label="TfL journey preference"
+                >
+                  {TRANSIT_PLANNER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </NativeSelect.Field>
+                <NativeSelect.Indicator />
+              </NativeSelect.Root>
+            </Stack>
+            <Checkbox.Root
+              checked={form.transitIncludeAlternativeRoutes}
+              onCheckedChange={(d) => {
+                onChange({ ...form, transitIncludeAlternativeRoutes: Boolean(d.checked) });
+              }}
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>Ask TfL for alternative routes</Checkbox.Label>
+            </Checkbox.Root>
+            <Checkbox.Root
+              checked={form.transitRequireMultipleJourneys}
+              onCheckedChange={(d) => {
+                onChange({ ...form, transitRequireMultipleJourneys: Boolean(d.checked) });
+              }}
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>Require at least two acceptable route options</Checkbox.Label>
+            </Checkbox.Root>
+            <Checkbox.Root
+              checked={form.transitAtMostOneRailLeg}
+              onCheckedChange={(d) => {
+                onChange({ ...form, transitAtMostOneRailLeg: Boolean(d.checked) });
+              }}
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>
+                At most one tube/train leg (bus and walking still allowed)
+              </Checkbox.Label>
+            </Checkbox.Root>
+            <Checkbox.Root
+              checked={form.transitAtMostOnePublicTransportLeg}
+              onCheckedChange={(d) => {
+                onChange({
+                  ...form,
+                  transitAtMostOnePublicTransportLeg: Boolean(d.checked),
+                });
+              }}
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>
+                At most one non-walking leg (one bus/tube/train “hop”)
+              </Checkbox.Label>
+            </Checkbox.Root>
+            <Stack gap={1}>
+              <Text fontSize="sm" fontWeight="medium">
+                Planner time (optional)
+              </Text>
+              <Text fontSize="xs" color="fg.muted">
+                By default we use a typical weekday at 08:30 with average walking speed. Set both
+                date and time to override this, or leave both empty to use TfL&apos;s own clock
+                default. Requests use timetable-style data — live platform arrivals aren&apos;t
+                used. The date picker follows your browser locale.
+              </Text>
+              <Grid templateColumns={{ base: '1fr', sm: '1fr 1fr' }} gap={3}>
+                <Input
+                  type="date"
+                  value={form.transitPlannerDate}
+                  onChange={(e) => {
+                    onChange({ ...form, transitPlannerDate: e.target.value });
+                  }}
+                  aria-label="TfL journey date"
+                />
+                <Input
+                  type="time"
+                  value={form.transitPlannerTime}
+                  onChange={(e) => {
+                    onChange({ ...form, transitPlannerTime: e.target.value });
+                  }}
+                  aria-label="TfL journey time"
+                />
+              </Grid>
+              <Checkbox.Root
+                checked={form.transitArriveBy}
+                onCheckedChange={(d) => {
+                  onChange({ ...form, transitArriveBy: Boolean(d.checked) });
+                }}
+              >
+                <Checkbox.HiddenInput />
+                <Checkbox.Control />
+                <Checkbox.Label>Arrive by this time (else depart at)</Checkbox.Label>
+              </Checkbox.Root>
+              <Checkbox.Root
+                checked={form.transitOmitDefaultPlannerDeparture}
+                onCheckedChange={(d) => {
+                  onChange({
+                    ...form,
+                    transitOmitDefaultPlannerDeparture: Boolean(d.checked),
+                  });
+                }}
+              >
+                <Checkbox.HiddenInput />
+                <Checkbox.Control />
+                <Checkbox.Label>
+                  When date and time are blank, use TfL&apos;s clock default (not our weekday 08:30
+                  London slot)
+                </Checkbox.Label>
+              </Checkbox.Root>
+            </Stack>
+            <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={3}>
+              <Stack gap={1}>
+                <Text fontSize="sm">Max walk (min, TfL)</Text>
+                <Input
+                  type="number"
+                  min={1}
+                  max={240}
+                  placeholder="e.g. 15"
+                  value={
+                    form.transitMaxWalkingMinutes === ''
+                      ? ''
+                      : String(form.transitMaxWalkingMinutes)
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      onChange({ ...form, transitMaxWalkingMinutes: '' });
+                      return;
+                    }
+                    const v = Number(raw);
+                    onChange({
+                      ...form,
+                      transitMaxWalkingMinutes: Number.isFinite(v)
+                        ? v
+                        : form.transitMaxWalkingMinutes,
+                    });
+                  }}
+                  aria-label="TfL max walking minutes"
+                />
+              </Stack>
+              <Stack gap={1}>
+                <Text fontSize="sm">Max interchange walk (min, TfL)</Text>
+                <Input
+                  type="number"
+                  min={1}
+                  max={240}
+                  placeholder="e.g. 12"
+                  value={
+                    form.transitMaxTransferMinutes === ''
+                      ? ''
+                      : String(form.transitMaxTransferMinutes)
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      onChange({ ...form, transitMaxTransferMinutes: '' });
+                      return;
+                    }
+                    const v = Number(raw);
+                    onChange({
+                      ...form,
+                      transitMaxTransferMinutes: Number.isFinite(v)
+                        ? v
+                        : form.transitMaxTransferMinutes,
+                    });
+                  }}
+                  aria-label="TfL max transfer walking minutes"
+                />
+              </Stack>
+            </Grid>
+            <Stack gap={1}>
+              <Text fontSize="sm">Avoid tube / line ids (comma-separated)</Text>
+              <Input
+                placeholder="e.g. victoria, northern"
+                list="tfl-suggested-line-ids"
+                value={form.transitAvoidLineIds}
+                onChange={(e) => {
+                  onChange({ ...form, transitAvoidLineIds: e.target.value });
+                }}
+                aria-label="TfL line ids to avoid"
+              />
+              <datalist id="tfl-suggested-line-ids">
+                {TFL_SUGGESTED_LINE_IDS.map((o) => (
+                  <option key={o.id} value={o.id} label={o.label} />
+                ))}
+              </datalist>
+              <Text fontSize="xs" color="fg.muted">
+                Uses TfL line identifiers (e.g. central). Case-insensitive.
+              </Text>
+            </Stack>
+          </Stack>
+        ) : null}
       </Stack>
 
       <Stack gap={2}>

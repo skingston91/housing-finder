@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { clearTflJourneyCache, fetchTflTransitJourneyMinutes } from './tflJourney';
+import {
+  clearTflJourneyCache,
+  fetchTflTransitJourney,
+  fetchTflTransitJourneyMinutes,
+} from './tflJourney';
 
 describe('fetchTflTransitJourneyMinutes', () => {
   beforeEach(() => {
@@ -53,5 +57,175 @@ describe('fetchTflTransitJourneyMinutes', () => {
     expect(a).toBe(10);
     expect(b).toBe(10);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchTflTransitJourney', () => {
+  beforeEach(() => {
+    clearTflJourneyCache();
+  });
+
+  it('retries with nationalSearch when the first response has no journeys', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ journeys: [] }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ journeys: [{ duration: 1800 }] }), { status: 200 }),
+      );
+    const r = await fetchTflTransitJourney(51.526, 0.022, 51.5, -0.09, fetchImpl, {
+      appKey: 'key',
+    });
+    expect(r.minutes).toBe(30);
+    expect(r.failureCode).toBeUndefined();
+    expect(r.nationalSearchUsed).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const secondUrl = String(fetchImpl.mock.calls[1]?.[0]);
+    expect(secondUrl).toContain('nationalSearch=true');
+  });
+
+  it('does not retry national search when the first response already has journeys', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ journeys: [{ duration: 600 }] }), { status: 200 }),
+      ),
+    );
+    const r = await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBe(10);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const firstCall = fetchImpl.mock.calls[0] as [string] | undefined;
+    const firstUrl = String(firstCall?.[0]);
+    expect(firstUrl).toContain('useRealTimeLiveArrivals=false');
+    expect(firstUrl).toContain('walkingSpeed=average');
+    expect(firstUrl).toMatch(/date=\d{8}/);
+  });
+
+  it('retries once on 429 then succeeds', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ journeys: [{ duration: 600 }] }), { status: 200 }),
+      );
+    const r = await fetchTflTransitJourney(1, 2, 3, 4, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBe(10);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  }, 15_000);
+
+  it('exposes failure code when http errors persist after rate-limit retry', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(new Response('', { status: 429 })));
+    const r = await fetchTflTransitJourney(1, 2, 3, 4, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBeNull();
+    expect(r.failureCode).toBe('http_error');
+    expect(r.httpStatus).toBe(429);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  }, 15_000);
+
+  it('falls back to modes without national-rail after http error', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 500 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ journeys: [{ duration: 1200 }] }), { status: 200 }),
+      );
+    const r = await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBe(20);
+    const secondUrl = String(fetchImpl.mock.calls[1]?.[0]);
+    expect(secondUrl).not.toContain('national-rail');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache failed planner responses', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ journeys: [] }), { status: 200 })),
+    );
+    const creds = { appKey: 'key' };
+    await fetchTflTransitJourney(2, 2, 2, 2, fetchImpl, creds);
+    await fetchTflTransitJourney(2, 2, 2, 2, fetchImpl, creds);
+    expect(fetchImpl.mock.calls.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('caches successful planner responses', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ journeys: [{ duration: 600 }] }), { status: 200 }),
+      ),
+    );
+    const creds = { appKey: 'key' };
+    await fetchTflTransitJourney(3, 3, 3, 3, fetchImpl, creds);
+    await fetchTflTransitJourney(3, 3, 3, 3, fetchImpl, creds);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces disruption hint from journey legs', async () => {
+    const payload = {
+      journeys: [
+        {
+          duration: 600,
+          legs: [{ mode: { id: 'tube' }, disruptions: [{ severity: 'serious' }] }],
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+    const r = await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, { appKey: 'k' });
+    expect(r.disruptionHint).toMatch(/disruption/i);
+  });
+
+  it('filters journeys that use an avoided line id', async () => {
+    const payload = {
+      journeys: [
+        {
+          duration: 600,
+          legs: [
+            {
+              mode: { id: 'tube' },
+              routeOptions: [{ lineIdentifier: { id: 'victoria' } }],
+            },
+          ],
+        },
+        {
+          duration: 900,
+          legs: [
+            {
+              mode: { id: 'tube' },
+              routeOptions: [{ lineIdentifier: { id: 'central' } }],
+            },
+          ],
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+    const r = await fetchTflTransitJourney(
+      51.5,
+      -0.1,
+      51.52,
+      -0.08,
+      fetchImpl,
+      { appKey: 'k' },
+      {
+        avoidLineIds: ['victoria'],
+      },
+    );
+    expect(r.minutes).toBe(15);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses a separate cache entry when planner preferences differ', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ journeys: [{ duration: 600 }] }), { status: 200 }),
+      ),
+    );
+    const creds = { appKey: 'key' };
+    await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, creds, {
+      journeyPreference: 'least_time',
+    });
+    await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, creds, {
+      journeyPreference: 'least_interchange',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });

@@ -42,6 +42,10 @@ This runs **`sam local start-api`** on port **3000** via [`scripts/sam-local.mjs
 
 **Local SAM:** add **`ORS_API_KEY`** under **`SearchAreasFunction`** in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
 
+### Strict commute routing (production)
+
+`SearchAreasFunction` env **`SEARCH_AREAS_ROUTING_STRICT`** comes from template **Parameter** **`SearchAreasRoutingStrict`** (default **`0`**). When **`1`**, a search request returns **400** if **transit** is selected but **`TFL_APP_KEY`** is empty, or if **driving** / **cycling** / **walking** is selected but **`ORS_API_KEY`** is empty — avoiding silent straight-line estimates. Set **`SearchAreasRoutingStrict=1`** on production stacks where both keys are configured; keep **`0`** (or omit) for local exploration without keys. See [`sam/env.json.example`](../../sam/env.json.example) for **`"SEARCH_AREAS_ROUTING_STRICT": "0"`**.
+
 ### UK HPI affordability (optional live borough prices)
 
 `SearchAreasFunction` reads **`UKHPI_LIVE`**. When set to **`0`**, affordability uses the **static** in-repo borough median table only. When **empty or any other value** (default in `template.yaml`), the handler fetches latest **UK HPI average prices** per London borough from [HM Land Registry linked data](https://landregistry.data.gov.uk/app/ukhpi/doc/) (JSON API), **cached 6 hours** per warm instance. **Local SAM:** example [`sam/env.json.example`](../../sam/env.json.example) sets **`"UKHPI_LIVE": "0"`** to avoid hammering Land Registry during dev; remove or change for live HPI.

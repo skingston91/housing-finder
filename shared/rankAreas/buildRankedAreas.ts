@@ -27,6 +27,9 @@ const MAX_CRIME_MONTHS = 6;
 /** data.police.uk rate-limits bursts; keep concurrent street-crime fetches low across all candidates. */
 const POLICE_UK_MAX_CONCURRENT = 3;
 
+/** TfL fair use: cap parallel Journey Planner calls per search invocation. */
+const TFL_JOURNEY_MAX_CONCURRENT = 4;
+
 export interface BuildRankedAreasOptions {
   /** When set, **transit** commute uses TfL Journey Planner. */
   readonly tfl?: TflApiCredentials;
@@ -81,6 +84,14 @@ export const buildRankedAreas = async (
   });
 
   const limitPoliceUk = createAsyncLimiter(POLICE_UK_MAX_CONCURRENT);
+  const limitTflJourney = createAsyncLimiter(TFL_JOURNEY_MAX_CONCURRENT);
+  const fetchForSearch: typeof fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes('api.tfl.gov.uk')) {
+      return limitTflJourney(() => fetchImpl(input, init));
+    }
+    return fetchImpl(input, init);
+  };
   const schoolsPerformanceAcademicYear = resolveSchoolsPerformanceAcademicYearForMetadata();
 
   const rows = await Promise.all(
@@ -101,7 +112,7 @@ export const buildRankedAreas = async (
         c.longitude,
         medianResolution.rows,
       );
-      const commuteRes = await resolveCommuteScore(body, c.latitude, c.longitude, fetchImpl, {
+      const commuteRes = await resolveCommuteScore(body, c.latitude, c.longitude, fetchForSearch, {
         tfl: options?.tfl,
         openRouteService: options?.openRouteService,
       });
@@ -144,6 +155,21 @@ export const buildRankedAreas = async (
           commuteModel: commuteRes.model,
           ...(commuteRes.journeyMinutes !== undefined
             ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
+            : {}),
+          ...(commuteRes.transitFailureCode !== undefined
+            ? { commuteTflFailureCode: commuteRes.transitFailureCode }
+            : {}),
+          ...(commuteRes.commuteAlternativeJourneyMinutes !== undefined
+            ? { commuteAlternativeJourneyMinutes: commuteRes.commuteAlternativeJourneyMinutes }
+            : {}),
+          ...(commuteRes.transitDisruptionHint !== undefined
+            ? { commuteTflDisruptionHint: commuteRes.transitDisruptionHint }
+            : {}),
+          ...(commuteRes.transitNationalSearchUsed === true
+            ? { commuteTflNationalSearchUsed: 1 }
+            : {}),
+          ...(commuteRes.commuteReliabilityFactor !== undefined
+            ? { commuteReliabilityFactor: commuteRes.commuteReliabilityFactor }
             : {}),
           schoolsModel: resolveSchoolsRankingMetadataModel(),
           schoolsDataAttribution: resolveSchoolsDataAttribution(),

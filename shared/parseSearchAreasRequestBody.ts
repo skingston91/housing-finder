@@ -3,6 +3,8 @@ import type {
   PropertyTypeDto,
   SchoolPhaseDto,
   SearchAreasRequestBody,
+  TransitCommutePreferencesDto,
+  TransitJourneyPreferenceDto,
 } from './searchAreasContract';
 
 const PROPERTY_TYPES: readonly PropertyTypeDto[] = [
@@ -26,6 +28,62 @@ const isPropertyType = (v: unknown): v is PropertyTypeDto =>
 
 const isCommuteMode = (v: unknown): v is CommuteModeDto =>
   typeof v === 'string' && (COMMUTE_MODES as readonly string[]).includes(v);
+
+const TRANSIT_JOURNEY_PREFS: readonly TransitJourneyPreferenceDto[] = [
+  'least_time',
+  'least_interchange',
+  'least_walking',
+];
+
+const isTransitJourneyPreference = (v: unknown): v is TransitJourneyPreferenceDto =>
+  typeof v === 'string' && (TRANSIT_JOURNEY_PREFS as readonly string[]).includes(v);
+
+const isYyyyMmDd = (s: string): boolean => {
+  if (!/^\d{8}$/.test(s)) {
+    return false;
+  }
+  const y = Number(s.slice(0, 4));
+  const m = Number(s.slice(4, 6));
+  const d = Number(s.slice(6, 8));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+};
+
+const isHhMm = (s: string): boolean => {
+  if (!/^\d{4}$/.test(s)) {
+    return false;
+  }
+  const hh = Number(s.slice(0, 2));
+  const mm = Number(s.slice(2, 4));
+  return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59;
+};
+
+const parseTransitPositiveInt = (v: unknown, max: number): number | null => {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+    return null;
+  }
+  const n = Math.round(v);
+  if (n > max) {
+    return null;
+  }
+  return n;
+};
+
+/** Mutable while parsing; matches {@link TransitCommutePreferencesDto} fields. */
+interface MutableTransitCommutePreferencesDto {
+  journeyPreference?: TransitJourneyPreferenceDto;
+  includeAlternativeRoutes?: boolean;
+  requireMultipleJourneys?: boolean;
+  atMostOneRailLeg?: boolean;
+  atMostOnePublicTransportLeg?: boolean;
+  dateYyyyMmDd?: string;
+  timeHhMm?: string;
+  timeIsDeparting?: boolean;
+  maxWalkingMinutes?: number;
+  maxTransferMinutes?: number;
+  omitDefaultPlannerDeparture?: boolean;
+  avoidLineIds?: string[];
+}
 
 const isSchoolPhase = (v: unknown): v is SchoolPhaseDto =>
   typeof v === 'string' && (SCHOOL_PHASES as readonly string[]).includes(v);
@@ -111,6 +169,128 @@ export const parseSearchAreasRequestBody = (
     return { ok: false, error: 'commute.mode is invalid' };
   }
 
+  let transit: TransitCommutePreferencesDto | undefined;
+  if (raw.commute.transit !== undefined) {
+    if (!isRecord(raw.commute.transit)) {
+      return { ok: false, error: 'commute.transit must be an object' };
+    }
+    const tr = raw.commute.transit;
+    const t: MutableTransitCommutePreferencesDto = {};
+    if (tr.journeyPreference !== undefined) {
+      if (!isTransitJourneyPreference(tr.journeyPreference)) {
+        return { ok: false, error: 'commute.transit.journeyPreference is invalid' };
+      }
+      t.journeyPreference = tr.journeyPreference;
+    }
+    if (tr.includeAlternativeRoutes !== undefined) {
+      if (typeof tr.includeAlternativeRoutes !== 'boolean') {
+        return { ok: false, error: 'commute.transit.includeAlternativeRoutes must be a boolean' };
+      }
+      t.includeAlternativeRoutes = tr.includeAlternativeRoutes;
+    }
+    if (tr.requireMultipleJourneys !== undefined) {
+      if (typeof tr.requireMultipleJourneys !== 'boolean') {
+        return { ok: false, error: 'commute.transit.requireMultipleJourneys must be a boolean' };
+      }
+      t.requireMultipleJourneys = tr.requireMultipleJourneys;
+    }
+    if (tr.atMostOneRailLeg !== undefined) {
+      if (typeof tr.atMostOneRailLeg !== 'boolean') {
+        return { ok: false, error: 'commute.transit.atMostOneRailLeg must be a boolean' };
+      }
+      t.atMostOneRailLeg = tr.atMostOneRailLeg;
+    }
+    if (tr.atMostOnePublicTransportLeg !== undefined) {
+      if (typeof tr.atMostOnePublicTransportLeg !== 'boolean') {
+        return {
+          ok: false,
+          error: 'commute.transit.atMostOnePublicTransportLeg must be a boolean',
+        };
+      }
+      t.atMostOnePublicTransportLeg = tr.atMostOnePublicTransportLeg;
+    }
+    const dOpt = tr.dateYyyyMmDd;
+    const tTime = tr.timeHhMm;
+    if ((dOpt !== undefined) !== (tTime !== undefined)) {
+      return {
+        ok: false,
+        error:
+          'commute.transit.dateYyyyMmDd and timeHhMm must both be provided together, or neither',
+      };
+    }
+    if (dOpt !== undefined) {
+      if (typeof dOpt !== 'string' || typeof tTime !== 'string') {
+        return { ok: false, error: 'commute.transit.dateYyyyMmDd and timeHhMm must be strings' };
+      }
+      if (!isYyyyMmDd(dOpt)) {
+        return {
+          ok: false,
+          error: 'commute.transit.dateYyyyMmDd must be yyyymmdd and a real calendar date',
+        };
+      }
+      if (!isHhMm(tTime)) {
+        return {
+          ok: false,
+          error: 'commute.transit.timeHhMm must be hhmm using 24h clock',
+        };
+      }
+      t.dateYyyyMmDd = dOpt;
+      t.timeHhMm = tTime;
+      if (tr.timeIsDeparting !== undefined) {
+        if (typeof tr.timeIsDeparting !== 'boolean') {
+          return { ok: false, error: 'commute.transit.timeIsDeparting must be a boolean' };
+        }
+        t.timeIsDeparting = tr.timeIsDeparting;
+      }
+    }
+    if (tr.maxWalkingMinutes !== undefined) {
+      const w = parseTransitPositiveInt(tr.maxWalkingMinutes, 240);
+      if (w === null) {
+        return {
+          ok: false,
+          error: 'commute.transit.maxWalkingMinutes must be a positive integer up to 240',
+        };
+      }
+      t.maxWalkingMinutes = w;
+    }
+    if (tr.maxTransferMinutes !== undefined) {
+      const x = parseTransitPositiveInt(tr.maxTransferMinutes, 240);
+      if (x === null) {
+        return {
+          ok: false,
+          error: 'commute.transit.maxTransferMinutes must be a positive integer up to 240',
+        };
+      }
+      t.maxTransferMinutes = x;
+    }
+    if (tr.omitDefaultPlannerDeparture !== undefined) {
+      if (typeof tr.omitDefaultPlannerDeparture !== 'boolean') {
+        return {
+          ok: false,
+          error: 'commute.transit.omitDefaultPlannerDeparture must be a boolean',
+        };
+      }
+      t.omitDefaultPlannerDeparture = tr.omitDefaultPlannerDeparture;
+    }
+    if (tr.avoidLineIds !== undefined) {
+      if (!Array.isArray(tr.avoidLineIds)) {
+        return { ok: false, error: 'commute.transit.avoidLineIds must be an array of strings' };
+      }
+      const ids: string[] = [];
+      for (const x of tr.avoidLineIds) {
+        if (typeof x !== 'string' || x.trim().length === 0) {
+          return {
+            ok: false,
+            error: 'commute.transit.avoidLineIds entries must be non-empty strings',
+          };
+        }
+        ids.push(x.trim());
+      }
+      t.avoidLineIds = ids;
+    }
+    transit = t as TransitCommutePreferencesDto;
+  }
+
   if (!isRecord(raw.schools)) {
     return { ok: false, error: 'schools must be an object' };
   }
@@ -149,7 +329,11 @@ export const parseSearchAreasRequestBody = (
     maxPricePerM2Gbp: maxPricePerM2,
     propertyTypes,
     workplace: { label: wLabel, latitude: wLat, longitude: wLng },
-    commute: { maxMinutes, mode: raw.commute.mode },
+    commute: {
+      maxMinutes,
+      mode: raw.commute.mode,
+      ...(transit !== undefined ? { transit } : {}),
+    },
     schools: { phases, maxWalkOrDriveMinutes: maxSchoolMinutes },
     crime: { windowMonths, categoryWeights },
   };

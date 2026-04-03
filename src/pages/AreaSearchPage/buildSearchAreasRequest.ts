@@ -1,5 +1,10 @@
 import { areaSearchCriteriaToRequestBody } from '@/adapters/mapSearchAreasContract';
-import type { AreaSearchCriteria, CommuteConstraints, PropertyType } from '@/domain/criteria/types';
+import type {
+  AreaSearchCriteria,
+  CommuteConstraints,
+  PropertyType,
+  TransitJourneyPreference,
+} from '@/domain/criteria/types';
 import type { SearchAreasRequestBody } from '@shared/searchAreasContract';
 
 export interface AreaSearchFormState {
@@ -12,12 +17,56 @@ export interface AreaSearchFormState {
   workplaceLng: number | '';
   commuteMaxMinutes: number;
   commuteMode: CommuteConstraints['mode'];
+  /** Used when `commuteMode` is `transit`. */
+  transitJourneyPreference: TransitJourneyPreference;
+  transitIncludeAlternativeRoutes: boolean;
+  transitAvoidLineIds: string;
+  transitRequireMultipleJourneys: boolean;
+  transitAtMostOneRailLeg: boolean;
+  transitAtMostOnePublicTransportLeg: boolean;
+  /** HTML `input type="date"` value `yyyy-MM-dd`; optional with `transitPlannerTime`. */
+  transitPlannerDate: string;
+  /** HTML `input type="time"` value `HH:MM`; optional with `transitPlannerDate`. */
+  transitPlannerTime: string;
+  /** When set with date+time, interpret as **arrive by** (`timeIsDeparting: false`). */
+  transitArriveBy: boolean;
+  transitMaxWalkingMinutes: number | '';
+  transitMaxTransferMinutes: number | '';
+  /** When true, do not use the weekday 08:30 London default in TfL when date/time are blank. */
+  transitOmitDefaultPlannerDeparture: boolean;
   schoolPhases: Set<'primary' | 'secondary' | 'sixth_form'>;
   schoolMaxMinutes: number | '';
   crimeWindowMonths: number;
   /** JSON object string for category → weight; invalid JSON falls back to defaults at submit. */
   crimeWeightsJson: string;
 }
+
+const toPlannerYyyyMmDd = (htmlDate: string): string | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(htmlDate.trim());
+  if (m === null) {
+    return null;
+  }
+  const y = m[1];
+  const mo = m[2];
+  const d = m[3];
+  if (y === undefined || mo === undefined || d === undefined) {
+    return null;
+  }
+  return `${y}${mo}${d}`;
+};
+
+const toPlannerHhMm = (htmlTime: string): string | null => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(htmlTime.trim());
+  if (m === null) {
+    return null;
+  }
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!Number.isInteger(hh) || !Number.isInteger(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+    return null;
+  }
+  return `${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}`;
+};
 
 export const defaultCrimeWeights = (): Record<string, number> => ({
   'anti-social-behaviour': 1,
@@ -36,6 +85,18 @@ export const defaultFormState = (): AreaSearchFormState => ({
   workplaceLng: -0.0875,
   commuteMaxMinutes: 45,
   commuteMode: 'transit',
+  transitJourneyPreference: 'least_time',
+  transitIncludeAlternativeRoutes: false,
+  transitAvoidLineIds: '',
+  transitRequireMultipleJourneys: false,
+  transitAtMostOneRailLeg: false,
+  transitAtMostOnePublicTransportLeg: false,
+  transitPlannerDate: '',
+  transitPlannerTime: '',
+  transitArriveBy: false,
+  transitMaxWalkingMinutes: '',
+  transitMaxTransferMinutes: '',
+  transitOmitDefaultPlannerDeparture: false,
   schoolPhases: new Set(['primary', 'secondary']),
   schoolMaxMinutes: 20,
   crimeWindowMonths: 12,
@@ -82,6 +143,72 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
   const maxPricePerM2Gbp = form.maxPricePerM2Gbp === '' ? undefined : form.maxPricePerM2Gbp;
   const maxSchool = form.schoolMaxMinutes === '' ? undefined : form.schoolMaxMinutes;
 
+  const avoidLineIds = form.transitAvoidLineIds
+    .split(/[,;\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const hasPlannerDate = form.transitPlannerDate.trim().length > 0;
+  const hasPlannerTime = form.transitPlannerTime.trim().length > 0;
+  if (hasPlannerDate !== hasPlannerTime) {
+    return null;
+  }
+  const plannerDate =
+    hasPlannerDate && hasPlannerTime ? toPlannerYyyyMmDd(form.transitPlannerDate) : null;
+  const plannerTime =
+    hasPlannerDate && hasPlannerTime ? toPlannerHhMm(form.transitPlannerTime) : null;
+  if (
+    hasPlannerDate &&
+    (plannerDate === null ||
+      plannerTime === null ||
+      plannerDate.length !== 8 ||
+      plannerTime.length !== 4)
+  ) {
+    return null;
+  }
+  const maxWalk = form.transitMaxWalkingMinutes === '' ? undefined : form.transitMaxWalkingMinutes;
+  const maxXfer =
+    form.transitMaxTransferMinutes === '' ? undefined : form.transitMaxTransferMinutes;
+  if (maxWalk !== undefined && (!Number.isFinite(maxWalk) || maxWalk < 1 || maxWalk > 240)) {
+    return null;
+  }
+  if (maxXfer !== undefined && (!Number.isFinite(maxXfer) || maxXfer < 1 || maxXfer > 240)) {
+    return null;
+  }
+
+  const commute: CommuteConstraints =
+    form.commuteMode === 'transit'
+      ? {
+          maxMinutes: form.commuteMaxMinutes,
+          mode: 'transit',
+          transit: {
+            journeyPreference: form.transitJourneyPreference,
+            ...(form.transitIncludeAlternativeRoutes ? { includeAlternativeRoutes: true } : {}),
+            ...(avoidLineIds.length > 0 ? { avoidLineIds } : {}),
+            ...(form.transitRequireMultipleJourneys ? { requireMultipleJourneys: true } : {}),
+            ...(form.transitAtMostOneRailLeg ? { atMostOneRailLeg: true } : {}),
+            ...(form.transitAtMostOnePublicTransportLeg
+              ? { atMostOnePublicTransportLeg: true }
+              : {}),
+            ...(plannerDate !== null && plannerTime !== null
+              ? {
+                  dateYyyyMmDd: plannerDate,
+                  timeHhMm: plannerTime,
+                  ...(form.transitArriveBy ? { timeIsDeparting: false } : {}),
+                }
+              : {}),
+            ...(maxWalk !== undefined ? { maxWalkingMinutes: Math.round(maxWalk) } : {}),
+            ...(maxXfer !== undefined ? { maxTransferMinutes: Math.round(maxXfer) } : {}),
+            ...(form.transitOmitDefaultPlannerDeparture
+              ? { omitDefaultPlannerDeparture: true }
+              : {}),
+          },
+        }
+      : {
+          maxMinutes: form.commuteMaxMinutes,
+          mode: form.commuteMode,
+        };
+
   return {
     maxPriceGbp: form.maxPriceGbp,
     maxPricePerM2Gbp,
@@ -91,10 +218,7 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
       latitude: form.workplaceLat,
       longitude: form.workplaceLng,
     },
-    commute: {
-      maxMinutes: form.commuteMaxMinutes,
-      mode: form.commuteMode,
-    },
+    commute,
     schools: {
       phases,
       maxWalkOrDriveMinutes: maxSchool,

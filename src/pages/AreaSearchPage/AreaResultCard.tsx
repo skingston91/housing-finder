@@ -3,6 +3,7 @@ import type { RankedArea } from '@/domain/area/types';
 
 import { schoolsDimensionExplanationLine } from '@shared/schools/schoolsDimensionExplanation';
 
+import { commuteModelDisplayLabel } from './commuteModelLabels';
 import { areaProvenanceDescription, hasCrimeMetadataDetails } from './searchResultsAttribution';
 import { ScoreBar } from './ScoreBar';
 
@@ -57,12 +58,50 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
     }
   }
   if (typeof m.commuteModel === 'string') {
-    rows.push({ label: 'Commute model', value: m.commuteModel });
+    rows.push({
+      label: 'Commute model',
+      value: commuteModelDisplayLabel(m.commuteModel),
+    });
   }
   if (typeof m.commuteJourneyMinutes === 'number') {
+    const model = typeof m.commuteModel === 'string' ? m.commuteModel : '';
+    const journeyLabel =
+      model === 'openrouteservice-directions' || model === 'openrouteservice-fallback-straight-line'
+        ? 'Journey time (OpenRouteService)'
+        : model === 'tfl-unified-api' || model === 'tfl-fallback-straight-line'
+          ? 'Journey time (TfL)'
+          : 'Estimated journey time';
     rows.push({
-      label: 'Journey time (TfL)',
+      label: journeyLabel,
       value: `${String(m.commuteJourneyMinutes)} min`,
+    });
+  }
+  if (typeof m.commuteAlternativeJourneyMinutes === 'number') {
+    rows.push({
+      label: 'Second acceptable route (approx.)',
+      value: `${String(m.commuteAlternativeJourneyMinutes)} min`,
+    });
+  }
+  if (typeof m.commuteTflDisruptionHint === 'string' && m.commuteTflDisruptionHint.trim() !== '') {
+    rows.push({
+      label: 'TfL disruption',
+      value: m.commuteTflDisruptionHint.trim(),
+    });
+  }
+  if (m.commuteTflNationalSearchUsed === 1) {
+    rows.push({
+      label: 'TfL national search',
+      value: 'This journey used a wider geographic search.',
+    });
+  }
+  if (
+    typeof m.commuteReliabilityFactor === 'number' &&
+    Number.isFinite(m.commuteReliabilityFactor) &&
+    m.commuteReliabilityFactor < 1
+  ) {
+    rows.push({
+      label: 'Commute reliability scale',
+      value: `Score multiplied by ${m.commuteReliabilityFactor.toFixed(3)} (disruption or route volatility).`,
     });
   }
   if (rows.length === 0) {

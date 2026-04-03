@@ -33,9 +33,52 @@ describe('resolveCommuteScore', () => {
     expect(r.model).toBe('tfl-unified-api');
     expect(r.journeyMinutes).toBe(20);
     expect(r.score).toBe(100);
+    expect(r.commuteReliabilityFactor).toBeUndefined();
   });
 
-  it('falls back when TfL returns no journey', async () => {
+  it('applies reliability penalty when TfL journey has disruption metadata', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            journeys: [{ duration: 1200, disruptions: [{ id: '1' }] }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const r = await resolveCommuteScore(transitBody(45), 51.52, -0.08, fetchImpl, {
+      tfl: { appKey: 'y' },
+    });
+    expect(r.model).toBe('tfl-unified-api');
+    expect(r.transitDisruptionHint).toBeDefined();
+    expect(r.commuteReliabilityFactor).toBeCloseTo(0.92, 5);
+    expect(r.score).toBe(92);
+  });
+
+  it('applies volatility penalty when second journey is much slower', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            journeys: [
+              { duration: 1200, legs: [] },
+              { duration: 2100, legs: [] },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const r = await resolveCommuteScore(transitBody(45), 51.52, -0.08, fetchImpl, {
+      tfl: { appKey: 'y' },
+    });
+    expect(r.commuteAlternativeJourneyMinutes).toBe(35);
+    expect(r.commuteReliabilityFactor).toBeCloseTo(0.97, 5);
+    expect(r.score).toBe(97);
+  });
+
+  it('falls back when TfL returns no journey (including national retry)', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(new Response(JSON.stringify({ journeys: [] }), { status: 200 })),
     );
@@ -44,6 +87,8 @@ describe('resolveCommuteScore', () => {
     });
     expect(r.model).toBe('tfl-fallback-straight-line');
     expect(r.journeyMinutes).toBeUndefined();
+    expect(r.transitFailureCode).toBe('empty_journeys');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it('uses straight-line when not transit', async () => {

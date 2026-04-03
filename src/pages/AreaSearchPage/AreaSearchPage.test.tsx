@@ -1,21 +1,82 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { system } from '@/theme/theme';
 
 import { AreaSearchPage } from './AreaSearchPage';
+import { defaultFormState } from './buildSearchAreasRequest';
+import { encodeAreaSearchQueryParam } from './areaSearchUrlState';
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <ChakraProvider value={system}>{children}</ChakraProvider>
-);
+beforeEach(() => {
+  window.history.replaceState(null, '', '/');
+});
+
+afterEach(() => {
+  cleanup();
+});
+
+function renderAtPath(path: string) {
+  window.history.replaceState(null, '', path);
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <ChakraProvider value={system}>
+        <AreaSearchPage />
+      </ChakraProvider>
+    </MemoryRouter>,
+  );
+}
 
 describe('AreaSearchPage', () => {
   it('renders primary heading', () => {
-    render(<AreaSearchPage />, { wrapper });
+    renderAtPath('/');
     expect(
       screen.getByRole('heading', { level: 1, name: /find areas to buy/i }),
     ).toBeInTheDocument();
+  });
+
+  it('hydrates workplace from valid q in the address bar', async () => {
+    const form = { ...defaultFormState(), workplaceLabel: 'Shared Canary Wharf' };
+    const q = encodeAreaSearchQueryParam(form);
+    renderAtPath(`/?q=${encodeURIComponent(q)}`);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/workplace label/i)).toHaveValue('Shared Canary Wharf');
+    });
+  });
+
+  it('does not show the default-settings message on first load without q', async () => {
+    renderAtPath('/');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/workplace label/i)).toHaveValue('Old Street');
+    });
+    expect(screen.queryByText(/default search settings/i)).not.toBeInTheDocument();
+  });
+
+  it('falls back to defaults when q is invalid', async () => {
+    renderAtPath('/?q=not-valid-payload');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/workplace label/i)).toHaveValue('Old Street');
+    });
+  });
+
+  it('reset search restores default workplace and clears criteria-driven state', async () => {
+    const form = { ...defaultFormState(), workplaceLabel: 'Before reset' };
+    const q = encodeAreaSearchQueryParam(form);
+    renderAtPath(`/?q=${encodeURIComponent(q)}`);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/workplace label/i)).toHaveValue('Before reset');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /reset search criteria to defaults/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/workplace label/i)).toHaveValue('Old Street');
+    });
+    expect(screen.getByText(/default search settings/i)).toBeInTheDocument();
   });
 });

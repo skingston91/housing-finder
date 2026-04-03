@@ -26,15 +26,55 @@ const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): strin
   return `${aff}${schools}`;
 };
 
+const tflTransitFailureHint = (code: string): string => {
+  const hints: Readonly<Record<string, string>> = {
+    empty_journeys:
+      ' TfL returned no journeys for that origin/destination (the app retries with a wider search when the first call is empty). Check coordinates and that the workplace is reachable on the modes we request.',
+    no_journey_after_filters:
+      ' No journey satisfied your transit filters (avoided lines, multiple-route requirement, or single rail leg).',
+    http_error: ' The TfL API returned an HTTP error (rate limit, key, or outage).',
+    json_parse_error: ' The TfL response could not be parsed as JSON.',
+    invalid_payload: ' The TfL response had an unexpected shape.',
+    timeout: ' The TfL request timed out.',
+  };
+  return hints[code] ?? ` (${code}).`;
+};
+
 const commuteSummary = (metadata: RankedArea['metadata']): string => {
   if (!metadata || metadata.stub === 1) {
     return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
   }
   if (metadata.commuteModel === 'tfl-unified-api') {
-    return ' Commute (transit) uses Transport for London journey planning (TFL_APP_KEY on the search Lambda; TfL requires app_key only).';
+    const parts: string[] = [
+      ' Commute (transit) uses Transport for London journey planning (TFL_APP_KEY on the search Lambda; TfL requires app_key only). Unless you set date and time (or opt out), the planner uses the next eligible weekday 08:30 departure in Europe/London; requests use timetable-style options (useRealTimeLiveArrivals=false, walkingSpeed=average), not live departure boards.',
+    ];
+    if (typeof metadata.commuteTflDisruptionHint === 'string') {
+      parts.push(metadata.commuteTflDisruptionHint.trim());
+    }
+    if (typeof metadata.commuteAlternativeJourneyMinutes === 'number') {
+      parts.push(
+        `A second acceptable TfL option was about ${String(metadata.commuteAlternativeJourneyMinutes)} minutes.`,
+      );
+    }
+    if (metadata.commuteTflNationalSearchUsed === 1) {
+      parts.push('That journey used TfL national search (wider geographic scope).');
+    }
+    if (
+      typeof metadata.commuteReliabilityFactor === 'number' &&
+      Number.isFinite(metadata.commuteReliabilityFactor) &&
+      metadata.commuteReliabilityFactor < 1
+    ) {
+      parts.push(
+        `Commute score was scaled by ${metadata.commuteReliabilityFactor.toFixed(3)} for disruption or route volatility.`,
+      );
+    }
+    return parts.join(' ');
   }
   if (metadata.commuteModel === 'tfl-fallback-straight-line') {
-    return ' Commute (transit) fell back to straight-line time after TfL returned no journey.';
+    const code =
+      typeof metadata.commuteTflFailureCode === 'string' ? metadata.commuteTflFailureCode : '';
+    const detail = code.length > 0 ? tflTransitFailureHint(code) : '';
+    return ` Commute (transit) fell back to straight-line time after TfL could not supply a usable journey.${detail}`;
   }
   if (metadata.commuteModel === 'openrouteservice-directions') {
     return ' Commute (drive/cycle/walk) uses OpenRouteService directions (ORS_API_KEY on the search Lambda).';
@@ -102,6 +142,21 @@ export const firstDataPoliceUkAttribution = (areas: readonly RankedArea[]): stri
 };
 
 /** First non-empty `landRegistryOgl` string across results (shared OGL line for affordability proxy). */
+/** True if any ranked area used a straight-line or routing fallback for commute (not full TfL/ORS route). */
+export const resultsUseStraightLineCommute = (areas: readonly RankedArea[]): boolean => {
+  for (const a of areas) {
+    const m = a.metadata?.commuteModel;
+    if (
+      m === 'straight-line-time-estimate' ||
+      m === 'tfl-fallback-straight-line' ||
+      m === 'openrouteservice-fallback-straight-line'
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export const firstLandRegistryOglAttribution = (
   areas: readonly RankedArea[],
 ): string | undefined => {

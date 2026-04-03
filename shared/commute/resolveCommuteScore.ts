@@ -1,9 +1,15 @@
-import type { SearchAreasRequestBody } from '../searchAreasContract';
+import type { SearchAreasRequestBody, TransitCommutePreferencesDto } from '../searchAreasContract';
 
+import { applyCommuteReliabilityAdjustments } from './applyCommuteReliabilityAdjustments';
 import { commuteScoreFromDurationEstimate } from './commuteScoreFromDurationEstimate';
 import { commuteScoreFromStraightLine } from './commuteScoreFromStraightLine';
 import { fetchOrsRouteDurationMinutes, type OrsApiCredentials } from './orsDirections';
-import { fetchTflTransitJourneyMinutes, type TflApiCredentials } from './tflJourney';
+import {
+  fetchTflTransitJourney,
+  type TflApiCredentials,
+  type TflTransitFailureCode,
+  type TflTransitPlannerPreferences,
+} from './tflJourney';
 
 export type CommuteModelId =
   | 'tfl-unified-api'
@@ -17,6 +23,16 @@ export interface CommuteScoreResult {
   readonly model: CommuteModelId;
   /** Present when a routing API returned a journey (minutes). */
   readonly journeyMinutes?: number;
+  /** When transit used TfL but fell back to straight-line scoring. */
+  readonly transitFailureCode?: TflTransitFailureCode;
+  /** Second qualifying TfL journey (minutes) when alternatives remain after filters. */
+  readonly commuteAlternativeJourneyMinutes?: number;
+  /** Short hint when TfL attached disruption data to the chosen journey. */
+  readonly transitDisruptionHint?: string;
+  /** Successful journey came from TfL **`nationalSearch=true`** attempt. */
+  readonly transitNationalSearchUsed?: boolean;
+  /** Product of reliability multipliers when below 1 (disruption / route volatility). */
+  readonly commuteReliabilityFactor?: number;
 }
 
 export interface ResolveCommuteScoreRoutingOptions {
@@ -24,6 +40,21 @@ export interface ResolveCommuteScoreRoutingOptions {
   /** When set, **driving** / **cycling** / **walking** use OpenRouteService directions (London-friendly); **transit** still uses TfL only. */
   readonly openRouteService?: OrsApiCredentials;
 }
+
+const transitDtoToPlanner = (t: TransitCommutePreferencesDto): TflTransitPlannerPreferences => ({
+  journeyPreference: t.journeyPreference,
+  includeAlternativeRoutes: t.includeAlternativeRoutes,
+  avoidLineIds: t.avoidLineIds,
+  requireMultipleJourneys: t.requireMultipleJourneys,
+  atMostOneRailLeg: t.atMostOneRailLeg,
+  atMostOnePublicTransportLeg: t.atMostOnePublicTransportLeg,
+  dateYyyyMmDd: t.dateYyyyMmDd,
+  timeHhMm: t.timeHhMm,
+  timeIsDeparting: t.timeIsDeparting,
+  maxWalkingMinutes: t.maxWalkingMinutes,
+  maxTransferMinutes: t.maxTransferMinutes,
+  omitDefaultPlannerDeparture: t.omitDefaultPlannerDeparture,
+});
 
 export const resolveCommuteScore = async (
   body: SearchAreasRequestBody,
@@ -37,19 +68,38 @@ export const resolveCommuteScore = async (
   const mode = commute.mode;
 
   if (mode === 'transit' && routing?.tfl !== undefined && routing.tfl.appKey !== '') {
-    const mins = await fetchTflTransitJourneyMinutes(
+    const plannerPrefs =
+      commute.transit !== undefined ? transitDtoToPlanner(commute.transit) : undefined;
+    const tflRes = await fetchTflTransitJourney(
       workplace.latitude,
       workplace.longitude,
       candidateLat,
       candidateLng,
       fetchImpl,
       routing.tfl,
+      plannerPrefs,
     );
-    if (mins !== null) {
+    if (tflRes.minutes !== null) {
+      const alt = tflRes.alternativeJourneyMinutes;
+      const baseScore = commuteScoreFromDurationEstimate(tflRes.minutes, maxM);
+      const reliability = applyCommuteReliabilityAdjustments({
+        baseScore,
+        transitDisruptionHint: tflRes.disruptionHint,
+        primaryJourneyMinutes: tflRes.minutes,
+        alternativeJourneyMinutes: alt,
+      });
       return {
-        score: commuteScoreFromDurationEstimate(mins, maxM),
+        score: reliability.score,
         model: 'tfl-unified-api',
-        journeyMinutes: Math.round(mins * 10) / 10,
+        journeyMinutes: Math.round(tflRes.minutes * 10) / 10,
+        ...(reliability.factor < 1 ? { commuteReliabilityFactor: reliability.factor } : {}),
+        ...(alt !== undefined
+          ? { commuteAlternativeJourneyMinutes: Math.round(alt * 10) / 10 }
+          : {}),
+        ...(tflRes.disruptionHint !== undefined
+          ? { transitDisruptionHint: tflRes.disruptionHint }
+          : {}),
+        ...(tflRes.nationalSearchUsed === true ? { transitNationalSearchUsed: true } : {}),
       };
     }
     return {
@@ -62,6 +112,7 @@ export const resolveCommuteScore = async (
         maxM,
       ),
       model: 'tfl-fallback-straight-line',
+      transitFailureCode: tflRes.failureCode,
     };
   }
 

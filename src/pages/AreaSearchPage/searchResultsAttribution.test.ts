@@ -10,6 +10,7 @@ import {
   firstSchoolsPerformanceYearHint,
   firstSchoolsDataAttribution,
   hasCrimeMetadataDetails,
+  resultsUseStraightLineCommute,
 } from './searchResultsAttribution';
 
 const area = (metadata: RankedArea['metadata']): RankedArea => ({
@@ -91,6 +92,36 @@ describe('searchResultsAttribution', () => {
         schoolsPerformanceAcademicYear: '2023/24',
       }),
     ).toMatch(/Stated performance data year: 2023\/24/);
+  });
+
+  it('areaProvenanceDescription can mention TfL national search when metadata says so', () => {
+    expect(
+      areaProvenanceDescription({
+        policeUk: 'ok',
+        commuteModel: 'tfl-unified-api',
+        commuteTflNationalSearchUsed: 1,
+      }),
+    ).toMatch(/national search/);
+  });
+
+  it('areaProvenanceDescription mentions commute reliability scaling when present', () => {
+    expect(
+      areaProvenanceDescription({
+        policeUk: 'ok',
+        commuteModel: 'tfl-unified-api',
+        commuteReliabilityFactor: 0.892,
+      }),
+    ).toMatch(/scaled by 0\.892/);
+  });
+
+  it('resultsUseStraightLineCommute is true when any area uses a fallback model', () => {
+    expect(resultsUseStraightLineCommute([area({ commuteModel: 'tfl-unified-api' })])).toBe(false);
+    expect(
+      resultsUseStraightLineCommute([area({ commuteModel: 'straight-line-time-estimate' })]),
+    ).toBe(true);
+    expect(
+      resultsUseStraightLineCommute([area({ commuteModel: 'tfl-fallback-straight-line' })]),
+    ).toBe(true);
   });
 
   it('areaProvenanceDescription reflects stub and police.uk', () => {

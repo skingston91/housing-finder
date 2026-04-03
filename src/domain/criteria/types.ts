@@ -14,10 +14,28 @@ export interface WorkplaceAnchor {
   readonly longitude: number;
 }
 
+export type TransitJourneyPreference = 'least_time' | 'least_interchange' | 'least_walking';
+
+export interface TransitCommutePreferences {
+  readonly journeyPreference?: TransitJourneyPreference;
+  readonly includeAlternativeRoutes?: boolean;
+  readonly avoidLineIds?: readonly string[];
+  readonly requireMultipleJourneys?: boolean;
+  readonly atMostOneRailLeg?: boolean;
+  readonly atMostOnePublicTransportLeg?: boolean;
+  readonly dateYyyyMmDd?: string;
+  readonly timeHhMm?: string;
+  readonly timeIsDeparting?: boolean;
+  readonly maxWalkingMinutes?: number;
+  readonly maxTransferMinutes?: number;
+  readonly omitDefaultPlannerDeparture?: boolean;
+}
+
 export interface CommuteConstraints {
   /** Maximum door-to-door or leg time depending on adapter; MVP may use driving only first. */
   readonly maxMinutes: number;
   readonly mode: 'driving' | 'transit' | 'cycling' | 'walking';
+  readonly transit?: TransitCommutePreferences;
 }
 
 export interface SchoolPreferences {
