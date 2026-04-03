@@ -1,6 +1,6 @@
 import type { PropertyType } from '@/domain/criteria/types';
 
-import type { AreaSearchFormState } from './buildSearchAreasRequest';
+import { defaultFormState, type AreaSearchFormState } from './buildSearchAreasRequest';
 
 const URL_PARAM_VERSION = 1;
 
@@ -277,4 +277,18 @@ export const parseAreaSearchQuery = (search: string): AreaSearchFormState | null
     return null;
   }
   return decodeAreaSearchQueryParam(q);
+};
+
+/** True when two form states round-trip to the same `q` string (canonical comparison). */
+export const areaSearchFormsEncodeToSameQueryParam = (
+  a: AreaSearchFormState,
+  b: AreaSearchFormState,
+): boolean => encodeAreaSearchQueryParam(a) === encodeAreaSearchQueryParam(b);
+
+/** Initial form for SSR (no `window`) or browser from `window.location.search`. */
+export const getInitialAreaSearchFormFromWindow = (): AreaSearchFormState => {
+  if (typeof globalThis.window === 'undefined') {
+    return defaultFormState();
+  }
+  return parseAreaSearchQuery(globalThis.window.location.search) ?? defaultFormState();
 };

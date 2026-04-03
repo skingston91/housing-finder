@@ -1,52 +1,22 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Container,
-  Heading,
-  HStack,
-  SimpleGrid,
-  Spinner,
-  Stack,
-  Text,
-} from '@chakra-ui/react';
+import { Box, Button, Container, Heading, HStack, SimpleGrid, Stack, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { httpAreaDiscoveryAdapter } from '@/adapters/httpAreaDiscovery';
 import { httpWorkplaceGeocodeAdapter } from '@/adapters/httpWorkplaceGeocode';
 
 import type { AreaSelectionSource } from './ResultsMap';
-import { AreaComparePanel } from './AreaComparePanel';
-import { AreaResultCard } from './AreaResultCard';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
-import { CommuteAboutDataPanel } from './CommuteAboutDataPanel';
-import {
-  decodeAreaSearchQueryParam,
-  encodeAreaSearchQueryParam,
-  MAX_AREA_SEARCH_Q_CHARS,
-  parseAreaSearchQuery,
-} from './areaSearchUrlState';
+import { AreaSearchResultsColumn } from './AreaSearchResultsColumn';
+import { getInitialAreaSearchFormFromWindow } from './areaSearchUrlState';
 import { buildAreaSearchCriteria, defaultFormState } from './buildSearchAreasRequest';
 import { getSelectionAnnouncement } from './selectionAnnouncement';
-import { MethodologyPanel } from './MethodologyPanel';
-import { resultsUseStraightLineCommute } from './searchResultsAttribution';
-
-const ResultsMapLazy = lazy(async () => {
-  const m = await import('./ResultsMap');
-  return { default: m.ResultsMap };
-});
+import { useAreaSearchUrlSync } from './useAreaSearchUrlSync';
 
 export const AreaSearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const skipUrlSyncRef = useRef(true);
-  const [form, setForm] = useState(() => {
-    if (typeof window === 'undefined') {
-      return defaultFormState();
-    }
-    return parseAreaSearchQuery(window.location.search) ?? defaultFormState();
-  });
+  const [form, setForm] = useState(getInitialAreaSearchFormFromWindow);
   const [areas, setAreas] = useState<readonly RankedArea[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,83 +27,30 @@ export const AreaSearchPage = () => {
   const [selectionLiveMessage, setSelectionLiveMessage] = useState('');
   const previousSelectionRef = useRef<string | null | undefined>(undefined);
   const cardAnchorRefs = useRef(new Map<string, HTMLElement>());
-  const [urlMessage, setUrlMessage] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
+  const copyLinkTimeoutRef = useRef<number | null>(null);
+  const resultsRegionRef = useRef<HTMLDivElement | null>(null);
 
-  const defaultQRef = useRef<string | null>(null);
-  defaultQRef.current ??= encodeAreaSearchQueryParam(defaultFormState());
+  useEffect(() => {
+    return () => {
+      if (copyLinkTimeoutRef.current !== null) {
+        window.clearTimeout(copyLinkTimeoutRef.current);
+        copyLinkTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const { urlMessage, resetSearchUrlBar } = useAreaSearchUrlSync(
+    form,
+    setForm,
+    searchParams,
+    setSearchParams,
+  );
 
   useEffect(() => {
     setCompareIds((prev) => prev.filter((id) => areas.some((a) => a.id === id)));
   }, [areas]);
-
-  useEffect(() => {
-    if (skipUrlSyncRef.current) {
-      skipUrlSyncRef.current = false;
-      return;
-    }
-    const currentQ = searchParams.get('q');
-    const encoded = encodeAreaSearchQueryParam(form);
-    if (currentQ === null && encoded === defaultQRef.current) {
-      return;
-    }
-    if (currentQ === encoded) {
-      return;
-    }
-    const h = window.setTimeout(() => {
-      try {
-        setSearchParams({ q: encoded }, { replace: false });
-      } catch {
-        /* ignore */
-      }
-    }, 450);
-    return () => {
-      window.clearTimeout(h);
-    };
-  }, [form, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    const q = searchParams.get('q');
-    if (!q || q.length === 0) {
-      const def = defaultFormState();
-      if (encodeAreaSearchQueryParam(form) === encodeAreaSearchQueryParam(def)) {
-        return;
-      }
-      setForm(def);
-      setUrlMessage('You’re back to the default search settings.');
-      return;
-    }
-    if (q.length > MAX_AREA_SEARCH_Q_CHARS) {
-      setForm((prev) => {
-        const def = defaultFormState();
-        return encodeAreaSearchQueryParam(prev) === encodeAreaSearchQueryParam(def) ? prev : def;
-      });
-      setUrlMessage(
-        "This link's search settings were too large to load, so we started from the default search.",
-      );
-      setSearchParams({}, { replace: true });
-      return;
-    }
-    const decoded = decodeAreaSearchQueryParam(q);
-    if (decoded === null) {
-      setForm((prev) => {
-        const def = defaultFormState();
-        return encodeAreaSearchQueryParam(prev) === encodeAreaSearchQueryParam(def) ? prev : def;
-      });
-      setUrlMessage(
-        'We couldn’t read the search settings from your link, so we started from the default search.',
-      );
-      setSearchParams({}, { replace: true });
-      return;
-    }
-    const currentEncoded = encodeAreaSearchQueryParam(form);
-    const decodedEncoded = encodeAreaSearchQueryParam(decoded);
-    if (decodedEncoded === currentEncoded) {
-      setUrlMessage(null);
-      return;
-    }
-    setUrlMessage(null);
-    setForm(decoded);
-  }, [form, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (areas.length === 0) {
@@ -202,16 +119,34 @@ export const AreaSearchPage = () => {
     if (typeof window === 'undefined') {
       return;
     }
-    void navigator.clipboard.writeText(window.location.href);
+    void navigator.clipboard.writeText(window.location.href).then(
+      () => {
+        if (copyLinkTimeoutRef.current !== null) {
+          window.clearTimeout(copyLinkTimeoutRef.current);
+        }
+        setCopyLinkMessage('Link copied to clipboard.');
+        copyLinkTimeoutRef.current = window.setTimeout(() => {
+          setCopyLinkMessage(null);
+          copyLinkTimeoutRef.current = null;
+        }, 2500);
+      },
+      () => {
+        setCopyLinkMessage('Could not copy — check browser permissions.');
+        copyLinkTimeoutRef.current = window.setTimeout(() => {
+          setCopyLinkMessage(null);
+          copyLinkTimeoutRef.current = null;
+        }, 3500);
+      },
+    );
   }, []);
 
   const handleResetSearch = useCallback(() => {
     setForm(defaultFormState());
     setAreas([]);
     setError(null);
-    setUrlMessage('You’re back to the default search settings.');
-    setSearchParams({}, { replace: false });
-  }, [setSearchParams]);
+    setHasSearched(false);
+    resetSearchUrlBar();
+  }, [resetSearchUrlBar]);
 
   const toggleCompare = useCallback((id: string) => {
     setCompareIds((prev) => {
@@ -237,6 +172,13 @@ export const AreaSearchPage = () => {
     };
   }, [form.workplaceLat, form.workplaceLng, form.workplaceLabel]);
 
+  const focusResultsRegion = useCallback(() => {
+    requestAnimationFrame(() => {
+      resultsRegionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      resultsRegionRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
   const handleSearch = useCallback(async () => {
     setError(null);
     handleSelectArea(null);
@@ -251,14 +193,18 @@ export const AreaSearchPage = () => {
     try {
       const ranked = await httpAreaDiscoveryAdapter.findRankedAreas(criteria);
       setAreas(ranked);
+      setHasSearched(true);
+      focusResultsRegion();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Search failed';
       setError(msg);
       setAreas([]);
+      setHasSearched(true);
+      focusResultsRegion();
     } finally {
       setLoading(false);
     }
-  }, [form, handleSelectArea]);
+  }, [form, handleSelectArea, focusResultsRegion]);
 
   return (
     <Box minH="100dvh" bg="gray.50" color="fg">
@@ -281,7 +227,7 @@ export const AreaSearchPage = () => {
                 share them. Only the criteria are saved in the link — you choose when to run the
                 search.
               </Text>
-              <HStack gap={3}>
+              <HStack gap={3} align="flex-start" flexWrap="wrap">
                 <Button
                   size="sm"
                   variant="outline"
@@ -304,8 +250,13 @@ export const AreaSearchPage = () => {
                 </Button>
               </HStack>
               {urlMessage ? (
-                <Text fontSize="xs" color="orange.700">
+                <Text fontSize="xs" color="fg.warning">
                   {urlMessage}
+                </Text>
+              ) : null}
+              {copyLinkMessage ? (
+                <Text fontSize="xs" color="fg.success" role="status">
+                  {copyLinkMessage}
                 </Text>
               ) : null}
             </Stack>
@@ -335,133 +286,24 @@ export const AreaSearchPage = () => {
               />
             </Box>
 
-            <Stack gap={4} position="relative">
-              <Box
-                as="span"
-                aria-live="polite"
-                aria-atomic="true"
-                position="absolute"
-                w="1px"
-                h="1px"
-                p={0}
-                m="-1px"
-                overflow="hidden"
-                whiteSpace="nowrap"
-                borderWidth={0}
-                style={{ clip: 'rect(0, 0, 0, 0)' }}
-              >
-                {selectionLiveMessage}
-              </Box>
-              <Heading size="md">Results</Heading>
-              <CommuteAboutDataPanel />
-              {!loading && areas.length > 0 && resultsUseStraightLineCommute(areas) ? (
-                <Alert.Root status="warning" variant="subtle">
-                  <Alert.Indicator />
-                  <Alert.Content>
-                    <Alert.Title>Commute times are approximate</Alert.Title>
-                    <Alert.Description fontSize="sm">
-                      At least one area used a straight-line estimate or a routing fallback — not a
-                      full network journey. Configure TFL_APP_KEY (transit) and ORS_API_KEY
-                      (drive/cycle/walk) on the search API for realistic routes, or enable strict
-                      routing in production so misconfiguration surfaces as an error instead of
-                      silent fallback.
-                    </Alert.Description>
-                  </Alert.Content>
-                </Alert.Root>
-              ) : null}
-              {!loading && areas.length > 0 ? <MethodologyPanel areas={areas} /> : null}
-              {loading ? <HStackSpinner /> : null}
-              {error ? (
-                <Alert.Root status="error" variant="subtle">
-                  <Alert.Indicator />
-                  <Alert.Content>
-                    <Alert.Title>Search error</Alert.Title>
-                    <Alert.Description>{error}</Alert.Description>
-                  </Alert.Content>
-                </Alert.Root>
-              ) : null}
-              {!loading && areas.length > 0 ? (
-                <Suspense
-                  fallback={
-                    <Text fontSize="sm" color="fg.muted">
-                      Loading map…
-                    </Text>
-                  }
-                >
-                  <ResultsMapLazy
-                    workplace={workplaceForMap}
-                    areas={areas}
-                    selectedAreaId={selectedAreaId}
-                    onSelectArea={handleSelectArea}
-                  />
-                </Suspense>
-              ) : null}
-              {!loading && areas.length > 0 && compareAreas.length >= 2 ? (
-                <AreaComparePanel areas={compareAreas} />
-              ) : null}
-              {!loading && !error && areas.length === 0 ? (
-                <Text color="fg.muted" fontSize="sm">
-                  Run a search to see ranked areas. For local API + Vite together, use{' '}
-                  <Text as="span" fontWeight="medium">
-                    npm run dev:stack
-                  </Text>{' '}
-                  (or run{' '}
-                  <Text as="span" fontWeight="medium">
-                    npm run sam:local
-                  </Text>{' '}
-                  on port 3000 after{' '}
-                  <Text as="span" fontWeight="medium">
-                    npm run sam:build
-                  </Text>
-                  , plus{' '}
-                  <Text as="span" fontWeight="medium">
-                    npm run dev
-                  </Text>
-                  ). Then{' '}
-                  <Text as="span" fontFamily="mono">
-                    /api/search-areas
-                  </Text>{' '}
-                  proxies correctly — see docs/infrastructure/aws-sam.md.
-                </Text>
-              ) : null}
-              <SimpleGrid columns={1} gap={4}>
-                {areas.map((a) => (
-                  <Box
-                    key={a.id}
-                    ref={(el: HTMLElement | null) => {
-                      setCardAnchorEl(a.id, el);
-                    }}
-                  >
-                    <AreaResultCard
-                      area={a}
-                      isSelected={selectedAreaId === a.id}
-                      onSelectArea={(id) => {
-                        handleSelectArea(id, 'list');
-                      }}
-                      compare={{
-                        isInCompare: compareIds.includes(a.id),
-                        onToggle: () => {
-                          toggleCompare(a.id);
-                        },
-                        limitReached: compareIds.length >= 3 && !compareIds.includes(a.id),
-                      }}
-                    />
-                  </Box>
-                ))}
-              </SimpleGrid>
-            </Stack>
+            <AreaSearchResultsColumn
+              resultsRegionRef={resultsRegionRef}
+              selectionLiveMessage={selectionLiveMessage}
+              loading={loading}
+              error={error}
+              hasSearched={hasSearched}
+              areas={areas}
+              compareAreas={compareAreas}
+              compareIds={compareIds}
+              selectedAreaId={selectedAreaId}
+              workplace={workplaceForMap}
+              onSelectArea={handleSelectArea}
+              setCardAnchorEl={setCardAnchorEl}
+              onToggleCompare={toggleCompare}
+            />
           </SimpleGrid>
         </Stack>
       </Container>
     </Box>
   );
 };
-
-const HStackSpinner = () => (
-  <HStack gap={2}>
-    <Spinner size="sm" />
-    <Text fontSize="sm" color="fg.muted">
-      Ranking areas…
-    </Text>
-  </HStack>
-);

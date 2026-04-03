@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { defaultFormState } from './buildSearchAreasRequest';
 import {
+  areaSearchFormsEncodeToSameQueryParam,
   decodeAreaSearchQueryParam,
   encodeAreaSearchQueryParam,
   MAX_AREA_SEARCH_Q_CHARS,
@@ -23,5 +24,12 @@ describe('areaSearchUrlState', () => {
 
   it('rejects oversized payloads', () => {
     expect(decodeAreaSearchQueryParam('x'.repeat(MAX_AREA_SEARCH_Q_CHARS + 1))).toBeNull();
+  });
+
+  it('compares forms by encoded q snapshot', () => {
+    const a = defaultFormState();
+    const b = { ...defaultFormState(), workplaceLabel: 'Elsewhere' };
+    expect(areaSearchFormsEncodeToSameQueryParam(a, defaultFormState())).toBe(true);
+    expect(areaSearchFormsEncodeToSameQueryParam(a, b)).toBe(false);
   });
 });
