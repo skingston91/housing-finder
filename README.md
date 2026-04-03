@@ -18,7 +18,7 @@ Front-end only (no `/api`): `npm run dev` — you will see proxy errors for sear
 
 ## Documentation
 
-Start at [docs/README.md](./docs/README.md). Design specs live under [docs/design/](docs/design/).
+Start at [docs/README.md](./docs/README.md). Design specs live under [docs/design/](docs/design/). Deploy checklist: [docs/production-readiness.md](./docs/production-readiness.md).
 
 ## Stack
 
