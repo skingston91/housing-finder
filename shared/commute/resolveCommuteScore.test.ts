@@ -4,8 +4,10 @@ import type { SearchAreasRequestBody } from '../searchAreasContract';
 
 import { commuteScoreFromStraightLine } from './commuteScoreFromStraightLine';
 import {
+  applyRoutingApiFailureExtraPenalty,
   applyStraightLineProxyPenalty,
   COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
+  COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY,
   COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
 } from './commuteScoreNetworkRoutingBonus';
 import { clearOrsDirectionsCache } from './orsDirections';
@@ -104,9 +106,14 @@ describe('resolveCommuteScore', () => {
     expect(r.commuteStraightLineProxyPenaltyApplied).toBe(
       COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
     );
+    expect(r.commuteRoutingApiFailureExtraPenaltyApplied).toBe(
+      COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY,
+    );
     expect(r.score).toBe(
-      applyStraightLineProxyPenalty(
-        commuteScoreFromStraightLine(51.5, -0.1, 51.52, -0.08, 'transit', 45),
+      applyRoutingApiFailureExtraPenalty(
+        applyStraightLineProxyPenalty(
+          commuteScoreFromStraightLine(51.5, -0.1, 51.52, -0.08, 'transit', 45),
+        ),
       ),
     );
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -172,9 +179,14 @@ describe('resolveCommuteScore', () => {
     expect(r.commuteStraightLineProxyPenaltyApplied).toBe(
       COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
     );
+    expect(r.commuteRoutingApiFailureExtraPenaltyApplied).toBe(
+      COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY,
+    );
     expect(r.score).toBe(
-      applyStraightLineProxyPenalty(
-        commuteScoreFromStraightLine(51.5, -0.1, 51.52, -0.08, 'cycling', 45),
+      applyRoutingApiFailureExtraPenalty(
+        applyStraightLineProxyPenalty(
+          commuteScoreFromStraightLine(51.5, -0.1, 51.52, -0.08, 'cycling', 45),
+        ),
       ),
     );
   });

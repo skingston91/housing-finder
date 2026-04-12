@@ -3,8 +3,10 @@ import type { SearchAreasRequestBody, TransitCommutePreferencesDto } from '../se
 import { applyCommuteReliabilityAdjustments } from './applyCommuteReliabilityAdjustments';
 import {
   applyNetworkRoutingCommuteBonus,
+  applyRoutingApiFailureExtraPenalty,
   applyStraightLineProxyPenalty,
   COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
+  COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY,
   COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
 } from './commuteScoreNetworkRoutingBonus';
 import { commuteScoreFromDurationEstimate } from './commuteScoreFromDurationEstimate';
@@ -57,6 +59,8 @@ export interface CommuteScoreResult {
   readonly commuteNetworkRoutingBonusApplied?: number;
   /** Points subtracted when the score uses only straight-line time (no routed duration). */
   readonly commuteStraightLineProxyPenaltyApplied?: number;
+  /** Extra penalty when a routing API was invoked but returned no usable journey (transit/ORS fallback). */
+  readonly commuteRoutingApiFailureExtraPenaltyApplied?: number;
 }
 
 export interface ResolveCommuteScoreRoutingOptions {
@@ -144,18 +148,21 @@ export const resolveCommuteScore = async (
       mode,
     );
     return {
-      score: applyStraightLineProxyPenalty(
-        commuteScoreFromStraightLine(
-          workplace.latitude,
-          workplace.longitude,
-          candidateLat,
-          candidateLng,
-          mode,
-          maxM,
+      score: applyRoutingApiFailureExtraPenalty(
+        applyStraightLineProxyPenalty(
+          commuteScoreFromStraightLine(
+            workplace.latitude,
+            workplace.longitude,
+            candidateLat,
+            candidateLng,
+            mode,
+            maxM,
+          ),
         ),
       ),
       model: 'tfl-fallback-straight-line',
       commuteStraightLineProxyPenaltyApplied: COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+      commuteRoutingApiFailureExtraPenaltyApplied: COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY,
       transitFailureCode: tflRes.failureCode,
       journeyMinutes: Math.round(straightEst * 10) / 10,
       tflPlannerSummary: tflPlannerSummaryFallback,
@@ -205,18 +212,21 @@ export const resolveCommuteScore = async (
       mode,
     );
     return {
-      score: applyStraightLineProxyPenalty(
-        commuteScoreFromStraightLine(
-          workplace.latitude,
-          workplace.longitude,
-          candidateLat,
-          candidateLng,
-          mode,
-          maxM,
+      score: applyRoutingApiFailureExtraPenalty(
+        applyStraightLineProxyPenalty(
+          commuteScoreFromStraightLine(
+            workplace.latitude,
+            workplace.longitude,
+            candidateLat,
+            candidateLng,
+            mode,
+            maxM,
+          ),
         ),
       ),
       model: 'openrouteservice-fallback-straight-line',
       commuteStraightLineProxyPenaltyApplied: COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+      commuteRoutingApiFailureExtraPenaltyApplied: COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY,
       journeyMinutes: Math.round(orsStraightEst * 10) / 10,
     };
   }

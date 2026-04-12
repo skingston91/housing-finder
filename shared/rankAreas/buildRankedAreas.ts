@@ -6,6 +6,7 @@ import { resolveLondonBoroughYoYPctByBoroughId } from '../affordability/resolveL
 import { CRIME_SCORE_WHEN_POLICE_UNAVAILABLE } from '../crime/crimeScoreWhenPoliceUnavailable';
 import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
+import { commuteRankTierForModel } from '../commute/commuteRankTier';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
 import { plannedTransportProximityForPoint } from '../futureTransport/plannedTransportProximityForPoint';
 import type { OrsApiCredentials } from '../commute/orsDirections';
@@ -270,6 +271,7 @@ export const buildRankedAreas = async (
           : {}),
         landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
         commuteModel: commuteRes.model,
+        commuteRankTier: commuteRankTierForModel(commuteRes.model),
         commuteMaxMinutes: body.commute.maxMinutes,
         commuteRequestMode: body.commute.mode,
         ...(commuteRes.journeyMinutes !== undefined
@@ -297,6 +299,12 @@ export const buildRankedAreas = async (
           ? {
               commuteStraightLineProxyPenaltyApplied:
                 commuteRes.commuteStraightLineProxyPenaltyApplied,
+            }
+          : {}),
+        ...(commuteRes.commuteRoutingApiFailureExtraPenaltyApplied !== undefined
+          ? {
+              commuteRoutingApiFailureExtraPenaltyApplied:
+                commuteRes.commuteRoutingApiFailureExtraPenaltyApplied,
             }
           : {}),
         ...(commuteRes.tflPlannerSummary !== undefined
@@ -361,5 +369,12 @@ export const buildRankedAreas = async (
     };
   });
 
-  return [...rows].sort((a, b) => b.score - a.score);
+  return [...rows].sort((a, b) => {
+    const ta = typeof a.metadata?.commuteRankTier === 'number' ? a.metadata.commuteRankTier : 0;
+    const tb = typeof b.metadata?.commuteRankTier === 'number' ? b.metadata.commuteRankTier : 0;
+    if (ta !== tb) {
+      return ta - tb;
+    }
+    return b.score - a.score;
+  });
 };

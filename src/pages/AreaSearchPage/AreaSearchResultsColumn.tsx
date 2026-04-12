@@ -8,6 +8,10 @@ import { CommuteAboutDataPanel } from './CommuteAboutDataPanel';
 import { MethodologyPanel } from './MethodologyPanel';
 import type { AreaSelectionSource, ResultsMapProps } from './ResultsMap';
 import {
+  commuteRankTierFromArea,
+  partitionAreasByCommuteRouteConfirmation,
+} from './commuteRouteConfirmation';
+import {
   anyPoliceUkCrimeFetchFailed,
   anyPoliceUkCrimeFetchPartial,
   resultsUseStraightLineCommute,
@@ -55,6 +59,10 @@ export const AreaSearchResultsColumn = ({
 }: AreaSearchResultsColumnProps) => {
   const hasAreas = areas.length > 0;
   const showTrustStack = !loading && hasAreas;
+  const { withConfirmedRoute, withoutConfirmedRoute } =
+    partitionAreasByCommuteRouteConfirmation(areas);
+  const hasRouteSplit =
+    hasAreas && withConfirmedRoute.length > 0 && withoutConfirmedRoute.length > 0;
 
   return (
     <Stack
@@ -85,12 +93,16 @@ export const AreaSearchResultsColumn = ({
       </Heading>
       {!loading && hasSearched && hasAreas ? (
         <Text fontSize="sm" color="fg.muted" role="status" aria-live="polite">
-          Search complete: {areas.length} area{areas.length === 1 ? '' : 's'} ranked (best first).
-          Top match:{' '}
+          Search complete: {areas.length} area{areas.length === 1 ? '' : 's'} ranked (best first
+          {hasRouteSplit ? '; confirmed routes listed before estimate-only' : ''}). Top match:{' '}
           <Text as="span" fontWeight="medium" color="fg">
             {areas[0]?.displayName ?? ''}
           </Text>{' '}
-          (score {String(areas[0]?.score ?? '')}).
+          (score {String(areas[0]?.score ?? '')}
+          {areas[0] !== undefined && commuteRankTierFromArea(areas[0]) === 1
+            ? ', estimate-only commute'
+            : ''}
+          ).
         </Text>
       ) : null}
       {!loading && hasSearched && hasAreas && anyPoliceUkCrimeFetchFailed(areas) ? (
@@ -190,31 +202,84 @@ export const AreaSearchResultsColumn = ({
         </Stack>
       ) : null}
       {hasAreas ? (
-        <SimpleGrid columns={1} gap={4}>
-          {areas.map((a) => (
-            <Box
-              key={a.id}
-              ref={(el: HTMLElement | null) => {
-                setCardAnchorEl(a.id, el);
-              }}
-            >
-              <AreaResultCard
-                area={a}
-                isSelected={selectedAreaId === a.id}
-                onSelectArea={(id) => {
-                  onSelectArea(id, 'list');
-                }}
-                compare={{
-                  isInCompare: compareIds.includes(a.id),
-                  onToggle: () => {
-                    onToggleCompare(a.id);
-                  },
-                  limitReached: compareIds.length >= 3 && !compareIds.includes(a.id),
-                }}
-              />
-            </Box>
-          ))}
-        </SimpleGrid>
+        <Stack gap={6}>
+          {withConfirmedRoute.length > 0 ? (
+            <Stack gap={3}>
+              {hasRouteSplit ? (
+                <Heading as="h3" size="sm" fontWeight="semibold" color="fg.muted">
+                  Confirmed route (TfL or OpenRouteService)
+                </Heading>
+              ) : null}
+              <SimpleGrid columns={1} gap={4}>
+                {withConfirmedRoute.map((a) => (
+                  <Box
+                    key={a.id}
+                    ref={(el: HTMLElement | null) => {
+                      setCardAnchorEl(a.id, el);
+                    }}
+                  >
+                    <AreaResultCard
+                      area={a}
+                      isSelected={selectedAreaId === a.id}
+                      onSelectArea={(id) => {
+                        onSelectArea(id, 'list');
+                      }}
+                      compare={{
+                        isInCompare: compareIds.includes(a.id),
+                        onToggle: () => {
+                          onToggleCompare(a.id);
+                        },
+                        limitReached: compareIds.length >= 3 && !compareIds.includes(a.id),
+                      }}
+                    />
+                  </Box>
+                ))}
+              </SimpleGrid>
+            </Stack>
+          ) : null}
+          {withoutConfirmedRoute.length > 0 ? (
+            <Stack gap={3}>
+              {hasRouteSplit || withoutConfirmedRoute.length === areas.length ? (
+                <Stack gap={1}>
+                  <Heading as="h3" size="sm" fontWeight="semibold" color="fg.muted">
+                    No confirmed route (estimate only)
+                  </Heading>
+                  <Text fontSize="xs" color="fg.muted">
+                    TfL or OpenRouteService did not return a usable journey for these areas; commute
+                    time is a straight-line estimate and the commute subscore includes an extra
+                    discount.
+                    {hasRouteSplit ? ' They are sorted after areas with a confirmed route.' : ''}
+                  </Text>
+                </Stack>
+              ) : null}
+              <SimpleGrid columns={1} gap={4}>
+                {withoutConfirmedRoute.map((a) => (
+                  <Box
+                    key={a.id}
+                    ref={(el: HTMLElement | null) => {
+                      setCardAnchorEl(a.id, el);
+                    }}
+                  >
+                    <AreaResultCard
+                      area={a}
+                      isSelected={selectedAreaId === a.id}
+                      onSelectArea={(id) => {
+                        onSelectArea(id, 'list');
+                      }}
+                      compare={{
+                        isInCompare: compareIds.includes(a.id),
+                        onToggle: () => {
+                          onToggleCompare(a.id);
+                        },
+                        limitReached: compareIds.length >= 3 && !compareIds.includes(a.id),
+                      }}
+                    />
+                  </Box>
+                ))}
+              </SimpleGrid>
+            </Stack>
+          ) : null}
+        </Stack>
       ) : null}
       {showTrustStack ? (
         <Suspense

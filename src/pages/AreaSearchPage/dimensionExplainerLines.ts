@@ -48,6 +48,14 @@ export const commuteDimensionExplanationLine = (
       `-${String(metadata.commuteStraightLineProxyPenaltyApplied)} straight-line proxy (no routed time)`,
     );
   }
+  if (
+    typeof metadata.commuteRoutingApiFailureExtraPenaltyApplied === 'number' &&
+    metadata.commuteRoutingApiFailureExtraPenaltyApplied > 0
+  ) {
+    bits.push(
+      `-${String(metadata.commuteRoutingApiFailureExtraPenaltyApplied)} no confirmed route (routing API failed)`,
+    );
+  }
   return bits.join(' · ');
 };
 

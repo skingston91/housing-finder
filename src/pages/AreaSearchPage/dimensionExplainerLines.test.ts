@@ -37,6 +37,17 @@ describe('commuteDimensionExplanationLine', () => {
     });
     expect(line).toContain('-15 straight-line proxy');
   });
+
+  it('notes routing API failure extra penalty when present', () => {
+    const line = commuteDimensionExplanationLine({
+      commuteModel: 'tfl-fallback-straight-line',
+      commuteJourneyMinutes: 28,
+      commuteMaxMinutes: 40,
+      commuteStraightLineProxyPenaltyApplied: 15,
+      commuteRoutingApiFailureExtraPenaltyApplied: 25,
+    });
+    expect(line).toContain('-25 no confirmed route');
+  });
 });
 
 describe('priceTrendDimensionExplanationLine', () => {

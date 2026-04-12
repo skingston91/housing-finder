@@ -121,7 +121,8 @@ export interface RankedAreaDto {
   readonly breakdown: AreaScoreBreakdownDto;
   /**
    * Includes domain-specific keys (e.g. `sizeFitModel`, `sizeFitTypicalM2Coverage`, `sizeFitEpcGeneratedAt`,
-   * `commuteModel`, `commuteTflHttpStatus` (TfL HTTP status when transit falls back; **-1** if status was unavailable), `commuteTflHttpErrorBody`
+   * `commuteModel`, `commuteRankTier` (**0** = confirmed route or no routing API; **1** = routing API tried, straight-line fallback),
+   * `commuteRoutingApiFailureExtraPenaltyApplied`, `commuteTflHttpStatus` (TfL HTTP status when transit falls back; **-1** if status was unavailable), `commuteTflHttpErrorBody`
    * (short TfL response text for non-2xx), …) as `string | number` for JSON transport.
    */
   readonly metadata?: Readonly<Record<string, string | number>>;

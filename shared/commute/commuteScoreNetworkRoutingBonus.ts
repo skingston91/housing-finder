@@ -11,6 +11,12 @@ export const COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS = 25;
  */
 export const COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS = 15;
 
+/**
+ * Extra penalty when **TfL or OpenRouteService was called** but no usable route was returned and
+ * the score uses straight-line time — keeps these candidates below areas with a confirmed network journey.
+ */
+export const COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY = 25;
+
 export const applyNetworkRoutingCommuteBonus = (durationBasedScore: number): number => {
   if (!Number.isFinite(durationBasedScore)) {
     return 50;
@@ -28,6 +34,18 @@ export const applyStraightLineProxyPenalty = (durationBasedScore: number): numbe
     Math.max(
       0,
       Math.min(100, durationBasedScore - COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS),
+    ),
+  );
+};
+
+export const applyRoutingApiFailureExtraPenalty = (afterProxyPenaltyScore: number): number => {
+  if (!Number.isFinite(afterProxyPenaltyScore)) {
+    return 50;
+  }
+  return Math.round(
+    Math.max(
+      0,
+      Math.min(100, afterProxyPenaltyScore - COMMUTE_SCORE_ROUTING_API_FAILURE_EXTRA_PENALTY),
     ),
   );
 };

@@ -14,6 +14,7 @@ import {
 import { parseCommuteTflHttpStatusFromMetadata } from '@/adapters/mapSearchAreasContract';
 import { describeTflHttpFailureAdvice } from '@shared/commute/tflCommuteFailureUserMessage';
 import { areaProvenanceDescription, hasCrimeMetadataDetails } from './searchResultsAttribution';
+import { commuteRankTierFromArea } from './commuteRouteConfirmation';
 import { ScoreBar } from './ScoreBar';
 
 export interface AreaResultCardProps {
@@ -90,6 +91,19 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
     rows.push({
       label: 'Commute model',
       value: commuteModelDisplayLabel(m.commuteModel),
+    });
+  }
+  if (m.commuteRankTier === 1) {
+    rows.push({
+      label: 'Commute route confirmation',
+      value:
+        'No confirmed TfL/OpenRouteService journey — ranked in the “estimate only” group and extra commute discount applied.',
+    });
+  }
+  if (typeof m.commuteRoutingApiFailureExtraPenaltyApplied === 'number') {
+    rows.push({
+      label: 'Routing API failure penalty (commute subscore)',
+      value: String(m.commuteRoutingApiFailureExtraPenaltyApplied),
     });
   }
   if (typeof m.commuteMaxMinutes === 'number') {
@@ -311,6 +325,7 @@ export const AreaResultCard = ({
   const schoolsLine = schoolsDimensionExplanationLine(meta);
   const commuteLine = commuteDimensionExplanationLine(meta);
   const priceTrendLine = priceTrendDimensionExplanationLine(meta);
+  const noConfirmedRoute = commuteRankTierFromArea(area) === 1;
 
   return (
     <Card.Root
@@ -345,9 +360,16 @@ export const AreaResultCard = ({
             <Heading as="h3" size="md">
               {area.displayName}
             </Heading>
-            <Badge colorPalette="blue" size="lg">
-              Score {String(area.score)}
-            </Badge>
+            <HStack gap={2} flexWrap="wrap" justify="flex-end">
+              {noConfirmedRoute ? (
+                <Badge colorPalette="orange" size="sm" variant="subtle">
+                  Estimate only
+                </Badge>
+              ) : null}
+              <Badge colorPalette="blue" size="lg">
+                Score {String(area.score)}
+              </Badge>
+            </HStack>
           </HStack>
           {compare !== undefined ? (
             <Button
