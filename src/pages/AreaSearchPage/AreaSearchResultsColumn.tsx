@@ -6,6 +6,7 @@ import { AreaComparePanel } from './AreaComparePanel';
 import { AreaResultCard } from './AreaResultCard';
 import { CommuteAboutDataPanel } from './CommuteAboutDataPanel';
 import { MethodologyPanel } from './MethodologyPanel';
+import { SearchDataQualityPanel, type SearchDataQualitySummary } from './SearchDataQualityPanel';
 import type { AreaSelectionSource, ResultsMapProps } from './ResultsMap';
 import {
   commuteRankTierFromArea,
@@ -33,6 +34,7 @@ export interface AreaSearchResultsColumnProps {
   readonly includePriceTrendInComposite: boolean;
   /** Candidates dropped because commute used straight-line fallback while others had routed journeys. */
   readonly commuteOmittedEstimateOnlyCount?: number;
+  readonly dataQualitySummary: SearchDataQualitySummary | null;
   readonly areas: readonly RankedArea[];
   readonly compareAreas: readonly RankedArea[];
   readonly compareIds: readonly string[];
@@ -55,6 +57,7 @@ export const AreaSearchResultsColumn = ({
   hasSearched,
   includePriceTrendInComposite,
   commuteOmittedEstimateOnlyCount,
+  dataQualitySummary,
   areas,
   compareAreas,
   compareIds,
@@ -111,6 +114,9 @@ export const AreaSearchResultsColumn = ({
             : ''}
           ).
         </Text>
+      ) : null}
+      {!loading && hasSearched && hasAreas && dataQualitySummary !== null ? (
+        <SearchDataQualityPanel summary={dataQualitySummary} />
       ) : null}
       {!loading &&
       hasSearched &&

@@ -9,6 +9,7 @@ import { httpWorkplaceGeocodeAdapter } from '@/adapters/httpWorkplaceGeocode';
 import type { AreaSelectionSource } from './ResultsMap';
 import { AreaSearchCriteriaForm } from './AreaSearchCriteriaForm';
 import { AreaSearchResultsColumn } from './AreaSearchResultsColumn';
+import type { SearchDataQualitySummary } from './SearchDataQualityPanel';
 import { getInitialAreaSearchFormFromWindow } from './areaSearchUrlState';
 import { buildAreaSearchCriteria, defaultFormState } from './buildSearchAreasRequest';
 import { getSelectionAnnouncement } from './selectionAnnouncement';
@@ -188,6 +189,24 @@ export const AreaSearchPage = () => {
     });
   }, []);
 
+  const dataQualitySummary = useMemo((): SearchDataQualitySummary | null => {
+    if (areas.length === 0) {
+      return null;
+    }
+    const m = areas[0]?.metadata;
+    return {
+      crimeWindowMonths: form.crimeWindowMonths,
+      ukhpiRefMonth: typeof m?.ukhpiRefMonth === 'string' ? m.ukhpiRefMonth : undefined,
+      ukhpiPriceMeasure: typeof m?.ukhpiPriceMeasure === 'string' ? m.ukhpiPriceMeasure : undefined,
+      schoolsPerformanceAcademicYear:
+        typeof m?.schoolsPerformanceAcademicYear === 'string'
+          ? m.schoolsPerformanceAcademicYear
+          : undefined,
+      affordabilityPriceSource:
+        typeof m?.affordabilityPriceSource === 'string' ? m.affordabilityPriceSource : undefined,
+    };
+  }, [areas, form.crimeWindowMonths]);
+
   const workplaceForMap = useMemo(() => {
     if (form.workplaceLat === '' || form.workplaceLng === '') {
       return null;
@@ -325,6 +344,7 @@ export const AreaSearchPage = () => {
               hasSearched={hasSearched}
               includePriceTrendInComposite={form.includePriceTrendInComposite}
               commuteOmittedEstimateOnlyCount={commuteOmittedEstimateOnlyCount}
+              dataQualitySummary={dataQualitySummary}
               areas={areas}
               compareAreas={compareAreas}
               compareIds={compareIds}

@@ -1,15 +1,17 @@
 # Housing Finder — documentation
 
-| Document                                                                   | Purpose                                                                  |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [product-decisions.md](./product-decisions.md)                             | Locked product answers (geo, MVP, constraints)                           |
-| [mvp-scope.md](./mvp-scope.md)                                             | Phase 1 deliverables (complete), Phase 2 backlog, non-goals              |
-| [data-sources.md](./data-sources.md)                                       | External data, licensing, **attribution**, integration notes             |
-| [architecture.md](./architecture.md)                                       | Layers, serverless boundaries, scoring outline                           |
-| [development.md](./development.md)                                         | Setup, scripts, env vars, API local dev                                  |
-| [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)                   | AWS Lambda + SAM build, local API, deploy                                |
-| [troubleshooting.md](./troubleshooting.md)                                 | Running log of issues and fixes                                          |
-| [commercial-release-requirements.md](./commercial-release-requirements.md) | Deferred checklist before commercial / scale (rate limits, secrets, ToS) |
+| Document                                                                   | Purpose                                                                    |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [product-decisions.md](./product-decisions.md)                             | Locked product answers (geo, MVP, constraints)                             |
+| [mvp-scope.md](./mvp-scope.md)                                             | Phase 1 deliverables (complete), Phase 2 backlog, non-goals                |
+| [data-sources.md](./data-sources.md)                                       | External data, licensing, **attribution**, integration notes               |
+| [architecture.md](./architecture.md)                                       | Layers, serverless boundaries, scoring outline                             |
+| [data-quality-roadmap.md](./data-quality-roadmap.md)                       | Dataset / ranking quality roadmap and implemented visible-cohort behaviour |
+| [scoring-behaviour.md](./scoring-behaviour.md)                             | Scoring pipeline quirks, crime diagnostics, composite notes                |
+| [development.md](./development.md)                                         | Setup, scripts, env vars, API local dev                                    |
+| [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)                   | AWS Lambda + SAM build, local API, deploy                                  |
+| [troubleshooting.md](./troubleshooting.md)                                 | Running log of issues and fixes                                            |
+| [commercial-release-requirements.md](./commercial-release-requirements.md) | Deferred checklist before commercial / scale (rate limits, secrets, ToS)   |
 
 ## Design
 

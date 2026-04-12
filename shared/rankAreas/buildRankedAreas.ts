@@ -37,6 +37,11 @@ import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
 import { logCrimeScoreSearchDiagnostics } from './crimeScoreSearchDiagnostics';
 import { buildMapStyleAreaHeading } from './buildMapStyleAreaHeading';
 import { disambiguateDuplicateAreaDisplayNames } from './disambiguateDuplicateAreaDisplayNames';
+import {
+  applyVisibleCohortScoreRecalculation,
+  keptIndicesForVisibleRows,
+  type VisibleCohortRecalculationContext,
+} from './applyVisibleCohortScoreRecalculation';
 import { filterRankedAreasToNetworkRoutedWhenMixed } from './filterRankedAreasToNetworkRoutedWhenMixed';
 import type { SearchCandidate } from './workplaceGridCandidates';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
@@ -196,8 +201,6 @@ export const buildRankedAreas = async (
     }
     return applyCrimeMonthCompleteness(score, row.monthsSucceeded, monthsYm.length);
   });
-
-  logCrimeScoreSearchDiagnostics(crimeScoresFinal, { candidateCount: intermediate.length });
 
   const rawYoyList = intermediate.map((row) => {
     const v = yoyPctByBoroughId.get(row.base.affordabilityBoroughId);
@@ -413,7 +416,31 @@ export const buildRankedAreas = async (
     options,
   );
 
-  const withUniqueNames = disambiguateDuplicateAreaDisplayNames(commuteFiltered);
+  const monthsSucceededByIndex = intermediate.map((row) => row.monthsSucceeded);
+  const commuteRawScores = intermediate.map((row) => row.commuteRes.score);
+  const keptIndices = keptIndicesForVisibleRows(rows, commuteFiltered);
+  const cohortCtx: VisibleCohortRecalculationContext = {
+    crimeInputs,
+    monthsYmLen: monthsYm.length,
+    monthsSucceededByIndex,
+    rawYoyList,
+    sizeFitRawRatios,
+    commuteRawScores,
+    includePriceTrendInComposite,
+    priceTrendModel,
+  };
+  const cohortAdjusted = applyVisibleCohortScoreRecalculation(
+    commuteFiltered,
+    keptIndices,
+    cohortCtx,
+  );
+
+  logCrimeScoreSearchDiagnostics(
+    cohortAdjusted.map((r) => r.breakdown.crime),
+    { candidateCount: cohortAdjusted.length },
+  );
+
+  const withUniqueNames = disambiguateDuplicateAreaDisplayNames(cohortAdjusted);
 
   const sorted = [...withUniqueNames].sort((a, b) => {
     const ta = typeof a.metadata?.commuteRankTier === 'number' ? a.metadata.commuteRankTier : 0;
