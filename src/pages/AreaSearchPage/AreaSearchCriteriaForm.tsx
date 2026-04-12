@@ -326,18 +326,42 @@ export const AreaSearchCriteriaForm = ({
           <Stack gap={1}>
             <Text fontWeight="medium">Max time (minutes)</Text>
             <Input
-              type="number"
-              min={1}
-              value={form.commuteMaxMinutes}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              value={form.commuteMaxMinutes === '' ? '' : String(form.commuteMaxMinutes)}
               onChange={(e) => {
-                const v = Number(e.target.value);
-                onChange({
-                  ...form,
-                  commuteMaxMinutes: Number.isFinite(v) ? v : form.commuteMaxMinutes,
-                });
+                const raw = e.target.value.trim();
+                if (raw === '') {
+                  onChange({ ...form, commuteMaxMinutes: '' });
+                  return;
+                }
+                if (!/^\d+$/.test(raw)) {
+                  return;
+                }
+                const v = Number(raw);
+                if (!Number.isFinite(v) || v > 24 * 60) {
+                  return;
+                }
+                onChange({ ...form, commuteMaxMinutes: v });
+              }}
+              onBlur={() => {
+                if (form.commuteMaxMinutes === '') {
+                  onChange({ ...form, commuteMaxMinutes: 45 });
+                  return;
+                }
+                const v = form.commuteMaxMinutes;
+                if (v < 1) {
+                  onChange({ ...form, commuteMaxMinutes: 1 });
+                }
               }}
               aria-label="Maximum commute minutes"
             />
+            <Text fontSize="xs" color="fg.muted">
+              Digits only (1–1440). Uses text entry so you can clear and re-type without stray
+              leading zeros from the browser number control.
+            </Text>
           </Stack>
         </Grid>
         {form.commuteMode === 'transit' ? (

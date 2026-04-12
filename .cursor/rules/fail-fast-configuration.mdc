@@ -1,0 +1,18 @@
+---
+description: Fail fast on missing or invalid configuration; clear errors over silent fallbacks
+alwaysApply: true
+---
+
+# Configuration and fail-fast behaviour
+
+## Principles
+
+- **Prefer failing loudly** with a **clear message** (exit code, HTTP 4xx/5xx with `error` text, or structured logs) over **silent degradation** that forces long debugging sessions.
+- **Separate concerns:** **Vite** uses repo **`.env` / `.env.local`** for **`VITE_*`** only. **Lambda / SAM local** uses **`sam/env.json`** (+ optional **`sam/env.local.json`**) — not root `.env` for API keys (`scripts/sam-local.mjs`).
+- **Production Lambdas:** routing API keys for the selected commute mode are **enforced** (see `shared/searchAreas/resolveSearchAreasRoutingStrict.ts`, `lambda/search-areas.ts`). Do not reintroduce “works but wrong” paths for missing secrets in deployed environments.
+- **SAM local:** optional **`SEARCH_AREAS_ROUTING_STRICT`**, **`SAM_LOCAL_STRICT`**, **`SAM_LOCAL_QUIET`** — document behaviour when adding or changing env wiring (`sam/README.md`, `docs/infrastructure/aws-sam.md`).
+
+## When adding features that need secrets or env
+
+- Add placeholders to **`sam/env.json.example`** and/or **`.env.example`** as appropriate; keep **real values** gitignored.
+- **Validate early** where cheap (handler startup, request validation, CLI script before `sam build`) and return **actionable errors** (what is missing, where to set it).

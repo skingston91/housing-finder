@@ -25,14 +25,14 @@ npm install
 | `npm run verify`     | Lint, format check, `tsc`, tests, build                                                                                                                  |
 | `npm run verify:sam` | Same as `verify`, then **`sam build`** (requires SAM CLI; use after Lambda or `template.yaml` changes)                                                   |
 
-For **TfL / ORS / Mapbox** on Lambdas locally, put **`TFL_APP_KEY`**, **`ORS_API_KEY`**, etc. in the repo **`.env`** (same names as Lambda env vars) **or** copy [`sam/env.json.example`](../sam/env.json.example) to **`sam/env.json`**. **`npm run sam:local`** merges example + `.env` + optional `sam/env.json` and passes them to SAM (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)).
+For **TfL / ORS / Mapbox** on Lambdas locally, use **`sam/env.json`** (required — copy from [`sam/env.json.example`](../sam/env.json.example)) and optionally **`sam/env.local.json`**. Root **`.env` is not read** by `npm run sam:local` (see [infrastructure/aws-sam.md](./infrastructure/aws-sam.md), [`sam/README.md`](../sam/README.md)).
 
 ## Environment variables
 
-- Copy `.env.example` to `.env.local` for Vite. **Only** variables prefixed with `VITE_` are exposed to the browser.
+- **Vite:** copy `.env.example` to `.env` or `.env.local` for optional **`VITE_*`** only. **Only** `VITE_*` are exposed to the browser.
 - **`VITE_MAPLIBRE_STYLE_URL`** (optional) — URL to a MapLibre-compatible style JSON for the results map; defaults to Carto Positron.
-- **`TFL_APP_KEY` / `ORS_API_KEY` / `MAPBOX_ACCESS_TOKEN`** in **`.env`** (not `VITE_*`) are picked up by **`npm run sam:local`** for local Lambda emulation — they never reach the browser.
-- For production, use **SAM deploy parameters**, **AWS console env**, or **Secrets Manager**, not only a checked-in `.env`.
+- **SAM local Lambdas:** **`TFL_APP_KEY`**, **`ORS_API_KEY`**, **`MAPBOX_ACCESS_TOKEN`**, etc. go under the right function objects in **`sam/env.json`** — not root `.env`.
+- For production, use **SAM deploy parameters**, **AWS console env**, or **Secrets Manager**.
 
 ## Serverless API locally (AWS SAM)
 

@@ -20,6 +20,21 @@ const estimatedMinutes = (distanceKm: number, mode: CommuteModeDto): number => {
 };
 
 /**
+ * Haversine distance and assumed mode speed → minutes (same inputs as {@link commuteScoreFromStraightLine}).
+ * Exposed so APIs can surface “~N min” when no routing engine returns a duration.
+ */
+export const estimateStraightLineCommuteMinutes = (
+  workplaceLat: number,
+  workplaceLng: number,
+  candidateLat: number,
+  candidateLng: number,
+  mode: CommuteModeDto,
+): number => {
+  const km = haversineKm(workplaceLat, workplaceLng, candidateLat, candidateLng);
+  return estimatedMinutes(km, mode);
+};
+
+/**
  * Straight-line distance → crude travel-time proxy (no routing API). Higher = better fit vs max minutes.
  */
 export const commuteScoreFromStraightLine = (
@@ -30,7 +45,12 @@ export const commuteScoreFromStraightLine = (
   mode: CommuteModeDto,
   maxMinutes: number,
 ): number => {
-  const km = haversineKm(workplaceLat, workplaceLng, candidateLat, candidateLng);
-  const est = estimatedMinutes(km, mode);
+  const est = estimateStraightLineCommuteMinutes(
+    workplaceLat,
+    workplaceLng,
+    candidateLat,
+    candidateLng,
+    mode,
+  );
   return commuteScoreFromDurationEstimate(est, maxMinutes);
 };

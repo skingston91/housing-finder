@@ -3,7 +3,9 @@ import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 import { parseSearchAreasRequestBody } from '../shared/parseSearchAreasRequestBody';
 import { buildRankedAreas } from '../shared/rankAreas/buildRankedAreas';
 import { resolveSchoolsPerformanceAcademicYearForMetadata } from '../shared/schools/resolveSchoolsPerformanceAcademicYearForMetadata';
+import { isSamLocalLambda } from '../shared/runtime/isSamLocalLambda';
 import { resolveSecretString } from '../shared/secrets/apiSecrets';
+import { resolveSearchAreasRoutingStrict } from '../shared/searchAreas/resolveSearchAreasRoutingStrict';
 import { validateSearchAreasRoutingKeys } from '../shared/searchAreas/validateSearchAreasRoutingKeys';
 
 import { jsonResponse } from './http';
@@ -28,7 +30,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
   const tflAppKey = await resolveSecretString('TFL_APP_KEY');
   const orsApiKey = await resolveSecretString('ORS_API_KEY');
-  const routingStrict = process.env.SEARCH_AREAS_ROUTING_STRICT?.trim() === '1';
+  const routingStrict = resolveSearchAreasRoutingStrict();
   const routingError = validateSearchAreasRoutingKeys(
     parsed.value,
     tflAppKey,
@@ -37,6 +39,19 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   );
   if (routingError !== null) {
     return jsonResponse(400, { error: routingError });
+  }
+  if (isSamLocalLambda() && !routingStrict) {
+    const wouldFailInProd = validateSearchAreasRoutingKeys(
+      parsed.value,
+      tflAppKey,
+      orsApiKey,
+      true,
+    );
+    if (wouldFailInProd !== null) {
+      console.warn(
+        `sam-local: ${wouldFailInProd} Proceeding with straight-line fallback (set SEARCH_AREAS_ROUTING_STRICT=1 in sam/env.json to match production and return 400 instead).`,
+      );
+    }
   }
   const useLiveUkhpiMedians = process.env.UKHPI_LIVE?.trim() !== '0';
   const routing =

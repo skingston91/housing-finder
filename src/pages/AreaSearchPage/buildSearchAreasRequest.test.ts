@@ -43,4 +43,10 @@ describe('buildSearchAreasRequest', () => {
     form.transitPlannerTime = '';
     expect(buildSearchAreasRequest(form)).toBeNull();
   });
+
+  it('returns null when max commute minutes is cleared while editing', () => {
+    const form = defaultFormState();
+    form.commuteMaxMinutes = '';
+    expect(buildSearchAreasRequest(form)).toBeNull();
+  });
 });

@@ -5,7 +5,7 @@ import { formatTflPlannerSlotSummary } from './tflPlannerSummary';
 describe('formatTflPlannerSlotSummary', () => {
   it('describes default weekday slot when date/time are injected by merge', () => {
     const s = formatTflPlannerSlotSummary(undefined, Date.now());
-    expect(s).toContain('08:30');
+    expect(s).toMatch(/8:30/);
     expect(s).toMatch(/timetable|TfL/i);
   });
 
@@ -24,6 +24,6 @@ describe('formatTflPlannerSlotSummary', () => {
       Date.now(),
     );
     expect(s).toContain('2026-04-15');
-    expect(s).toContain('09:30');
+    expect(s).toMatch(/9:30/);
   });
 });

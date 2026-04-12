@@ -10,4 +10,5 @@ coverage
 .vercel
 .aws-sam
 sam/env.json
+sam/env.local.json
 samconfig.toml.bak

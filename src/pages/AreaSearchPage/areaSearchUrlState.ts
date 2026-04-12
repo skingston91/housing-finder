@@ -90,6 +90,9 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
     (typeof w.maxPriceGbp !== 'number' && w.maxPriceGbp !== '') ||
     typeof w.workplaceLabel !== 'string' ||
     typeof w.commuteMaxMinutes !== 'number' ||
+    !Number.isFinite(w.commuteMaxMinutes) ||
+    w.commuteMaxMinutes < 1 ||
+    w.commuteMaxMinutes > 24 * 60 ||
     typeof w.commuteMode !== 'string' ||
     !COMMUTE_MODES.has(w.commuteMode) ||
     typeof w.crimeWindowMonths !== 'number' ||
@@ -106,18 +109,13 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
     }
     propertyTypes.push(p);
   }
-  if (propertyTypes.length === 0) {
-    return null;
-  }
+  /** Empty allowed: user may uncheck all before selecting one; {@link buildAreaSearchCriteria} enforces non-empty at submit. */
   const phases = new Set<'primary' | 'secondary' | 'sixth_form'>();
   for (const ph of w.schoolPhases) {
     if (typeof ph !== 'string' || !SCHOOL_PHASES.has(ph)) {
       return null;
     }
     phases.add(ph as 'primary' | 'secondary' | 'sixth_form');
-  }
-  if (phases.size === 0) {
-    return null;
   }
 
   const maxPricePerM2Gbp =
@@ -252,7 +250,7 @@ export const encodeAreaSearchQueryParam = (form: AreaSearchFormState): string =>
     workplaceLabel: form.workplaceLabel,
     workplaceLat: form.workplaceLat,
     workplaceLng: form.workplaceLng,
-    commuteMaxMinutes: form.commuteMaxMinutes,
+    commuteMaxMinutes: form.commuteMaxMinutes === '' ? 45 : form.commuteMaxMinutes,
     commuteMode: form.commuteMode,
     transitJourneyPreference: form.transitJourneyPreference,
     transitIncludeAlternativeRoutes: form.transitIncludeAlternativeRoutes,

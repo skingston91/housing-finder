@@ -27,12 +27,12 @@ Let users **open Rightmove** with **pre-filled search filters** that roughly mat
 
 ## Mapping from housing-finder → Rightmove (draft)
 
-| Our input (concept)        | Rightmove (expected to verify manually)      | Risk / gap |
-|----------------------------|----------------------------------------------|------------|
-| Max purchase price         | Max price param (if present)                 | Usually mappable |
-| Property types             | Type filter codes in URL                     | Enum mapping required |
-| Location / area            | Place name, outcode, or “radius from point”  | **Hardest** — our areas may not match RM geography |
-| Commute / schools / crime  | Not portable                                 | Do not imply equivalence in copy |
+| Our input (concept)       | Rightmove (expected to verify manually)     | Risk / gap                                         |
+| ------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| Max purchase price        | Max price param (if present)                | Usually mappable                                   |
+| Property types            | Type filter codes in URL                    | Enum mapping required                              |
+| Location / area           | Place name, outcode, or “radius from point” | **Hardest** — our areas may not match RM geography |
+| Commute / schools / crime | Not portable                                | Do not imply equivalence in copy                   |
 
 **Location strategy options (pick one for MVP):**
 
@@ -55,11 +55,11 @@ Let users **open Rightmove** with **pre-filled search filters** that roughly mat
 
 ## Risks
 
-| Risk | Mitigation |
-|------|------------|
-| URL / param breakage | Feature flag; doc “last verified” date; quick manual check before releases |
-| Misleading location overlap | Honest copy; prefer postcode or explicit place over guessing |
-| ToS / brand | Links only; no scraping; review Rightmove terms if traffic grows |
+| Risk                        | Mitigation                                                                 |
+| --------------------------- | -------------------------------------------------------------------------- |
+| URL / param breakage        | Feature flag; doc “last verified” date; quick manual check before releases |
+| Misleading location overlap | Honest copy; prefer postcode or explicit place over guessing               |
+| ToS / brand                 | Links only; no scraping; review Rightmove terms if traffic grows           |
 
 ## Acceptance criteria (for a future implementation ticket)
 

@@ -1,8 +1,17 @@
 import type { SearchAreasRequestBody, TransitCommutePreferencesDto } from '../searchAreasContract';
 
 import { applyCommuteReliabilityAdjustments } from './applyCommuteReliabilityAdjustments';
+import {
+  applyNetworkRoutingCommuteBonus,
+  applyStraightLineProxyPenalty,
+  COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
+  COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+} from './commuteScoreNetworkRoutingBonus';
 import { commuteScoreFromDurationEstimate } from './commuteScoreFromDurationEstimate';
-import { commuteScoreFromStraightLine } from './commuteScoreFromStraightLine';
+import {
+  commuteScoreFromStraightLine,
+  estimateStraightLineCommuteMinutes,
+} from './commuteScoreFromStraightLine';
 import { fetchOrsRouteDurationMinutes, type OrsApiCredentials } from './orsDirections';
 import {
   fetchTflTransitJourney,
@@ -38,6 +47,16 @@ export interface CommuteScoreResult {
   readonly tflPlannerSummary?: string;
   /** How transit duration was aggregated from TfL’s journey list. */
   readonly tflJourneyDurationMethod?: 'median-first-three-qualifying';
+  /** First qualifying journey leg summary from TfL (transit success). */
+  readonly commuteTflRouteSummary?: string;
+  /** HTTP status when TfL returned an error response (transit fallback). */
+  readonly commuteTflHttpStatus?: number;
+  /** Short TfL response body when HTTP was non-success (transit fallback). */
+  readonly commuteTflHttpErrorBody?: string;
+  /** Points added when TfL or OpenRouteService returned a routed journey (not straight-line proxy). */
+  readonly commuteNetworkRoutingBonusApplied?: number;
+  /** Points subtracted when the score uses only straight-line time (no routed duration). */
+  readonly commuteStraightLineProxyPenaltyApplied?: number;
 }
 
 export interface ResolveCommuteScoreRoutingOptions {
@@ -95,8 +114,9 @@ export const resolveCommuteScore = async (
       });
       const tflPlannerSummary = formatTflPlannerSlotSummary(plannerPrefs, Date.now());
       return {
-        score: reliability.score,
+        score: applyNetworkRoutingCommuteBonus(reliability.score),
         model: 'tfl-unified-api',
+        commuteNetworkRoutingBonusApplied: COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
         journeyMinutes: Math.round(tflRes.minutes * 10) / 10,
         tflPlannerSummary,
         ...(tflRes.durationMethod !== undefined
@@ -110,19 +130,48 @@ export const resolveCommuteScore = async (
           ? { transitDisruptionHint: tflRes.disruptionHint }
           : {}),
         ...(tflRes.nationalSearchUsed === true ? { transitNationalSearchUsed: true } : {}),
+        ...(tflRes.routeSummary !== undefined && tflRes.routeSummary.trim() !== ''
+          ? { commuteTflRouteSummary: tflRes.routeSummary.trim() }
+          : {}),
       };
     }
+    const tflPlannerSummaryFallback = formatTflPlannerSlotSummary(plannerPrefs, Date.now());
+    const straightEst = estimateStraightLineCommuteMinutes(
+      workplace.latitude,
+      workplace.longitude,
+      candidateLat,
+      candidateLng,
+      mode,
+    );
     return {
-      score: commuteScoreFromStraightLine(
-        workplace.latitude,
-        workplace.longitude,
-        candidateLat,
-        candidateLng,
-        mode,
-        maxM,
+      score: applyStraightLineProxyPenalty(
+        commuteScoreFromStraightLine(
+          workplace.latitude,
+          workplace.longitude,
+          candidateLat,
+          candidateLng,
+          mode,
+          maxM,
+        ),
       ),
       model: 'tfl-fallback-straight-line',
+      commuteStraightLineProxyPenaltyApplied: COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
       transitFailureCode: tflRes.failureCode,
+      journeyMinutes: Math.round(straightEst * 10) / 10,
+      tflPlannerSummary: tflPlannerSummaryFallback,
+      ...(tflRes.failureCode === 'http_error'
+        ? {
+            commuteTflHttpStatus:
+              typeof tflRes.httpStatus === 'number' && Number.isFinite(tflRes.httpStatus)
+                ? tflRes.httpStatus
+                : -1,
+          }
+        : tflRes.httpStatus !== undefined
+          ? { commuteTflHttpStatus: tflRes.httpStatus }
+          : {}),
+      ...(tflRes.tflHttpErrorBody !== undefined && tflRes.tflHttpErrorBody.trim() !== ''
+        ? { commuteTflHttpErrorBody: tflRes.tflHttpErrorBody.trim() }
+        : {}),
     };
   }
 
@@ -142,13 +191,46 @@ export const resolveCommuteScore = async (
     );
     if (mins !== null) {
       return {
-        score: commuteScoreFromDurationEstimate(mins, maxM),
+        score: applyNetworkRoutingCommuteBonus(commuteScoreFromDurationEstimate(mins, maxM)),
         model: 'openrouteservice-directions',
+        commuteNetworkRoutingBonusApplied: COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
         journeyMinutes: Math.round(mins * 10) / 10,
       };
     }
+    const orsStraightEst = estimateStraightLineCommuteMinutes(
+      workplace.latitude,
+      workplace.longitude,
+      candidateLat,
+      candidateLng,
+      mode,
+    );
     return {
-      score: commuteScoreFromStraightLine(
+      score: applyStraightLineProxyPenalty(
+        commuteScoreFromStraightLine(
+          workplace.latitude,
+          workplace.longitude,
+          candidateLat,
+          candidateLng,
+          mode,
+          maxM,
+        ),
+      ),
+      model: 'openrouteservice-fallback-straight-line',
+      commuteStraightLineProxyPenaltyApplied: COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+      journeyMinutes: Math.round(orsStraightEst * 10) / 10,
+    };
+  }
+
+  const defaultStraightEst = estimateStraightLineCommuteMinutes(
+    workplace.latitude,
+    workplace.longitude,
+    candidateLat,
+    candidateLng,
+    mode,
+  );
+  return {
+    score: applyStraightLineProxyPenalty(
+      commuteScoreFromStraightLine(
         workplace.latitude,
         workplace.longitude,
         candidateLat,
@@ -156,19 +238,9 @@ export const resolveCommuteScore = async (
         mode,
         maxM,
       ),
-      model: 'openrouteservice-fallback-straight-line',
-    };
-  }
-
-  return {
-    score: commuteScoreFromStraightLine(
-      workplace.latitude,
-      workplace.longitude,
-      candidateLat,
-      candidateLng,
-      mode,
-      maxM,
     ),
     model: 'straight-line-time-estimate',
+    commuteStraightLineProxyPenaltyApplied: COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+    journeyMinutes: Math.round(defaultStraightEst * 10) / 10,
   };
 };

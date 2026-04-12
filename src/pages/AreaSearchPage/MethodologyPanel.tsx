@@ -3,6 +3,8 @@ import type { RankedArea } from '@/domain/area/types';
 
 import {
   firstAffordabilityDiscoveryHint,
+  firstCrimeDataPartialNote,
+  firstCrimeDataUnavailableNote,
   firstDataPoliceUkAttribution,
   firstFutureTransportMethodologyNote,
   firstLandRegistryOglAttribution,
@@ -46,6 +48,8 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
   const affordabilityHonesty = firstAffordabilityDiscoveryHint(areas);
   const futureTransport = firstFutureTransportMethodologyNote(areas);
   const sizeFit = firstSizeFitMethodologyNote(areas);
+  const crimeMissing = firstCrimeDataUnavailableNote(areas);
+  const crimePartial = firstCrimeDataPartialNote(areas);
   const sizeFitActive = areas.some((a) => isSizeFitSecondScoreActive(a.metadata));
   const lowCoverage = shouldWarnLowSchoolsCoverage(areas);
   const hasBody =
@@ -56,7 +60,9 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
     schoolsYear !== undefined ||
     affordabilityHonesty !== undefined ||
     futureTransport !== undefined ||
-    sizeFit !== undefined;
+    sizeFit !== undefined ||
+    crimeMissing !== undefined ||
+    crimePartial !== undefined;
 
   return (
     <Stack gap={3}>
@@ -103,6 +109,8 @@ export const MethodologyPanel = ({ areas }: { areas: readonly RankedArea[] }) =>
             {schoolsYear ? <Text>{schoolsYear}</Text> : null}
             {schoolsCoverage ? <Text>{schoolsCoverage}</Text> : null}
             {futureTransport ? <Text>{futureTransport}</Text> : null}
+            {crimeMissing ? <Text>{crimeMissing}</Text> : null}
+            {crimePartial ? <Text>{crimePartial}</Text> : null}
             {sizeFit ? <Text>{sizeFit}</Text> : null}
           </Stack>
         </Box>

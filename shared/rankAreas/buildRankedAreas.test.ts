@@ -8,6 +8,8 @@ import { clearOrsDirectionsCache } from '../commute/orsDirections';
 import { clearTflJourneyCache } from '../commute/tflJourney';
 import type { SearchAreasRequestBody } from '../searchAreasContract';
 
+import { CRIME_SCORE_WHEN_POLICE_UNAVAILABLE } from '../crime/crimeScoreWhenPoliceUnavailable';
+import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { buildRankedAreas } from './buildRankedAreas';
 
 const ukhpiSlug = (row: LondonBoroughMedianRow): string => {
@@ -63,6 +65,77 @@ describe('buildRankedAreas', () => {
     expect(typeof first?.breakdown.sizeFit).toBe('number');
     expect(first?.metadata?.sizeFitModel).toBe('not-requested');
     expect(fetchImpl.mock.calls.length).toBe(12);
+  });
+
+  it('marks partial when some months fail and averages successful months only', async () => {
+    const monthsYm = recentMonthsYm(6, 6);
+    const failMonth = monthsYm[0];
+    if (failMonth === undefined) {
+      throw new Error('expected six crime months');
+    }
+    const requestToUrl = (input: RequestInfo | URL): string => {
+      if (typeof input === 'string') {
+        return input;
+      }
+      if (input instanceof URL) {
+        return input.href;
+      }
+      return input.url;
+    };
+
+    const fetchImpl = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = requestToUrl(input);
+      if (url.includes('data.police.uk') && url.includes(`date=${failMonth}`)) {
+        return Promise.resolve(new Response('Bad Request', { status: 400 }));
+      }
+      if (url.includes('data.police.uk')) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ category: 'burglary' }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }) as typeof fetch;
+
+    const areas = await buildRankedAreas(
+      { ...minimalBody, crime: { ...minimalBody.crime, windowMonths: 6 } },
+      fetchImpl,
+      undefined,
+    );
+    expect(areas.length).toBeGreaterThan(0);
+    expect(areas[0]?.metadata?.policeUk).toBe('partial');
+    expect(areas[0]?.metadata?.crimeDataAvailable).toBe(1);
+    expect(areas[0]?.metadata?.crimeMonthsPartial).toBe(1);
+    expect(areas[0]?.metadata?.crimeMonthsUsed).toBe(monthsYm.length - 1);
+    expect(areas[0]?.breakdown.crime).not.toBe(CRIME_SCORE_WHEN_POLICE_UNAVAILABLE);
+  });
+
+  it('uses conservative crime score when police.uk returns an error', async () => {
+    const requestToUrl = (input: RequestInfo | URL): string => {
+      if (typeof input === 'string') {
+        return input;
+      }
+      if (input instanceof URL) {
+        return input.href;
+      }
+      return input.url;
+    };
+
+    const fetchImpl = vi.fn((input: RequestInfo | URL): Promise<Response> => {
+      const url = requestToUrl(input);
+      if (url.includes('data.police.uk')) {
+        return Promise.resolve(new Response('Unavailable', { status: 400 }));
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }) as typeof fetch;
+
+    const areas = await buildRankedAreas(minimalBody, fetchImpl, undefined);
+    expect(areas.length).toBeGreaterThan(0);
+    expect(areas[0]?.metadata?.policeUk).toBe('error');
+    expect(areas[0]?.metadata?.crimeDataAvailable).toBe(0);
+    expect(areas[0]?.breakdown.crime).toBe(CRIME_SCORE_WHEN_POLICE_UNAVAILABLE);
   });
 
   it('computes size fit second score when sizeFit is requested', async () => {
@@ -128,6 +201,7 @@ describe('buildRankedAreas', () => {
     expect(areas.length).toBeGreaterThan(0);
     expect(areas[0]?.metadata?.commuteModel).toBe('tfl-unified-api');
     expect(areas[0]?.metadata?.commuteJourneyMinutes).toBe(30);
+    expect(areas[0]?.metadata?.commuteNetworkRoutingBonusApplied).toBe(25);
   });
 
   it('uses OpenRouteService for driving when credentials provided', async () => {
@@ -171,6 +245,7 @@ describe('buildRankedAreas', () => {
     expect(areas.length).toBeGreaterThan(0);
     expect(areas[0]?.metadata?.commuteModel).toBe('openrouteservice-directions');
     expect(areas[0]?.metadata?.commuteJourneyMinutes).toBe(20);
+    expect(areas[0]?.metadata?.commuteNetworkRoutingBonusApplied).toBe(25);
   });
 
   it('uses live UK HPI medians when enabled and Land Registry responds', async () => {

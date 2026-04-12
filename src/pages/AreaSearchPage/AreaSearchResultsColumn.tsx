@@ -7,7 +7,11 @@ import { AreaResultCard } from './AreaResultCard';
 import { CommuteAboutDataPanel } from './CommuteAboutDataPanel';
 import { MethodologyPanel } from './MethodologyPanel';
 import type { AreaSelectionSource, ResultsMapProps } from './ResultsMap';
-import { resultsUseStraightLineCommute } from './searchResultsAttribution';
+import {
+  anyPoliceUkCrimeFetchFailed,
+  anyPoliceUkCrimeFetchPartial,
+  resultsUseStraightLineCommute,
+} from './searchResultsAttribution';
 
 const ResultsMapLazy = lazy(async () => {
   const m = await import('./ResultsMap');
@@ -88,6 +92,32 @@ export const AreaSearchResultsColumn = ({
           </Text>{' '}
           (score {String(areas[0]?.score ?? '')}).
         </Text>
+      ) : null}
+      {!loading && hasSearched && hasAreas && anyPoliceUkCrimeFetchFailed(areas) ? (
+        <Alert.Root status="warning" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Some areas are missing crime data</Alert.Title>
+            <Alert.Description fontSize="sm">
+              data.police.uk did not return usable street-level crime for at least one candidate.
+              Those areas show a warning on the card; their crime score is a conservative
+              placeholder so the headline total is not inflated as if crime were average.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
+      ) : null}
+      {!loading && hasSearched && hasAreas && anyPoliceUkCrimeFetchPartial(areas) ? (
+        <Alert.Root status="info" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Some areas have partial crime data</Alert.Title>
+            <Alert.Description fontSize="sm">
+              data.police.uk returned data for only some months for at least one candidate. Those
+              crime scores still reflect real incidents from the months that loaded; check each card
+              for how many months were used.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
       ) : null}
       {loading ? (
         <Box role="status" aria-live="polite" aria-busy="true">
@@ -213,9 +243,45 @@ export const AreaSearchResultsColumn = ({
             <Alert.Title>Commute times are approximate</Alert.Title>
             <Alert.Description fontSize="sm">
               At least one area used a straight-line estimate or a routing fallback — not a full
-              network journey. Configure TFL_APP_KEY (transit) and ORS_API_KEY (drive/cycle/walk) on
-              the search API for realistic routes, or enable strict routing in production so
-              misconfiguration surfaces as an error instead of silent fallback.
+              network journey. Put{' '}
+              <Text as="span" fontFamily="mono">
+                TFL_APP_KEY
+              </Text>{' '}
+              and{' '}
+              <Text as="span" fontFamily="mono">
+                ORS_API_KEY
+              </Text>{' '}
+              under{' '}
+              <Text as="span" fontFamily="mono">
+                SearchAreasFunction
+              </Text>{' '}
+              in{' '}
+              <Text as="span" fontFamily="mono">
+                sam/env.json
+              </Text>{' '}
+              (or{' '}
+              <Text as="span" fontFamily="mono">
+                sam/env.local.json
+              </Text>
+              ) and run{' '}
+              <Text as="span" fontWeight="medium">
+                npm run dev:stack
+              </Text>{' '}
+              (or{' '}
+              <Text as="span" fontWeight="medium">
+                npm run sam:local
+              </Text>{' '}
+              with Vite). Root{' '}
+              <Text as="span" fontFamily="mono">
+                .env
+              </Text>{' '}
+              is for{' '}
+              <Text as="span" fontFamily="mono">
+                VITE_*
+              </Text>{' '}
+              only — it does not supply Lambda keys. In production, configure the same on
+              SearchAreasFunction. Enable strict routing so misconfiguration surfaces as an error
+              instead of silent fallback.
             </Alert.Description>
           </Alert.Content>
         </Alert.Root>

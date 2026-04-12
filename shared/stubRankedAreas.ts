@@ -2,6 +2,7 @@ import { affordabilityLandRegistryAttribution } from './affordability/affordabil
 import { LONDON_BOROUGH_MEDIANS } from './affordability/londonBoroughMedians';
 import { plannedTransportProximityForPoint } from './futureTransport/plannedTransportProximityForPoint';
 import type { RankedAreaDto, SearchAreasRequestBody } from './searchAreasContract';
+import { estimateStraightLineCommuteMinutes } from './commute/commuteScoreFromStraightLine';
 import { compositeScore } from './scoring/compositeScore';
 import {
   SCHOOLS_PERFORMANCE_COVERAGE_PCT,
@@ -58,18 +59,26 @@ export const generateStubRankedAreas = (
         );
   const sizeFitScores = normalizeSizeFitRatiosToScores(sizeFitRawRatios);
 
+  const sizeFitVals = sizeFitRawRatios.filter((v): v is number => v !== null && Number.isFinite(v));
+  const sizeFitHasSpread =
+    sizeFitMinM2 !== undefined &&
+    sizeFitVals.length >= 2 &&
+    Math.min(...sizeFitVals) < Math.max(...sizeFitVals);
+
   return prepared.map((row, i) => {
     const { c, dims } = row;
     const base = 45 + ((seed + i * 7) % 40);
     const crime = Math.min(100, base + 10 - (i % 6));
     const rawSizeRatio = sizeFitRawRatios[i] ?? null;
+    const sf = sizeFitScores[i];
+    const sizeFit = typeof sf === 'number' && Number.isFinite(sf) ? sf : 50;
     const breakdown = {
       affordability: dims.affordability,
       commute: dims.commute,
       schools: dims.schools,
       crime,
       priceTrend: 50,
-      sizeFit: sizeFitScores[i] ?? 50,
+      sizeFit,
     };
     const score = compositeScore({
       affordability: breakdown.affordability,
@@ -91,12 +100,26 @@ export const generateStubRankedAreas = (
       breakdown,
       metadata: {
         stub: 1,
+        policeUk: 'ok',
+        crimeDataAvailable: 1,
         maxPriceGbp: body.maxPriceGbp,
         candidateMode,
         affordabilityBorough: dims.affordabilityBoroughName,
         affordabilityModel: 'borough-median-indicator',
         landRegistryOgl: affordabilityLandRegistryAttribution('static-london-borough-table'),
         commuteModel: 'straight-line-time-estimate',
+        commuteMaxMinutes: body.commute.maxMinutes,
+        commuteRequestMode: body.commute.mode,
+        commuteJourneyMinutes:
+          Math.round(
+            estimateStraightLineCommuteMinutes(
+              body.workplace.latitude,
+              body.workplace.longitude,
+              c.latitude,
+              c.longitude,
+              body.commute.mode,
+            ) * 10,
+          ) / 10,
         schoolsModel: resolveSchoolsRankingMetadataModel(),
         schoolsDataAttribution: resolveSchoolsDataAttribution(),
         schoolsPointsWithUrn: SCHOOLS_POINTS_WITH_URN,
@@ -114,6 +137,7 @@ export const generateStubRankedAreas = (
           ? {
               sizeFitModel: sizeFitAggregateModel,
               sizeFitUserMinM2: sizeFitMinM2,
+              sizeFitHasSpread: sizeFitHasSpread ? 1 : 0,
               sizeFitTypicalM2Coverage: typicalM2CoverageForBorough(
                 dims.affordabilityBoroughId,
                 body.propertyTypes,

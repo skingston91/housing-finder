@@ -1,6 +1,10 @@
 import { Box, Heading, Table, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
 
+import {
+  anyPoliceUkCrimeFetchFailed,
+  anyPoliceUkCrimeFetchPartial,
+} from './searchResultsAttribution';
 import { SIZE_FIT_COMPARE_SUPPLEMENT } from './sizeFitUserContext';
 import { isSizeFitSecondScoreActive } from './sizeFitSearchActive';
 
@@ -13,6 +17,8 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
     return null;
   }
   const showSizeFit = areas.some((a) => isSizeFitSecondScoreActive(a.metadata));
+  const showCrimeDataWarning = anyPoliceUkCrimeFetchFailed(areas);
+  const showCrimeDataPartialNote = anyPoliceUkCrimeFetchPartial(areas);
   return (
     <Box
       borderWidth="1px"
@@ -92,6 +98,12 @@ export const AreaComparePanel = ({ areas }: AreaComparePanelProps) => {
       <Text fontSize="xs" color="fg.muted" mt={3}>
         Same scores as the cards; for discovery only—not admissions or conveyancing advice.
         {showSizeFit ? SIZE_FIT_COMPARE_SUPPLEMENT : ''}
+        {showCrimeDataWarning
+          ? ' Crime: if a card showed “crime data unavailable”, that crime figure is a placeholder—not comparable to rows with live police.uk data.'
+          : ''}
+        {showCrimeDataPartialNote
+          ? ' Crime: if a card showed partial police.uk data, the crime figure uses only the months that loaded—compare month counts before comparing scores.'
+          : ''}
       </Text>
     </Box>
   );

@@ -3,6 +3,15 @@
  * Plain env wins when set; otherwise values are read from the secret object.
  */
 
+/** TfL keys are often pasted with a BOM, trailing newline, or line break in the middle — all break `app_key`. */
+export const normalizeTflAppKey = (raw: string): string =>
+  raw
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '')
+    .replace(/\n/g, '')
+    .replace(/\r/g, '')
+    .trim();
+
 let cachedJson: Record<string, string> | null | undefined;
 
 export const clearApiSecretsCache = (): void => {
@@ -55,13 +64,19 @@ const loadSecretJson = async (): Promise<Record<string, string> | null> => {
   }
 };
 
+const normalizeSecretValue = (key: string, value: string): string =>
+  key === 'TFL_APP_KEY' ? normalizeTflAppKey(value) : value.trim();
+
 /** Prefer plain `process.env[key]`; otherwise optional Secrets Manager JSON field. */
 export const resolveSecretString = async (key: string): Promise<string> => {
-  const direct = process.env[key]?.trim();
-  if (direct !== undefined && direct !== '') {
-    return direct;
+  const envRaw = process.env[key];
+  if (envRaw !== undefined) {
+    const v = normalizeSecretValue(key, envRaw);
+    if (v !== '') {
+      return v;
+    }
   }
   const j = await loadSecretJson();
-  const v = j?.[key];
-  return typeof v === 'string' ? v.trim() : '';
+  const sec = j?.[key];
+  return typeof sec === 'string' ? normalizeSecretValue(key, sec) : '';
 };

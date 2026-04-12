@@ -2,11 +2,15 @@ import { resolveDefaultLondonWeekdayMorningDeparture } from './tflDefaultLondonD
 
 const TFL_ORIGIN = 'https://api.tfl.gov.uk';
 
+/** Journey `mode` query must use ids from `GET /Line/Meta/Modes` — `tflrail` is not valid (removed by TfL). */
 const MODES_WITH_NATIONAL_RAIL =
-  'tube,bus,dlr,tram,overground,tflrail,elizabeth-line,national-rail,walking';
-const MODES_WITHOUT_NATIONAL_RAIL = 'tube,bus,dlr,tram,overground,tflrail,elizabeth-line,walking';
+  'tube,bus,dlr,tram,overground,elizabeth-line,national-rail,walking';
+const MODES_WITHOUT_NATIONAL_RAIL = 'tube,bus,dlr,tram,overground,elizabeth-line,walking';
 
-const RATE_LIMIT_RETRY_MS = 450;
+/** Backoff before retrying timeout or 5xx (not 429). */
+const RETRY_DELAY_MS = 450;
+/** TfL often returns 429 under burst load; wait longer before a single retry. */
+const RETRY_DELAY_AFTER_429_MS = 2000;
 const CACHE_TTL_SUCCESS_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
 
@@ -56,6 +60,8 @@ export interface TflTransitJourneyResult {
   readonly minutes: number | null;
   readonly failureCode?: TflTransitFailureCode;
   readonly httpStatus?: number;
+  /** Sanitized first line of TfL’s response body when `failureCode` is `http_error` (debugging). */
+  readonly tflHttpErrorBody?: string;
   /** `true` when a usable journey came from a **`nationalSearch=true`** call. */
   readonly nationalSearchUsed?: boolean;
   /** Second qualifying journey duration (minutes) when filters leave ≥2 options. */
@@ -64,6 +70,11 @@ export interface TflTransitJourneyResult {
   readonly disruptionHint?: string;
   /** How {@link minutes} was derived from TfL’s ranked journey list. */
   readonly durationMethod?: 'median-first-three-qualifying';
+  /**
+   * Human-readable chain of legs from the **first** qualifying journey (same filters as scoring).
+   * Not a turn-by-turn list; for discovery only.
+   */
+  readonly routeSummary?: string;
 }
 
 interface CacheEntry {
@@ -84,6 +95,7 @@ const JOURNEY_PREF_QUERY: Record<
   least_walking: 'LeastWalking',
 };
 
+/** Leg `mode.id` values that count as rail-like (includes legacy `tflrail` from older payloads). */
 const RAIL_MODE_IDS = new Set([
   'tube',
   'dlr',
@@ -309,7 +321,68 @@ interface JourneyPickOk {
   readonly minutes: number;
   readonly alternativeJourneyMinutes?: number;
   readonly disruptionHint?: string;
+  readonly routeSummary?: string;
 }
+
+const MAX_ROUTE_SUMMARY_CHARS = 480;
+
+const summarizeTflLeg = (leg: Record<string, unknown>): string => {
+  const mode = leg.mode;
+  let modeLabel = '';
+  if (typeof mode === 'object' && mode !== null) {
+    const name = (mode as { name?: unknown }).name;
+    const id = (mode as { id?: unknown }).id;
+    if (typeof name === 'string' && name.trim().length > 0) {
+      modeLabel = name.trim();
+    } else if (typeof id === 'string' && id.trim().length > 0) {
+      modeLabel = id.trim();
+    }
+  }
+  const instruction = leg.instruction;
+  let summary = '';
+  if (typeof instruction === 'object' && instruction !== null) {
+    const sm = (instruction as { summary?: unknown }).summary;
+    if (typeof sm === 'string' && sm.trim().length > 0) {
+      summary = sm.trim();
+    }
+  }
+  if (summary.length > 0) {
+    return modeLabel.length > 0 ? `${modeLabel}: ${summary}` : summary;
+  }
+  const routeOptions = leg.routeOptions;
+  if (Array.isArray(routeOptions) && routeOptions.length > 0) {
+    const ro: unknown = routeOptions[0];
+    if (typeof ro === 'object' && ro !== null) {
+      const rn = (ro as { name?: unknown }).name;
+      if (typeof rn === 'string' && rn.trim().length > 0) {
+        return modeLabel.length > 0 ? `${modeLabel} (${rn.trim()})` : rn.trim();
+      }
+    }
+  }
+  return modeLabel.length > 0 ? modeLabel : 'Leg';
+};
+
+/** One-line summary of legs for UI (first journey only). */
+export const summarizeJourneyRoute = (journey: Record<string, unknown>): string => {
+  const legs = journey.legs;
+  if (!Array.isArray(legs) || legs.length === 0) {
+    return '';
+  }
+  const parts: string[] = [];
+  for (const leg of legs) {
+    if (typeof leg !== 'object' || leg === null) {
+      continue;
+    }
+    const s = summarizeTflLeg(leg as Record<string, unknown>);
+    if (s.length > 0) {
+      parts.push(s);
+    }
+  }
+  const joined = parts.join(' → ');
+  return joined.length > MAX_ROUTE_SUMMARY_CHARS
+    ? `${joined.slice(0, MAX_ROUTE_SUMMARY_CHARS - 1)}…`
+    : joined;
+};
 
 const medianMinutes = (values: readonly number[]): number => {
   if (values.length === 0) {
@@ -416,10 +489,14 @@ const selectJourney = (
     }
   }
 
+  const primary = qualifying[0];
+  const routeSummary = primary !== undefined ? summarizeJourneyRoute(primary) : undefined;
+
   return {
     minutes: mins,
     alternativeJourneyMinutes,
     disruptionHint,
+    ...(routeSummary !== undefined && routeSummary.length > 0 ? { routeSummary } : {}),
   };
 };
 
@@ -482,7 +559,12 @@ const fetchTflJsonOnce = async (
   timeoutMs: number,
 ): Promise<
   | { ok: true; json: Record<string, unknown>; httpStatus: number }
-  | { ok: false; reason: TflTransitFailureCode; httpStatus?: number }
+  | {
+      ok: false;
+      reason: TflTransitFailureCode;
+      httpStatus?: number;
+      errorBodySnippet?: string;
+    }
 > => {
   let res: Response;
   try {
@@ -495,7 +577,17 @@ const fetchTflJsonOnce = async (
   }
 
   if (!res.ok) {
-    return { ok: false, reason: 'http_error', httpStatus: res.status };
+    let errorBodySnippet: string | undefined;
+    try {
+      const t = await res.text();
+      const flat = t.replace(/\s+/g, ' ').trim();
+      if (flat.length > 0) {
+        errorBodySnippet = flat.length > 200 ? `${flat.slice(0, 197)}…` : flat;
+      }
+    } catch {
+      // ignore
+    }
+    return { ok: false, reason: 'http_error', httpStatus: res.status, errorBodySnippet };
   }
 
   let json: unknown;
@@ -525,13 +617,23 @@ const fetchTflJsonWithRetries = async (
   timeoutMs: number,
 ): Promise<
   | { ok: true; json: Record<string, unknown>; httpStatus: number }
-  | { ok: false; reason: TflTransitFailureCode; httpStatus?: number }
+  | {
+      ok: false;
+      reason: TflTransitFailureCode;
+      httpStatus?: number;
+      errorBodySnippet?: string;
+    }
 > => {
   const u = buildJourneyUrl(fromLat, fromLng, toLat, toLng, creds, nationalSearch, modes, prefs);
   let r = await fetchTflJsonOnce(u, fetchImpl, timeoutMs);
-  if (!r.ok && r.httpStatus !== undefined && shouldRetryHttpStatus(r.httpStatus)) {
-    await delay(RATE_LIMIT_RETRY_MS);
-    r = await fetchTflJsonOnce(u, fetchImpl, timeoutMs);
+  if (!r.ok) {
+    const retriable =
+      r.reason === 'timeout' || (r.httpStatus !== undefined && shouldRetryHttpStatus(r.httpStatus));
+    if (retriable) {
+      const waitMs = r.httpStatus === 429 ? RETRY_DELAY_AFTER_429_MS : RETRY_DELAY_MS;
+      await delay(waitMs);
+      r = await fetchTflJsonOnce(u, fetchImpl, timeoutMs);
+    }
   }
   return r;
 };
@@ -551,6 +653,7 @@ const outcomeFromJson = (
     alternativeJourneyMinutes: picked.alternativeJourneyMinutes,
     disruptionHint: picked.disruptionHint,
     durationMethod: 'median-first-three-qualifying',
+    ...(picked.routeSummary !== undefined ? { routeSummary: picked.routeSummary } : {}),
   };
 };
 
@@ -581,10 +684,24 @@ const fetchTflTransitJourneyUncached = async (
       timeoutMs,
     );
     if (!res.ok) {
+      const snippet = res.errorBodySnippet;
+      if (res.reason === 'http_error') {
+        const st =
+          typeof res.httpStatus === 'number' && Number.isFinite(res.httpStatus)
+            ? res.httpStatus
+            : -1;
+        return {
+          minutes: null,
+          failureCode: 'http_error',
+          httpStatus: st,
+          ...(snippet !== undefined ? { tflHttpErrorBody: snippet } : {}),
+        };
+      }
       return {
         minutes: null,
         failureCode: res.reason,
-        httpStatus: res.httpStatus,
+        ...(res.httpStatus !== undefined ? { httpStatus: res.httpStatus } : {}),
+        ...(snippet !== undefined ? { tflHttpErrorBody: snippet } : {}),
       };
     }
     return outcomeFromJson(res.json, prefs, nationalSearch);
@@ -621,7 +738,7 @@ const fetchTflTransitJourneyUncached = async (
 
 /**
  * Public-transit journey duration in **minutes** from TfL, with optional preferences and filters.
- * Retries: **429 / 502 / 503 / 504** once after a short delay; **empty journeys** then **`nationalSearch=true`**;
+ * Retries: **timeout** or **429 / 502 / 503 / 504** once after a delay (**longer** after **429**); **empty journeys** then **`nationalSearch=true`**;
  * **http errors** once with modes **without national-rail** (in case the key/API rejects that mode).
  * **Successful** responses are cached (TTL + size cap); **failures are not** cached.
  */
@@ -633,7 +750,7 @@ export const fetchTflTransitJourney = async (
   fetchImpl: typeof fetch,
   creds: TflApiCredentials,
   prefs?: TflTransitPlannerPreferences,
-  timeoutMs = 10_000,
+  timeoutMs = 15_000,
 ): Promise<TflTransitJourneyResult> => {
   const now = Date.now();
   const merged = mergeTflPlannerDeparturePrefs(prefs, now);
@@ -685,7 +802,7 @@ export const fetchTflTransitJourneyMinutes = async (
   toLng: number,
   fetchImpl: typeof fetch,
   creds: TflApiCredentials,
-  timeoutMs = 10_000,
+  timeoutMs = 15_000,
 ): Promise<number | null> => {
   const r = await fetchTflTransitJourney(
     fromLat,

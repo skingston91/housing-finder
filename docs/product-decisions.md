@@ -31,7 +31,7 @@ Decisions below drive the first implementation pass. Change this file when requi
 
 ## Technical
 
-- **Commute routing policy:** **`SEARCH_AREAS_ROUTING_STRICT=1`** on `SearchAreasFunction` rejects searches that need TfL or OpenRouteService when the key is missing (400), instead of falling back to straight-line time. Default **`0`** in SAM template supports local dev without keys. Production should use **`1`** once keys exist.
+- **Commute routing policy:** **Deployed** `SearchAreasFunction` always rejects searches that need TfL or OpenRouteService when the key is missing (**400**). **SAM local** uses **`SEARCH_AREAS_ROUTING_STRICT`** (`0` = allow fallback with warnings; `1` = match production).
 - **React** with **Vite** (not webpack).
 - **AWS serverless-first** — Business-sensitive calls and aggregation in **Lambda** (`lambda/`, SAM — [infrastructure/aws-sam.md](./infrastructure/aws-sam.md)); see [development.md](./development.md).
 - **Maps / routing:** optimise for **quality vs cost** (document chosen stack in [data-sources.md](./data-sources.md) when implemented); no requirement to use Google for maps if a cheaper stack suffices.

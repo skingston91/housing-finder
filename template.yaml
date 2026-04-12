@@ -28,8 +28,9 @@ Parameters:
       - '0'
       - '1'
     Description: >
-      When '1', POST /api/search-areas returns 400 if commute mode needs TfL (transit) or OpenRouteService (drive/cycle/walk) but the key is empty — no silent straight-line fallback.
-      Use '0' for local SAM without keys. Set '1' for production stacks where both keys should be configured.
+      Only affects **sam local** (AWS_SAM_LOCAL). Deployed Lambdas always enforce routing keys for the selected commute mode.
+      When '1' locally, POST /api/search-areas returns 400 if the mode needs TfL or OpenRouteService but the key is missing.
+      When '0' locally (default), missing keys log a console warning and use straight-line fallback.
 
   CorsAdditionalOrigin:
     Type: String
@@ -111,12 +112,17 @@ Resources:
       CodeUri: ./
       Handler: lambda/search-areas.handler
       Runtime: nodejs22.x
+      # Transit + TfL is **one HTTP call per candidate** (serialized for fair use; see TFL_JOURNEY_MAX_CONCURRENT).
+      # With up to 12 grid cells, crime months, and optional live UK HPI, **30s** often times out → API returns 502.
+      Timeout: 120
+      MemorySize: 512
       Environment:
         Variables:
           TFL_APP_KEY: !Ref TflAppKey
           ORS_API_KEY: !Ref OrsApiKey
           SEARCH_AREAS_ROUTING_STRICT: !Ref SearchAreasRoutingStrict
           UKHPI_LIVE: ''
+          API_SECRETS_ARN: !Ref ApiSecretsArn
       Events:
         SearchAreas:
           Type: HttpApi

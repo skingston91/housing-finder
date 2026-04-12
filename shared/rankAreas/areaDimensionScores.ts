@@ -3,6 +3,7 @@ import type { LondonBoroughMedianRow } from '../affordability/londonBoroughMedia
 import { LONDON_BOROUGH_MEDIANS } from '../affordability/londonBoroughMedians';
 import { nearestBoroughMedianFromRows } from '../affordability/nearestBoroughMedian';
 import { commuteScoreFromStraightLine } from '../commute/commuteScoreFromStraightLine';
+import { applyStraightLineProxyPenalty } from '../commute/commuteScoreNetworkRoutingBonus';
 import type { AreaScoreBreakdownDto, SearchAreasRequestBody } from '../searchAreasContract';
 import { LONDON_SCHOOL_POINTS_FOR_RANKING } from '../schools/londonSchoolPointsForRanking';
 import { schoolsScoreFromEstablishmentPoints } from '../schools/schoolsScoreFromEstablishmentPoints';
@@ -49,13 +50,15 @@ export const scoreNonCrimeDimensions = (
   medianRows: readonly LondonBoroughMedianRow[] = LONDON_BOROUGH_MEDIANS,
 ): Pick<AreaScoreBreakdownDto, 'affordability' | 'commute' | 'schools'> & DimensionContext => {
   const base = scoreAffordabilitySchoolsDimensions(body, candidateLat, candidateLng, medianRows);
-  const commute = commuteScoreFromStraightLine(
-    body.workplace.latitude,
-    body.workplace.longitude,
-    candidateLat,
-    candidateLng,
-    body.commute.mode,
-    body.commute.maxMinutes,
+  const commute = applyStraightLineProxyPenalty(
+    commuteScoreFromStraightLine(
+      body.workplace.latitude,
+      body.workplace.longitude,
+      candidateLat,
+      candidateLng,
+      body.commute.mode,
+      body.commute.maxMinutes,
+    ),
   );
   return {
     ...base,

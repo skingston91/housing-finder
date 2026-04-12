@@ -14,7 +14,7 @@ Use this before pointing real users at a deployed stack. Details live in linked 
   - [ ] **`TFL_APP_KEY`** for transit commute (TfL Journey Planner).
   - [ ] **`ORS_API_KEY`** if you rely on driving / cycling / walking routes (OpenRouteService).
   - [ ] **`MAPBOX_ACCESS_TOKEN`** optional for workplace geocode quality (see template).
-- [ ] **`SEARCH_AREAS_ROUTING_STRICT=1`** on `SearchAreasFunction` in production once keys are set — avoids silent straight-line fallbacks ([product-decisions.md](./product-decisions.md)).
+- [ ] **Routing keys:** `TFL_APP_KEY` / `ORS_API_KEY` (or **`API_SECRETS_ARN`** JSON) configured for every commute mode you expose — deployed API **always** returns **400** when a mode’s key is missing ([product-decisions.md](./product-decisions.md)).
 - [ ] **Health:** confirm `/api/health` (or your gateway path) after deploy.
 
 ## Data and compliance

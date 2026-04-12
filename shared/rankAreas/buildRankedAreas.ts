@@ -3,6 +3,7 @@ import { ukhpiAveragePriceKeyForPropertyTypes } from '../affordability/ukhpiAver
 import { normalizeYoYPctToScores } from '../affordability/priceTrendScoreFromYoY';
 import { resolveLondonBoroughMedianRows } from '../affordability/resolveLondonBoroughMedianRows';
 import { resolveLondonBoroughYoYPctByBoroughId } from '../affordability/resolveLondonBoroughYoY';
+import { CRIME_SCORE_WHEN_POLICE_UNAVAILABLE } from '../crime/crimeScoreWhenPoliceUnavailable';
 import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
@@ -40,8 +41,11 @@ const MAX_CRIME_MONTHS = 6;
 /** data.police.uk rate-limits bursts; keep concurrent street-crime fetches low across all candidates. */
 const POLICE_UK_MAX_CONCURRENT = 3;
 
-/** TfL fair use: cap parallel Journey Planner calls per search invocation. */
-const TFL_JOURNEY_MAX_CONCURRENT = 4;
+/**
+ * TfL fair use: **one** Journey Planner call at a time per search.
+ * Parallel calls (e.g. one per grid cell) plus internal retries easily trigger HTTP 429; a single `curl` is only one request.
+ */
+const TFL_JOURNEY_MAX_CONCURRENT = 1;
 
 export interface BuildRankedAreasOptions {
   /** When set, **transit** commute uses TfL Journey Planner. */
@@ -55,6 +59,8 @@ export interface BuildRankedAreasOptions {
   readonly useLiveUkhpiMedians?: boolean;
 }
 
+export type PoliceUkMonthStatus = 'ok' | 'partial' | 'error';
+
 const weightedCrimeForPoint = async (
   latitude: number,
   longitude: number,
@@ -62,21 +68,29 @@ const weightedCrimeForPoint = async (
   categoryWeights: Readonly<Record<string, number>>,
   fetchImpl: typeof fetch,
   limitPoliceUk: AsyncLimiter,
-): Promise<{ total: number; months: number; failed: boolean }> => {
+): Promise<{
+  total: number;
+  monthsRequested: number;
+  monthsSucceeded: number;
+  policeUk: PoliceUkMonthStatus;
+}> => {
   let total = 0;
-  let failed = false;
+  let monthsSucceeded = 0;
   for (const ym of monthsYm) {
     try {
       const crimes = await limitPoliceUk(() =>
         fetchStreetCrimes(latitude, longitude, ym, fetchImpl),
       );
       total += sumWeightedCrimeCount(crimes, categoryWeights, 1);
+      monthsSucceeded += 1;
     } catch {
-      failed = true;
-      break;
+      /* continue other months — one bad month must not wipe the rest */
     }
   }
-  return { total, months: monthsYm.length, failed };
+  const monthsRequested = monthsYm.length;
+  const policeUk: PoliceUkMonthStatus =
+    monthsSucceeded === 0 ? 'error' : monthsSucceeded === monthsRequested ? 'ok' : 'partial';
+  return { total, monthsRequested, monthsSucceeded, policeUk };
 };
 
 /**
@@ -128,7 +142,7 @@ export const buildRankedAreas = async (
 
   const intermediate = await Promise.all(
     candidates.map(async (c: SearchCandidate) => {
-      const { total, months, failed } = await weightedCrimeForPoint(
+      const { total, monthsSucceeded, policeUk } = await weightedCrimeForPoint(
         c.latitude,
         c.longitude,
         monthsYm,
@@ -136,8 +150,11 @@ export const buildRankedAreas = async (
         fetchImpl,
         limitPoliceUk,
       );
-      const avg = months > 0 ? total / months : 0;
-      const crime = failed ? 45 : crimeScoreFromWeightedMonthlyAvg(avg);
+      const avg = monthsSucceeded > 0 ? total / monthsSucceeded : 0;
+      const crime =
+        policeUk === 'error'
+          ? CRIME_SCORE_WHEN_POLICE_UNAVAILABLE
+          : crimeScoreFromWeightedMonthlyAvg(avg);
       const base = scoreAffordabilitySchoolsDimensions(
         body,
         c.latitude,
@@ -155,7 +172,8 @@ export const buildRankedAreas = async (
         crime,
         total,
         monthsYmLen: monthsYm.length,
-        failed,
+        monthsSucceeded,
+        policeUk,
       };
     }),
   );
@@ -182,13 +200,27 @@ export const buildRankedAreas = async (
         );
   const sizeFitScores = normalizeSizeFitRatiosToScores(sizeFitRawRatios);
 
+  const yoyFinite = rawYoyList.filter((v): v is number => v !== null && Number.isFinite(v));
+  const priceTrendHasSpread =
+    priceTrendModel === 'ukhpi-borough-yoy' &&
+    yoyFinite.length >= 2 &&
+    Math.min(...yoyFinite) < Math.max(...yoyFinite);
+
+  const sizeFitVals = sizeFitRawRatios.filter((v): v is number => v !== null && Number.isFinite(v));
+  const sizeFitHasSpread =
+    sizeFitMinM2 !== undefined &&
+    sizeFitVals.length >= 2 &&
+    Math.min(...sizeFitVals) < Math.max(...sizeFitVals);
+
   const rows: RankedAreaDto[] = intermediate.map((row, i) => {
-    const { c, base, commuteRes, crime, total, monthsYmLen, failed } = row;
+    const { c, base, commuteRes, crime, total, monthsYmLen, monthsSucceeded, policeUk } = row;
     const plannedTransport = plannedTransportProximityForPoint(c.latitude, c.longitude);
     const rawYoyPct = rawYoyList[i] ?? null;
-    const priceTrend = priceTrendScores[i] ?? 50;
+    const ptScore = priceTrendScores[i];
+    const priceTrend = typeof ptScore === 'number' && Number.isFinite(ptScore) ? ptScore : 50;
     const rawSizeRatio = sizeFitRawRatios[i] ?? null;
-    const sizeFit = sizeFitScores[i] ?? 50;
+    const sfScore = sizeFitScores[i];
+    const sizeFit = typeof sfScore === 'number' && Number.isFinite(sfScore) ? sfScore : 50;
     const breakdown = {
       affordability: base.affordability,
       commute: commuteRes.score,
@@ -219,9 +251,12 @@ export const buildRankedAreas = async (
       metadata: {
         crimeWeightedTotal: total,
         crimeMonthsRequested: body.crime.windowMonths,
-        crimeMonthsUsed: monthsYmLen,
+        crimeMonthsUsed: monthsSucceeded,
+        crimeMonthsRequestedCap: monthsYmLen,
         crimeWindowCapMonths: MAX_CRIME_MONTHS,
-        policeUk: failed ? 'error' : 'ok',
+        policeUk,
+        crimeDataAvailable: policeUk === 'error' ? 0 : 1,
+        ...(policeUk === 'partial' ? { crimeMonthsPartial: monthsYmLen - monthsSucceeded } : {}),
         dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
         candidateMode,
         affordabilityBorough: base.affordabilityBoroughName,
@@ -235,6 +270,8 @@ export const buildRankedAreas = async (
           : {}),
         landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
         commuteModel: commuteRes.model,
+        commuteMaxMinutes: body.commute.maxMinutes,
+        commuteRequestMode: body.commute.mode,
         ...(commuteRes.journeyMinutes !== undefined
           ? { commuteJourneyMinutes: commuteRes.journeyMinutes }
           : {}),
@@ -253,8 +290,26 @@ export const buildRankedAreas = async (
         ...(commuteRes.commuteReliabilityFactor !== undefined
           ? { commuteReliabilityFactor: commuteRes.commuteReliabilityFactor }
           : {}),
+        ...(commuteRes.commuteNetworkRoutingBonusApplied !== undefined
+          ? { commuteNetworkRoutingBonusApplied: commuteRes.commuteNetworkRoutingBonusApplied }
+          : {}),
+        ...(commuteRes.commuteStraightLineProxyPenaltyApplied !== undefined
+          ? {
+              commuteStraightLineProxyPenaltyApplied:
+                commuteRes.commuteStraightLineProxyPenaltyApplied,
+            }
+          : {}),
         ...(commuteRes.tflPlannerSummary !== undefined
           ? { commuteTflPlannerSummary: commuteRes.tflPlannerSummary }
+          : {}),
+        ...(commuteRes.commuteTflRouteSummary !== undefined
+          ? { commuteTflRouteSummary: commuteRes.commuteTflRouteSummary }
+          : {}),
+        ...(commuteRes.commuteTflHttpStatus !== undefined
+          ? { commuteTflHttpStatus: commuteRes.commuteTflHttpStatus }
+          : {}),
+        ...(commuteRes.commuteTflHttpErrorBody !== undefined
+          ? { commuteTflHttpErrorBody: commuteRes.commuteTflHttpErrorBody }
           : {}),
         ...(commuteRes.tflJourneyDurationMethod !== undefined
           ? { commuteTflDurationMethod: commuteRes.tflJourneyDurationMethod }
@@ -267,6 +322,9 @@ export const buildRankedAreas = async (
         schoolsPerformanceCoveragePct: SCHOOLS_PERFORMANCE_COVERAGE_PCT,
         ...(schoolsPerformanceAcademicYear !== undefined ? { schoolsPerformanceAcademicYear } : {}),
         priceTrendModel,
+        ...(priceTrendModel === 'ukhpi-borough-yoy'
+          ? { priceTrendHasSpread: priceTrendHasSpread ? 1 : 0 }
+          : {}),
         ...(rawYoyPct !== null && Number.isFinite(rawYoyPct)
           ? { priceTrendYoyPct: rawYoyPct }
           : {}),
@@ -282,6 +340,7 @@ export const buildRankedAreas = async (
           ? {
               sizeFitModel: sizeFitAggregateModel,
               sizeFitUserMinM2: sizeFitMinM2,
+              sizeFitHasSpread: sizeFitHasSpread ? 1 : 0,
               sizeFitTypicalM2Coverage: typicalM2CoverageForBorough(
                 base.affordabilityBoroughId,
                 body.propertyTypes,

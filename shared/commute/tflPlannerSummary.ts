@@ -12,7 +12,12 @@ const formatHhMmDisplay = (hhmm: string): string => {
   if (hhmm.length !== 4 || !/^\d{4}$/.test(hhmm)) {
     return hhmm;
   }
-  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
+  const hour = Number(hhmm.slice(0, 2));
+  const min = hhmm.slice(2, 4);
+  if (!Number.isFinite(hour) || hour < 0 || hour > 23) {
+    return `${hhmm.slice(0, 2)}:${min}`;
+  }
+  return `${String(hour)}:${min}`;
 };
 
 /**

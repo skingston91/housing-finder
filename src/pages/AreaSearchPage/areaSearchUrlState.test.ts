@@ -32,4 +32,17 @@ describe('areaSearchUrlState', () => {
     expect(areaSearchFormsEncodeToSameQueryParam(a, defaultFormState())).toBe(true);
     expect(areaSearchFormsEncodeToSameQueryParam(a, b)).toBe(false);
   });
+
+  it('round-trips empty property types (and school phases) so URL sync does not reset mid-edit', () => {
+    const form = {
+      ...defaultFormState(),
+      propertyTypes: [] as const,
+      schoolPhases: new Set<'primary' | 'secondary' | 'sixth_form'>(),
+    };
+    const enc = encodeAreaSearchQueryParam(form);
+    const dec = decodeAreaSearchQueryParam(enc);
+    expect(dec).not.toBeNull();
+    expect(dec?.propertyTypes).toEqual([]);
+    expect(dec?.schoolPhases.size).toBe(0);
+  });
 });

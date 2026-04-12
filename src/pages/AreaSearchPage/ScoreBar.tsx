@@ -6,7 +6,8 @@ export interface ScoreBarProps {
 }
 
 export const ScoreBar = ({ label, value }: ScoreBarProps) => {
-  const clamped = Math.max(0, Math.min(100, value));
+  const safe = typeof value === 'number' && Number.isFinite(value) ? value : 50;
+  const clamped = Math.max(0, Math.min(100, safe));
   const labelText = `${label}: ${String(clamped)} out of 100`;
   return (
     <Box role="group" aria-label={labelText}>

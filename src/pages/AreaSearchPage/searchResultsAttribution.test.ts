@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import type { RankedArea } from '@/domain/area/types';
 
 import {
+  anyPoliceUkCrimeFetchPartial,
   areaProvenanceDescription,
   firstAffordabilityDiscoveryHint,
+  firstCrimeDataPartialNote,
   firstDataPoliceUkAttribution,
   firstLandRegistryOglAttribution,
   firstSchoolsCoverageHint,
@@ -158,10 +160,22 @@ describe('searchResultsAttribution', () => {
       /fixed London/,
     );
     expect(areaProvenanceDescription({ policeUk: 'error' })).toMatch(/fallback/);
+    expect(areaProvenanceDescription({ policeUk: 'partial' })).toMatch(/months that loaded/);
+    expect(
+      areaProvenanceDescription({ policeUk: 'partial', candidateMode: 'fixed-london' }),
+    ).toMatch(/some months only/);
   });
 
   it('hasCrimeMetadataDetails excludes stub rows', () => {
     expect(hasCrimeMetadataDetails({ stub: 1, crimeWeightedTotal: 9 })).toBe(false);
     expect(hasCrimeMetadataDetails({ policeUk: 'ok' })).toBe(true);
+    expect(hasCrimeMetadataDetails({ policeUk: 'partial' })).toBe(true);
+  });
+
+  it('firstCrimeDataPartialNote and anyPoliceUkCrimeFetchPartial', () => {
+    expect(anyPoliceUkCrimeFetchPartial([area({ policeUk: 'ok' })])).toBe(false);
+    expect(anyPoliceUkCrimeFetchPartial([area({ policeUk: 'partial' })])).toBe(true);
+    expect(firstCrimeDataPartialNote([area({ policeUk: 'ok' })])).toBeUndefined();
+    expect(firstCrimeDataPartialNote([area({ policeUk: 'partial' })])).toMatch(/some months/);
   });
 });

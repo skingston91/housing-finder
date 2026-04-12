@@ -4,7 +4,28 @@ import {
   clearTflJourneyCache,
   fetchTflTransitJourney,
   fetchTflTransitJourneyMinutes,
+  summarizeJourneyRoute,
 } from './tflJourney';
+
+describe('summarizeJourneyRoute', () => {
+  it('joins leg modes and instruction summaries', () => {
+    const j = {
+      legs: [
+        {
+          mode: { id: 'walking', name: 'Walking' },
+          instruction: { summary: 'Walk to Station A' },
+        },
+        {
+          mode: { id: 'tube', name: 'Tube' },
+          instruction: { summary: 'Northern line to X' },
+          routeOptions: [{ name: 'Northern' }],
+        },
+      ],
+    };
+    expect(summarizeJourneyRoute(j)).toMatch(/Walk to Station A/);
+    expect(summarizeJourneyRoute(j)).toMatch(/Tube/);
+  });
+});
 
 describe('fetchTflTransitJourneyMinutes', () => {
   beforeEach(() => {
@@ -111,6 +132,19 @@ describe('fetchTflTransitJourney', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   }, 15_000);
 
+  it('retries once on fetch failure (timeout path) then succeeds', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('aborted'))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ journeys: [{ duration: 600 }] }), { status: 200 }),
+      );
+    const r = await fetchTflTransitJourney(11, 12, 13, 14, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBe(10);
+    expect(r.failureCode).toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  }, 15_000);
+
   it('exposes failure code when http errors persist after rate-limit retry', async () => {
     const fetchImpl = vi.fn(() => Promise.resolve(new Response('', { status: 429 })));
     const r = await fetchTflTransitJourney(1, 2, 3, 4, fetchImpl, { appKey: 'k' });
@@ -118,6 +152,16 @@ describe('fetchTflTransitJourney', () => {
     expect(r.failureCode).toBe('http_error');
     expect(r.httpStatus).toBe(429);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  }, 15_000);
+
+  it('includes a short TfL error body snippet when HTTP is non-success', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response('Invalid app_key is provided.', { status: 429 })),
+    );
+    const r = await fetchTflTransitJourney(1, 2, 3, 4, fetchImpl, { appKey: 'k' });
+    expect(r.failureCode).toBe('http_error');
+    expect(r.httpStatus).toBe(429);
+    expect(r.tflHttpErrorBody).toBe('Invalid app_key is provided.');
   }, 15_000);
 
   it('falls back to modes without national-rail after http error', async () => {

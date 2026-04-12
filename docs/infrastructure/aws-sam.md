@@ -24,37 +24,43 @@ The API is **AWS Lambda** + **API Gateway HTTP API**, defined in [`template.yaml
 From the repo root:
 
 ```bash
+cp sam/env.json.example sam/env.json
+# Edit sam/env.json (TfL, ORS, Mapbox, UKHPI_LIVE, …). Optional: sam/env.local.json for secrets (gitignored).
 npm run sam:build
 npm run sam:local
 ```
 
-This runs **`sam local start-api`** on port **3000** via [`scripts/sam-local.mjs`](../../scripts/sam-local.mjs), which merges **`sam/env.json.example`** + repo **`.env`** (`TFL_APP_KEY`, `ORS_API_KEY`, …) + optional **`sam/env.json`**, then passes **`--env-vars`** to SAM. **Vite** ([`vite.config.ts`](../../vite.config.ts)) proxies `/api/*` to that port, so `npm run dev` + `npm run sam:local` matches production paths (`/api/search-areas`, `/api/geocode-workplace`, `/api/health`).
+[`scripts/sam-local.mjs`](../../scripts/sam-local.mjs) **requires** **`sam/env.json`** (fail fast if missing — no implicit merge from `env.json.example`). It loads that file, then optionally deep-merges **`sam/env.local.json`** if present. **Repo root `.env` is not used** for Lambdas (only **`sam/env.*.json`**). **Vite** ([`vite.config.ts`](../../vite.config.ts)) uses **`.env` / `.env.local`** for **`VITE_*`** only — see repo **`.env.example`**. See [`sam/README.md`](../../sam/README.md).
+
+Optional **`SAM_LOCAL_STRICT=1`**: exit before `sam build` if **`SearchAreasFunction`** has neither **`TFL_APP_KEY`** nor **`API_SECRETS_ARN`** (catches “transit with no key” early).
 
 ### TfL keys (transit commute)
 
 `SearchAreasFunction` reads **`TFL_APP_KEY`** only (see [`template.yaml`](../../template.yaml) **Parameters**). TfL’s current guidance: append **`app_key`** as a query parameter; **ignore `app_id`** (no longer required). Register at [TfL Open Data](https://api.tfl.gov.uk/).
 
-**Local SAM:** set **`TFL_APP_KEY`** in the repo **`.env`** (same name as the Lambda env var) or copy [`sam/env.json.example`](../../sam/env.json.example) to **`sam/env.json`** and fill keys — then run **`npm run sam:local`** (see above). Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
+**Local SAM:** set **`TFL_APP_KEY`** under **`SearchAreasFunction`** in **`sam/env.json`** (or **`sam/env.local.json`**), then run **`npm run sam:local`**. Or pass the same parameters on **`sam deploy`** so production Lambdas receive the variables.
 
 ### OpenRouteService (optional drive / cycle / walk commute)
 
 `SearchAreasFunction` reads **`ORS_API_KEY`** from the **`OrsApiKey`** template parameter. When set, **driving**, **cycling**, and **walking** commute modes use [OpenRouteService](https://openrouteservice.org/) directions (not **transit** — use TfL). When empty, those modes use the straight-line time proxy. Register for an API key and follow provider quotas and terms.
 
-**Local SAM:** add **`ORS_API_KEY`** under **`SearchAreasFunction`** in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
+**Local SAM:** add **`ORS_API_KEY`** under **`SearchAreasFunction`** in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)). Same file as TfL — not root `.env`.
 
-### Strict commute routing (production)
+### Strict commute routing (deployed vs SAM local)
 
-`SearchAreasFunction` env **`SEARCH_AREAS_ROUTING_STRICT`** comes from template **Parameter** **`SearchAreasRoutingStrict`** (default **`0`**). When **`1`**, a search request returns **400** if **transit** is selected but **`TFL_APP_KEY`** is empty, or if **driving** / **cycling** / **walking** is selected but **`ORS_API_KEY`** is empty — avoiding silent straight-line estimates. Set **`SearchAreasRoutingStrict=1`** on production stacks where both keys are configured; keep **`0`** (or omit) for local exploration without keys. See [`sam/env.json.example`](../../sam/env.json.example) for **`"SEARCH_AREAS_ROUTING_STRICT": "0"`**.
+**Deployed Lambdas** (real AWS, not `sam local`) **always** enforce keys for the commute mode in use: `POST /api/search-areas` returns **400** if **transit** needs **`TFL_APP_KEY`** or **driving** / **cycling** / **walking** needs **`ORS_API_KEY`** but the resolved value is empty — no silent straight-line fallback (`shared/searchAreas/resolveSearchAreasRoutingStrict.ts`).
+
+**SAM local** (`AWS_SAM_LOCAL=true`): `SearchAreasFunction` env **`SEARCH_AREAS_ROUTING_STRICT`** (`template.yaml` **Parameter** **`SearchAreasRoutingStrict`**, default **`0`**) controls the same check. When **`1`**, behavior matches production. When **`0`**, missing keys are allowed; the **search Lambda logs a warning** to the console per request, and **`npm run sam:local`** prints **warnings** at startup for missing optional keys. See [`sam/env.json.example`](../../sam/env.json.example) for **`"SEARCH_AREAS_ROUTING_STRICT": "0"`**.
 
 ### UK HPI affordability (optional live borough prices)
 
-`SearchAreasFunction` reads **`UKHPI_LIVE`**. When set to **`0`**, affordability uses the **static** in-repo borough median table only. When **empty or any other value** (default in `template.yaml`), the handler fetches latest **UK HPI average prices** per London borough from [HM Land Registry linked data](https://landregistry.data.gov.uk/app/ukhpi/doc/) (JSON API), **cached 6 hours** per warm instance. **Local SAM:** example [`sam/env.json.example`](../../sam/env.json.example) sets **`"UKHPI_LIVE": "0"`** to avoid hammering Land Registry during dev; remove or change for live HPI.
+`SearchAreasFunction` reads **`UKHPI_LIVE`**. When set to **`0`**, affordability uses the **static** in-repo borough median table only. When **empty or any other value** (default in `template.yaml`), the handler fetches latest **UK HPI average prices** per London borough from [HM Land Registry linked data](https://landregistry.data.gov.uk/app/ukhpi/doc/) (JSON API), **cached 6 hours** per warm instance. **Local SAM:** [`sam/env.json.example`](../../sam/env.json.example) sets **`"UKHPI_LIVE": "0"`** in **`sam/env.json`** to avoid hammering Land Registry during dev; remove or change for live HPI.
 
 ### Mapbox (optional workplace geocode)
 
 `GeocodeWorkplaceFunction` reads **`MAPBOX_ACCESS_TOKEN`** from the **`MapboxAccessToken`** template parameter (see [`template.yaml`](../../template.yaml)). When empty, geocoding uses Nominatim only. When set, Mapbox is tried first and Nominatim is used as fallback. Register at [Mapbox](https://www.mapbox.com/) and follow their billing and usage terms.
 
-**Local SAM:** add `GeocodeWorkplaceFunction` → `MAPBOX_ACCESS_TOKEN` in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)).
+**Local SAM:** add `GeocodeWorkplaceFunction` → `MAPBOX_ACCESS_TOKEN` in **`sam/env.json`** (see [`sam/env.json.example`](../../sam/env.json.example)); not root `.env`.
 
 ### Geocode rate limit
 

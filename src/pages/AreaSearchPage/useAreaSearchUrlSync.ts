@@ -69,16 +69,25 @@ export function useAreaSearchUrlSync(
     };
   }, [form, searchParams, setSearchParams]);
 
+  /**
+   * Apply `?q=` → form only when the **URL** changes (back/forward, share link, debounced write).
+   * Do **not** depend on `form` here: while the user types, `form` updates before `searchParams`
+   * (URL updates are debounced), and re-applying the old `q` would overwrite edits.
+   */
   useEffect(() => {
     const q = searchParams.get('q');
     const def = defaultFormState();
 
     if (!q || q.length === 0) {
-      if (areaSearchFormsEncodeToSameQueryParam(form, def)) {
-        return;
-      }
-      setForm(def);
-      setUrlMessage('You’re back to the default search settings.');
+      setForm((prev) => {
+        if (areaSearchFormsEncodeToSameQueryParam(prev, def)) {
+          return prev;
+        }
+        queueMicrotask(() => {
+          setUrlMessage('You’re back to the default search settings.');
+        });
+        return def;
+      });
       return;
     }
     if (q.length > MAX_AREA_SEARCH_Q_CHARS) {
@@ -104,13 +113,14 @@ export function useAreaSearchUrlSync(
       setSearchParams({}, { replace: true });
       return;
     }
-    if (areaSearchFormsEncodeToSameQueryParam(form, decoded)) {
-      setUrlMessage(null);
-      return;
-    }
+    setForm((prev) => {
+      if (areaSearchFormsEncodeToSameQueryParam(prev, decoded)) {
+        return prev;
+      }
+      return decoded;
+    });
     setUrlMessage(null);
-    setForm(decoded);
-  }, [form, searchParams, setForm, setSearchParams]);
+  }, [searchParams, setForm, setSearchParams]);
 
   const resetSearchUrlBar = useCallback(() => {
     setUrlMessage('You’re back to the default search settings.');

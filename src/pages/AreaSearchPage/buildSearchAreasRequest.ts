@@ -21,7 +21,8 @@ export interface AreaSearchFormState {
   workplaceLabel: string;
   workplaceLat: number | '';
   workplaceLng: number | '';
-  commuteMaxMinutes: number;
+  /** Empty while editing so the field can be cleared without `type="number"` leading-zero quirks. */
+  commuteMaxMinutes: number | '';
   commuteMode: CommuteConstraints['mode'];
   /** Used when `commuteMode` is `transit`. */
   transitJourneyPreference: TransitJourneyPreference;
@@ -131,6 +132,15 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
   if (form.workplaceLat === '' || form.workplaceLng === '') {
     return null;
   }
+  if (
+    form.commuteMaxMinutes === '' ||
+    !Number.isFinite(form.commuteMaxMinutes) ||
+    form.commuteMaxMinutes < 1 ||
+    form.commuteMaxMinutes > 24 * 60
+  ) {
+    return null;
+  }
+  const commuteMaxMinutes = form.commuteMaxMinutes;
 
   let categoryWeights: Record<string, number>;
   try {
@@ -203,7 +213,7 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
   const commute: CommuteConstraints =
     form.commuteMode === 'transit'
       ? {
-          maxMinutes: form.commuteMaxMinutes,
+          maxMinutes: commuteMaxMinutes,
           mode: 'transit',
           transit: {
             journeyPreference: form.transitJourneyPreference,
@@ -229,7 +239,7 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
           },
         }
       : {
-          maxMinutes: form.commuteMaxMinutes,
+          maxMinutes: commuteMaxMinutes,
           mode: form.commuteMode,
         };
 

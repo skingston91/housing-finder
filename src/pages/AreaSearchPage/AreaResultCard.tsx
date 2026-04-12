@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
+import { Alert, Badge, Box, Button, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
 
 import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtcUkLong';
@@ -7,6 +7,12 @@ import { schoolsDimensionExplanationLine } from '@shared/schools/schoolsDimensio
 import { commuteModelDisplayLabel } from './commuteModelLabels';
 import { SIZE_FIT_SCORE_DETAILS_READING, sizeFitResultCardExplainer } from './sizeFitUserContext';
 import { isSizeFitSecondScoreActive } from './sizeFitSearchActive';
+import {
+  commuteDimensionExplanationLine,
+  priceTrendDimensionExplanationLine,
+} from './dimensionExplainerLines';
+import { parseCommuteTflHttpStatusFromMetadata } from '@/adapters/mapSearchAreasContract';
+import { describeTflHttpFailureAdvice } from '@shared/commute/tflCommuteFailureUserMessage';
 import { areaProvenanceDescription, hasCrimeMetadataDetails } from './searchResultsAttribution';
 import { ScoreBar } from './ScoreBar';
 
@@ -30,6 +36,22 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
   if (typeof m.affordabilityBorough === 'string') {
     rows.push({ label: 'Affordability (borough reference)', value: m.affordabilityBorough });
   }
+  if (m.policeUk === 'error') {
+    rows.push({
+      label: 'Crime street-level data',
+      value: 'Unavailable — placeholder score only (not comparable to areas with police.uk OK).',
+    });
+  }
+  if (m.policeUk === 'partial') {
+    const missing = typeof m.crimeMonthsPartial === 'number' ? m.crimeMonthsPartial : undefined;
+    rows.push({
+      label: 'Crime street-level data',
+      value:
+        missing !== undefined
+          ? `Partial — ${String(missing)} month(s) failed to load; the score uses the months that succeeded.`
+          : 'Partial — some months failed to load; the score uses the months that succeeded.',
+    });
+  }
   if (hasCrimeMetadataDetails(m)) {
     if (typeof m.crimeMonthsRequested === 'number') {
       rows.push({
@@ -41,13 +63,17 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
       const cap = typeof m.crimeWindowCapMonths === 'number' ? m.crimeWindowCapMonths : undefined;
       const requested =
         typeof m.crimeMonthsRequested === 'number' ? m.crimeMonthsRequested : undefined;
-      const suffix =
+      const capSuffix =
         cap !== undefined && requested !== undefined && requested > cap
           ? ` (max ${String(cap)} per search)`
           : '';
+      const partialSuffix =
+        m.policeUk === 'partial' && typeof m.crimeMonthsPartial === 'number'
+          ? ` — ${String(m.crimeMonthsPartial)} month(s) unavailable`
+          : '';
       rows.push({
         label: 'Months used in score',
-        value: `${String(m.crimeMonthsUsed)}${suffix}`,
+        value: `${String(m.crimeMonthsUsed)}${capSuffix}${partialSuffix}`,
       });
     }
     if (typeof m.crimeWeightedTotal === 'number') {
@@ -56,7 +82,7 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
         value: String(m.crimeWeightedTotal),
       });
     }
-    if (m.policeUk === 'ok' || m.policeUk === 'error') {
+    if (m.policeUk === 'ok' || m.policeUk === 'partial' || m.policeUk === 'error') {
       rows.push({ label: 'Police.uk fetch', value: m.policeUk });
     }
   }
@@ -66,10 +92,36 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
       value: commuteModelDisplayLabel(m.commuteModel),
     });
   }
+  if (typeof m.commuteMaxMinutes === 'number') {
+    rows.push({
+      label: 'Commute time budget (search)',
+      value: `${String(m.commuteMaxMinutes)} min`,
+    });
+  }
   if (typeof m.commuteTflPlannerSummary === 'string' && m.commuteTflPlannerSummary.trim() !== '') {
     rows.push({
       label: 'Transit planner slot',
       value: m.commuteTflPlannerSummary.trim(),
+    });
+  }
+  if (typeof m.commuteTflRouteSummary === 'string' && m.commuteTflRouteSummary.trim() !== '') {
+    rows.push({
+      label: 'TfL route (first qualifying option)',
+      value: m.commuteTflRouteSummary.trim(),
+    });
+  }
+  const tflHttpStatusForDetails = parseCommuteTflHttpStatusFromMetadata(m);
+  if (tflHttpStatusForDetails !== undefined) {
+    rows.push({
+      label: 'TfL last HTTP status (if error path)',
+      value: String(tflHttpStatusForDetails),
+    });
+  }
+  const tflErrBody = m.commuteTflHttpErrorBody;
+  if (typeof tflErrBody === 'string' && tflErrBody.trim() !== '') {
+    rows.push({
+      label: 'TfL API error detail',
+      value: tflErrBody.trim(),
     });
   }
   if (m.commuteTflDurationMethod === 'median-first-three-qualifying') {
@@ -117,6 +169,24 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
     rows.push({
       label: 'Commute reliability scale',
       value: `Score multiplied by ${m.commuteReliabilityFactor.toFixed(3)} (disruption or route volatility).`,
+    });
+  }
+  if (
+    typeof m.commuteNetworkRoutingBonusApplied === 'number' &&
+    m.commuteNetworkRoutingBonusApplied > 0
+  ) {
+    rows.push({
+      label: 'Network routing bonus',
+      value: `+${String(m.commuteNetworkRoutingBonusApplied)} points vs straight-line time proxy.`,
+    });
+  }
+  if (
+    typeof m.commuteStraightLineProxyPenaltyApplied === 'number' &&
+    m.commuteStraightLineProxyPenaltyApplied > 0
+  ) {
+    rows.push({
+      label: 'Straight-line time proxy',
+      value: `Score reduced by ${String(m.commuteStraightLineProxyPenaltyApplied)} points (no routed journey duration).`,
     });
   }
   if (typeof m.futureTransportModel === 'string' && m.futureTransportModel.trim() !== '') {
@@ -230,8 +300,17 @@ export const AreaResultCard = ({
   compare,
 }: AreaResultCardProps) => {
   const meta = area.metadata;
+  const tflHttpStatusParsed = parseCommuteTflHttpStatusFromMetadata(meta);
+  const tflErrBodyForAlert =
+    meta !== undefined &&
+    typeof meta.commuteTflHttpErrorBody === 'string' &&
+    meta.commuteTflHttpErrorBody.trim() !== ''
+      ? meta.commuteTflHttpErrorBody.trim()
+      : undefined;
   const interactive = onSelectArea !== undefined;
   const schoolsLine = schoolsDimensionExplanationLine(meta);
+  const commuteLine = commuteDimensionExplanationLine(meta);
+  const priceTrendLine = priceTrendDimensionExplanationLine(meta);
 
   return (
     <Card.Root
@@ -303,7 +382,42 @@ export const AreaResultCard = ({
           </Text>
           <Stack gap={3}>
             <ScoreBar label="Affordability" value={area.breakdown.affordability} />
-            <ScoreBar label="Commute" value={area.breakdown.commute} />
+            <Stack gap={1}>
+              <ScoreBar label="Commute" value={area.breakdown.commute} />
+              {commuteLine !== null ? (
+                <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                  {commuteLine}
+                </Text>
+              ) : null}
+              {typeof meta?.commuteTflRouteSummary === 'string' &&
+              meta.commuteTflRouteSummary.trim() !== '' ? (
+                <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                  Route (first qualifying TfL option): {meta.commuteTflRouteSummary.trim()}
+                </Text>
+              ) : null}
+            </Stack>
+            {meta?.commuteModel === 'tfl-fallback-straight-line' ? (
+              <Alert.Root status="warning" variant="subtle" size="sm">
+                <Alert.Indicator />
+                <Alert.Content>
+                  <Alert.Title fontSize="sm">TfL journey not available</Alert.Title>
+                  <Alert.Description fontSize="xs">
+                    {typeof meta.commuteTflFailureCode === 'string'
+                      ? meta.commuteTflFailureCode === 'http_error' &&
+                        tflHttpStatusParsed !== undefined
+                        ? `${describeTflHttpFailureAdvice(tflHttpStatusParsed, tflErrBodyForAlert)} Commute time uses a straight-line estimate instead.${tflErrBodyForAlert !== undefined ? ` TfL response: ${tflErrBodyForAlert}` : ''}`
+                        : meta.commuteTflFailureCode === 'timeout'
+                          ? 'TfL timed out; commute time uses a straight-line estimate instead.'
+                          : `TfL could not return a usable journey (${meta.commuteTflFailureCode}). Commute time uses a straight-line estimate instead.`
+                      : 'TfL did not return a usable journey; commute time uses a straight-line estimate instead.'}
+                    {typeof meta.commuteTflPlannerSummary === 'string' &&
+                    meta.commuteTflPlannerSummary.trim() !== ''
+                      ? ` ${meta.commuteTflPlannerSummary.trim()}`
+                      : ''}
+                  </Alert.Description>
+                </Alert.Content>
+              </Alert.Root>
+            ) : null}
             <Stack gap={1}>
               <ScoreBar label="Schools" value={area.breakdown.schools} />
               {schoolsLine !== null ? (
@@ -312,6 +426,33 @@ export const AreaResultCard = ({
                 </Text>
               ) : null}
             </Stack>
+            {meta?.policeUk === 'error' ? (
+              <Alert.Root status="warning" variant="subtle" size="sm">
+                <Alert.Indicator />
+                <Alert.Content>
+                  <Alert.Title fontSize="sm">Crime data unavailable</Alert.Title>
+                  <Alert.Description fontSize="xs">
+                    data.police.uk did not return usable data for this point (error, timeout, or
+                    rate limit). The score shown is a conservative placeholder so the headline total
+                    is not treated as if crime were average — prefer areas where crime loaded
+                    successfully when comparing.
+                  </Alert.Description>
+                </Alert.Content>
+              </Alert.Root>
+            ) : null}
+            {meta?.policeUk === 'partial' ? (
+              <Alert.Root status="info" variant="subtle" size="sm">
+                <Alert.Indicator />
+                <Alert.Content>
+                  <Alert.Title fontSize="sm">Crime data partial</Alert.Title>
+                  <Alert.Description fontSize="xs">
+                    One or more monthly police.uk requests failed (e.g. overload or timeout). The
+                    crime score uses the months that loaded successfully — it is a real estimate,
+                    not the full-window fallback.
+                  </Alert.Description>
+                </Alert.Content>
+              </Alert.Root>
+            ) : null}
             <ScoreBar label="Crime (higher is better)" value={area.breakdown.crime} />
             <Stack gap={1}>
               <ScoreBar
@@ -319,12 +460,7 @@ export const AreaResultCard = ({
                 value={area.breakdown.priceTrend}
               />
               <Text fontSize="xs" color="fg.muted" lineHeight="short">
-                {typeof area.metadata?.priceTrendYoyPct === 'number' &&
-                Number.isFinite(area.metadata.priceTrendYoyPct)
-                  ? `Borough year-on-year ≈ ${area.metadata.priceTrendYoyPct.toFixed(1)}% (discovery only).`
-                  : area.metadata?.priceTrendModel === 'unavailable'
-                    ? 'Enable live UK HPI on the search API for YoY momentum.'
-                    : 'Relative rank among candidates in this search; not a forecast.'}
+                {priceTrendLine ?? 'Relative momentum among candidates; not a forecast.'}
               </Text>
             </Stack>
             {isSizeFitSecondScoreActive(meta) ? (
@@ -338,6 +474,9 @@ export const AreaResultCard = ({
                     typeof meta?.sizeFitUserMinM2 === 'number' ? meta.sizeFitUserMinM2 : undefined,
                     meta,
                   )}
+                  {meta?.sizeFitHasSpread === 0
+                    ? ' All candidates tie at 50 — same headroom ratio in this search (or missing data).'
+                    : ''}
                 </Text>
               </Stack>
             ) : null}

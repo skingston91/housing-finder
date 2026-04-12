@@ -1,5 +1,7 @@
 import type { RankedArea } from '@/domain/area/types';
 
+import { parseCommuteTflHttpStatusFromMetadata } from '@/adapters/mapSearchAreasContract';
+import { describeTflHttpFailureAdvice } from '@shared/commute/tflCommuteFailureUserMessage';
 import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtcUkLong';
 
 import {
@@ -37,18 +39,33 @@ const affordabilityAndSchoolsSummary = (metadata: RankedArea['metadata']): strin
   return `${aff}${schools}`;
 };
 
-const tflTransitFailureHint = (code: string): string => {
+const straightLineProxyPenaltySentence = (metadata: RankedArea['metadata']): string => {
+  if (
+    typeof metadata?.commuteStraightLineProxyPenaltyApplied === 'number' &&
+    metadata.commuteStraightLineProxyPenaltyApplied > 0
+  ) {
+    return ` Commute dimension score is reduced by ${String(metadata.commuteStraightLineProxyPenaltyApplied)} points because the duration is a straight-line proxy, not a routed journey.`;
+  }
+  return '';
+};
+
+const tflTransitFailureHint = (code: string, httpStatus?: number, errorBody?: string): string => {
   const hints: Readonly<Record<string, string>> = {
     empty_journeys:
       ' TfL returned no journeys for that origin/destination (the app retries with a wider search when the first call is empty). Check coordinates and that the workplace is reachable on the modes we request.',
     no_journey_after_filters:
       ' No journey satisfied your transit filters (avoided lines, multiple-route requirement, or single rail leg).',
-    http_error: ' The TfL API returned an HTTP error (rate limit, key, or outage).',
+    http_error:
+      ' The TfL API returned an HTTP error (rate limit, invalid or missing app key, or server outage).',
     json_parse_error: ' The TfL response could not be parsed as JSON.',
     invalid_payload: ' The TfL response had an unexpected shape.',
     timeout: ' The TfL request timed out.',
   };
-  return hints[code] ?? ` (${code}).`;
+  const base = hints[code] ?? ` (${code}).`;
+  if (code === 'http_error' && httpStatus !== undefined && Number.isFinite(httpStatus)) {
+    return ` ${describeTflHttpFailureAdvice(httpStatus, errorBody)}`;
+  }
+  return base;
 };
 
 const commuteSummary = (metadata: RankedArea['metadata']): string => {
@@ -79,6 +96,14 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
       parts.push('That journey used TfL national search (wider geographic scope).');
     }
     if (
+      typeof metadata.commuteTflRouteSummary === 'string' &&
+      metadata.commuteTflRouteSummary.trim() !== ''
+    ) {
+      parts.push(
+        `Representative route (first qualifying option): ${metadata.commuteTflRouteSummary.trim()}`,
+      );
+    }
+    if (
       typeof metadata.commuteReliabilityFactor === 'number' &&
       Number.isFinite(metadata.commuteReliabilityFactor) &&
       metadata.commuteReliabilityFactor < 1
@@ -87,21 +112,48 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
         `Commute score was scaled by ${metadata.commuteReliabilityFactor.toFixed(3)} for disruption or route volatility.`,
       );
     }
+    if (
+      typeof metadata.commuteNetworkRoutingBonusApplied === 'number' &&
+      metadata.commuteNetworkRoutingBonusApplied > 0
+    ) {
+      parts.push(
+        `Commute dimension score includes a +${String(metadata.commuteNetworkRoutingBonusApplied)} point bonus for a TfL-routed journey (vs straight-line fallback).`,
+      );
+    }
     return parts.join(' ');
   }
   if (metadata.commuteModel === 'tfl-fallback-straight-line') {
     const code =
       typeof metadata.commuteTflFailureCode === 'string' ? metadata.commuteTflFailureCode : '';
-    const detail = code.length > 0 ? tflTransitFailureHint(code) : '';
-    return ` Commute (transit) fell back to straight-line time after TfL could not supply a usable journey.${detail}`;
+    const httpSt = parseCommuteTflHttpStatusFromMetadata(metadata);
+    const errBodyRaw = metadata.commuteTflHttpErrorBody;
+    const errBody =
+      typeof errBodyRaw === 'string' && errBodyRaw.trim() !== ''
+        ? ` TfL response: ${errBodyRaw.trim()}`
+        : '';
+    const detail =
+      code.length > 0
+        ? `${tflTransitFailureHint(code, httpSt, typeof errBodyRaw === 'string' ? errBodyRaw : undefined)}${errBody}`
+        : '';
+    const slot =
+      typeof metadata.commuteTflPlannerSummary === 'string' &&
+      metadata.commuteTflPlannerSummary.trim() !== ''
+        ? ` Requested planner slot: ${metadata.commuteTflPlannerSummary.trim()}`
+        : '';
+    return ` Commute (transit) fell back to straight-line time after TfL could not supply a usable journey.${detail}${slot}${straightLineProxyPenaltySentence(metadata)}`;
   }
   if (metadata.commuteModel === 'openrouteservice-directions') {
-    return ' Commute (drive/cycle/walk) uses OpenRouteService directions (ORS_API_KEY on the search Lambda).';
+    const bonus =
+      typeof metadata.commuteNetworkRoutingBonusApplied === 'number' &&
+      metadata.commuteNetworkRoutingBonusApplied > 0
+        ? ` Commute dimension score includes a +${String(metadata.commuteNetworkRoutingBonusApplied)} point bonus for OpenRouteService routing (vs straight-line fallback).`
+        : '';
+    return ` Commute (drive/cycle/walk) uses OpenRouteService directions (ORS_API_KEY on the search Lambda).${bonus}`;
   }
   if (metadata.commuteModel === 'openrouteservice-fallback-straight-line') {
-    return ' Commute (drive/cycle/walk) fell back to straight-line time after OpenRouteService returned no route.';
+    return ` Commute (drive/cycle/walk) fell back to straight-line time after OpenRouteService returned no route.${straightLineProxyPenaltySentence(metadata)}`;
   }
-  return ' Commute uses straight-line distance with mode speed assumptions—not live routing.';
+  return ` Commute uses straight-line distance with mode speed assumptions—not live routing.${straightLineProxyPenaltySentence(metadata)}`;
 };
 
 const proxyBlock = (metadata: RankedArea['metadata']): string =>
@@ -164,6 +216,30 @@ export const firstSchoolsPerformanceYearHint = (
 };
 
 /** First non-empty `dataPoliceUk` string across results (shared attribution line). */
+/** True when any result could not load street crime from data.police.uk. */
+export const anyPoliceUkCrimeFetchFailed = (areas: readonly RankedArea[]): boolean =>
+  areas.some((a) => a.metadata?.policeUk === 'error');
+
+/** True when at least one area loaded crime for some months but not all (see {@link firstCrimeDataPartialNote}). */
+export const anyPoliceUkCrimeFetchPartial = (areas: readonly RankedArea[]): boolean =>
+  areas.some((a) => a.metadata?.policeUk === 'partial');
+
+/** Short methodology line when at least one area is missing real crime data. */
+export const firstCrimeDataUnavailableNote = (areas: readonly RankedArea[]): string | undefined => {
+  if (!anyPoliceUkCrimeFetchFailed(areas)) {
+    return undefined;
+  }
+  return 'At least one area could not load crime from data.police.uk; those rows use a conservative placeholder crime score (not neutral) so totals rank lower than if crime were unknown-as-average. Check the warning on each affected card.';
+};
+
+/** Short methodology line when at least one area has partial police.uk months (not full failure). */
+export const firstCrimeDataPartialNote = (areas: readonly RankedArea[]): string | undefined => {
+  if (!anyPoliceUkCrimeFetchPartial(areas)) {
+    return undefined;
+  }
+  return 'At least one area loaded crime from data.police.uk for only some months (others failed). Those rows use a real crime estimate from the months that succeeded—not the full-window placeholder. See the per-card detail.';
+};
+
 export const firstDataPoliceUkAttribution = (areas: readonly RankedArea[]): string | undefined => {
   for (const a of areas) {
     const v = a.metadata?.dataPoliceUk;
@@ -243,6 +319,9 @@ export const areaProvenanceDescription = (metadata: RankedArea['metadata']): str
     if (metadata.policeUk === 'ok') {
       return `Crime uses anonymised data.police.uk data near each point. Your workplace is outside our Greater London preview box, so these are fixed London centroids—not a grid around work. ${proxyBlock(metadata)}`;
     }
+    if (metadata.policeUk === 'partial') {
+      return `Workplace is outside our Greater London preview box; we used fixed London centroids. Crime loaded for some months only (others failed at police.uk). ${proxyBlock(metadata)}`;
+    }
     if (metadata.policeUk === 'error') {
       return `Workplace is outside our Greater London preview box; we used fixed London centroids. Crime used a fallback after a police.uk error. ${proxyBlock(metadata)}`;
     }
@@ -254,6 +333,9 @@ export const areaProvenanceDescription = (metadata: RankedArea['metadata']): str
         ? ' Candidates are sampled on a grid around your workplace (Greater London).'
         : '';
     return `Crime uses anonymised street-level data from data.police.uk near this point.${grid} ${proxyBlock(metadata)}`;
+  }
+  if (metadata.policeUk === 'partial') {
+    return `Crime uses data.police.uk for the months that loaded; some months failed (see card detail). ${proxyBlock(metadata)}`;
   }
   if (metadata.policeUk === 'error') {
     return `Crime score used a fallback because the police.uk request failed. ${proxyBlock(metadata)}`;
@@ -268,5 +350,6 @@ export const hasCrimeMetadataDetails = (metadata: RankedArea['metadata']): boole
     (typeof metadata.crimeWeightedTotal === 'number' ||
       typeof metadata.crimeMonthsUsed === 'number' ||
       metadata.policeUk === 'ok' ||
+      metadata.policeUk === 'partial' ||
       metadata.policeUk === 'error'),
   );

@@ -35,6 +35,12 @@ const sleep = (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
+/** Same class of transient failures we retry for TfL — police.uk is often overloaded. */
+const shouldRetryPoliceHttpStatus = (status: number): boolean =>
+  status === 429 || status === 502 || status === 503 || status === 504;
+
+const MAX_POLICE_ATTEMPTS = 5;
+
 export const fetchStreetCrimes = async (
   lat: number,
   lng: number,
@@ -48,17 +54,17 @@ export const fetchStreetCrimes = async (
     'User-Agent': 'housing-finder/0.1 (data.police.uk consumer)',
   };
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < MAX_POLICE_ATTEMPTS; attempt++) {
     const res = await fetchImpl(url, {
       headers,
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (res.status === 429) {
-      if (attempt < 2) {
-        await sleep(400 * (attempt + 1) + Math.floor(Math.random() * 250));
+    if (shouldRetryPoliceHttpStatus(res.status)) {
+      if (attempt < MAX_POLICE_ATTEMPTS - 1) {
+        await sleep(450 * (attempt + 1) + Math.floor(Math.random() * 300));
         continue;
       }
-      throw new Error('police.uk HTTP 429');
+      throw new Error(`police.uk HTTP ${String(res.status)}`);
     }
     if (res.status === 404) {
       return [];

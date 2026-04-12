@@ -1,7 +1,7 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { system } from '@/theme/theme';
 
@@ -53,6 +53,24 @@ describe('AreaSearchPage', () => {
       expect(screen.getByLabelText(/workplace label/i)).toHaveValue('Old Street');
     });
     expect(screen.queryByText(/default search settings/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps edited field values while the URL updates on a debounce (no stale q overwrite)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderAtPath('/');
+
+      const maxPrice = await screen.findByLabelText(/maximum price in GBP/i);
+      fireEvent.change(maxPrice, { target: { value: '500000' } });
+      expect(maxPrice).toHaveValue(500000);
+
+      await vi.advanceTimersByTimeAsync(500);
+      await waitFor(() => {
+        expect(maxPrice).toHaveValue(500000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('falls back to defaults when q is invalid', async () => {

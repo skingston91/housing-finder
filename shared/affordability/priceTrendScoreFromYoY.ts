@@ -16,6 +16,7 @@ export const normalizeYoYPctToScores = (yoyPct: readonly (number | null)[]): num
     if (v === null || !Number.isFinite(v)) {
       return 50;
     }
-    return Math.round(((v - min) / (max - min)) * 100);
+    const scaled = Math.round(((v - min) / (max - min)) * 100);
+    return Number.isFinite(scaled) ? Math.max(0, Math.min(100, scaled)) : 50;
   });
 };

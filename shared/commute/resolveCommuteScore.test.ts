@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SearchAreasRequestBody } from '../searchAreasContract';
 
+import { commuteScoreFromStraightLine } from './commuteScoreFromStraightLine';
+import {
+  applyStraightLineProxyPenalty,
+  COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
+  COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+} from './commuteScoreNetworkRoutingBonus';
 import { clearOrsDirectionsCache } from './orsDirections';
 import { resolveCommuteScore } from './resolveCommuteScore';
 import { clearTflJourneyCache } from './tflJourney';
@@ -33,6 +39,7 @@ describe('resolveCommuteScore', () => {
     expect(r.model).toBe('tfl-unified-api');
     expect(r.journeyMinutes).toBe(20);
     expect(r.score).toBe(100);
+    expect(r.commuteNetworkRoutingBonusApplied).toBe(COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS);
     expect(r.commuteReliabilityFactor).toBeUndefined();
   });
 
@@ -53,7 +60,8 @@ describe('resolveCommuteScore', () => {
     expect(r.model).toBe('tfl-unified-api');
     expect(r.transitDisruptionHint).toBeDefined();
     expect(r.commuteReliabilityFactor).toBeCloseTo(0.92, 5);
-    expect(r.score).toBe(92);
+    expect(r.score).toBe(100);
+    expect(r.commuteNetworkRoutingBonusApplied).toBe(COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS);
   });
 
   it('applies volatility penalty when second journey is much slower', async () => {
@@ -77,7 +85,8 @@ describe('resolveCommuteScore', () => {
     // Median of 20 and 35 min = 27.5 min primary for scoring
     expect(r.journeyMinutes).toBe(27.5);
     expect(r.commuteReliabilityFactor).toBeCloseTo(0.97, 5);
-    expect(r.score).toBe(97);
+    expect(r.score).toBe(100);
+    expect(r.commuteNetworkRoutingBonusApplied).toBe(COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS);
     expect(r.tflJourneyDurationMethod).toBe('median-first-three-qualifying');
     expect(r.tflPlannerSummary).toMatch(/TfL|08:30|timetable/i);
   });
@@ -90,8 +99,16 @@ describe('resolveCommuteScore', () => {
       tfl: { appKey: 'y' },
     });
     expect(r.model).toBe('tfl-fallback-straight-line');
-    expect(r.journeyMinutes).toBeUndefined();
+    expect(typeof r.journeyMinutes).toBe('number');
     expect(r.transitFailureCode).toBe('empty_journeys');
+    expect(r.commuteStraightLineProxyPenaltyApplied).toBe(
+      COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+    );
+    expect(r.score).toBe(
+      applyStraightLineProxyPenalty(
+        commuteScoreFromStraightLine(51.5, -0.1, 51.52, -0.08, 'transit', 45),
+      ),
+    );
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -105,6 +122,15 @@ describe('resolveCommuteScore', () => {
       tfl: { appKey: 'y' },
     });
     expect(r.model).toBe('straight-line-time-estimate');
+    expect(typeof r.journeyMinutes).toBe('number');
+    expect(r.commuteStraightLineProxyPenaltyApplied).toBe(
+      COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+    );
+    expect(r.score).toBe(
+      applyStraightLineProxyPenalty(
+        commuteScoreFromStraightLine(51.5, -0.1, 51.5001, -0.1001, 'driving', 45),
+      ),
+    );
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -129,6 +155,7 @@ describe('resolveCommuteScore', () => {
     expect(r.model).toBe('openrouteservice-directions');
     expect(r.journeyMinutes).toBe(45);
     expect(r.score).toBe(100);
+    expect(r.commuteNetworkRoutingBonusApplied).toBe(COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS);
   });
 
   it('falls back when OpenRouteService returns no route', async () => {
@@ -141,6 +168,14 @@ describe('resolveCommuteScore', () => {
       openRouteService: { apiKey: 'ors' },
     });
     expect(r.model).toBe('openrouteservice-fallback-straight-line');
-    expect(r.journeyMinutes).toBeUndefined();
+    expect(typeof r.journeyMinutes).toBe('number');
+    expect(r.commuteStraightLineProxyPenaltyApplied).toBe(
+      COMMUTE_SCORE_STRAIGHT_LINE_PROXY_PENALTY_POINTS,
+    );
+    expect(r.score).toBe(
+      applyStraightLineProxyPenalty(
+        commuteScoreFromStraightLine(51.5, -0.1, 51.52, -0.08, 'cycling', 45),
+      ),
+    );
   });
 });
