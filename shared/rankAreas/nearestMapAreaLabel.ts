@@ -1,5 +1,6 @@
 import type { LondonBoroughMedianRow } from '../affordability/londonBoroughMedians';
 import { nearestBoroughMedianFromRows } from '../affordability/nearestBoroughMedian';
+import { SOUTH_EAST_COMMUTER_MEDIAN_ANCHORS } from '../affordability/southEastCommuterMedianAnchors';
 
 import { LONDON_AREA_CANDIDATES } from './candidates';
 import { haversineKm } from './geo';
@@ -52,6 +53,14 @@ const INNER_AND_OUTER_LONDON_LABEL_SEEDS: readonly MapLabelPoint[] = [
   { displayName: 'Woolwich', latitude: 51.4892, longitude: 0.0648 },
 ];
 
+/** Town-centre labels outside the GLA (same centroids as affordability anchors). */
+const SOUTH_EAST_COMMUTER_LABEL_SEEDS: readonly MapLabelPoint[] =
+  SOUTH_EAST_COMMUTER_MEDIAN_ANCHORS.map((a) => ({
+    displayName: a.boroughName,
+    latitude: a.latitude,
+    longitude: a.longitude,
+  }));
+
 const MAP_LABEL_POINTS: readonly MapLabelPoint[] = [
   ...LONDON_AREA_CANDIDATES.map((c) => ({
     displayName: c.displayName,
@@ -59,6 +68,7 @@ const MAP_LABEL_POINTS: readonly MapLabelPoint[] = [
     longitude: c.longitude,
   })),
   ...INNER_AND_OUTER_LONDON_LABEL_SEEDS,
+  ...SOUTH_EAST_COMMUTER_LABEL_SEEDS,
 ];
 
 /** Within this radius, use the **nearest seed place name**; otherwise use the nearest borough label. */

@@ -1,6 +1,17 @@
-import { Alert, Box, Heading, HStack, SimpleGrid, Spinner, Stack, Text } from '@chakra-ui/react';
+import {
+  Alert,
+  Box,
+  Button,
+  Heading,
+  HStack,
+  NativeSelect,
+  SimpleGrid,
+  Spinner,
+  Stack,
+  Text,
+} from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
-import { lazy, Suspense, type RefObject } from 'react';
+import { lazy, Suspense, useMemo, useState, type RefObject } from 'react';
 
 import { AreaComparePanel } from './AreaComparePanel';
 import { AreaResultCard } from './AreaResultCard';
@@ -8,16 +19,15 @@ import { CommuteAboutDataPanel } from './CommuteAboutDataPanel';
 import { MethodologyPanel } from './MethodologyPanel';
 import { SearchDataQualityPanel, type SearchDataQualitySummary } from './SearchDataQualityPanel';
 import type { AreaSelectionSource, ResultsMapProps } from './ResultsMap';
-import {
-  commuteRankTierFromArea,
-  partitionAreasByCommuteRouteConfirmation,
-} from './commuteRouteConfirmation';
+import { commuteRankTierFromArea } from './commuteRouteConfirmation';
 import {
   anyPoliceUkCrimeFetchFailed,
   anyPoliceUkCrimeFetchPartial,
   manyTransitAreasHitTflFallback,
   resultsUseStraightLineCommute,
 } from './searchResultsAttribution';
+import type { AreaSortKey, SortDirection } from './sortRankedAreas';
+import { sortPartitionedByRouteConfirmation, sortRankedAreas } from './sortRankedAreas';
 
 const ResultsMapLazy = lazy(async () => {
   const m = await import('./ResultsMap');
@@ -34,8 +44,13 @@ export interface AreaSearchResultsColumnProps {
   readonly includePriceTrendInComposite: boolean;
   /** Candidates dropped because commute used straight-line fallback while others had routed journeys. */
   readonly commuteOmittedEstimateOnlyCount?: number;
+  /** Full list of those candidates (for labels and scores — not mixed into the headline ordering). */
+  readonly commuteOmittedEstimateOnlyAreas?: readonly RankedArea[];
   readonly dataQualitySummary: SearchDataQualitySummary | null;
   readonly areas: readonly RankedArea[];
+  readonly hiddenAreaIds: readonly string[];
+  readonly onHideArea: (id: string) => void;
+  readonly onShowAllHiddenAreas: () => void;
   readonly compareAreas: readonly RankedArea[];
   readonly compareIds: readonly string[];
   readonly selectedAreaId: string | null;
@@ -57,8 +72,12 @@ export const AreaSearchResultsColumn = ({
   hasSearched,
   includePriceTrendInComposite,
   commuteOmittedEstimateOnlyCount,
+  commuteOmittedEstimateOnlyAreas,
   dataQualitySummary,
   areas,
+  hiddenAreaIds,
+  onHideArea,
+  onShowAllHiddenAreas,
   compareAreas,
   compareIds,
   selectedAreaId,
@@ -67,12 +86,46 @@ export const AreaSearchResultsColumn = ({
   setCardAnchorEl,
   onToggleCompare,
 }: AreaSearchResultsColumnProps) => {
+  const [sortKey, setSortKey] = useState<AreaSortKey>('headline');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   const hasAreas = areas.length > 0;
+  const hiddenSet = useMemo(() => new Set(hiddenAreaIds), [hiddenAreaIds]);
+  const visibleAreas = useMemo(() => areas.filter((a) => !hiddenSet.has(a.id)), [areas, hiddenSet]);
+  const hasVisibleAreas = visibleAreas.length > 0;
+  const hiddenCount = hiddenAreaIds.length;
+
+  const { withConfirmedRoute, withoutConfirmedRoute } = useMemo(
+    () => sortPartitionedByRouteConfirmation(visibleAreas, sortKey, sortDirection),
+    [visibleAreas, sortKey, sortDirection],
+  );
+
+  const fullCandidateListSorted = useMemo(() => {
+    const omitted = commuteOmittedEstimateOnlyAreas ?? [];
+    const byId = new Map<string, RankedArea>();
+    for (const a of areas) {
+      byId.set(a.id, a);
+    }
+    for (const a of omitted) {
+      if (!byId.has(a.id)) {
+        byId.set(a.id, a);
+      }
+    }
+    return sortRankedAreas([...byId.values()], sortKey, sortDirection);
+  }, [areas, commuteOmittedEstimateOnlyAreas, sortKey, sortDirection]);
+
+  const topDisplayArea = withConfirmedRoute[0] ?? withoutConfirmedRoute[0];
+
   const showTrustStack = !loading && hasAreas;
-  const { withConfirmedRoute, withoutConfirmedRoute } =
-    partitionAreasByCommuteRouteConfirmation(areas);
   const hasRouteSplit =
-    hasAreas && withConfirmedRoute.length > 0 && withoutConfirmedRoute.length > 0;
+    hasVisibleAreas && withConfirmedRoute.length > 0 && withoutConfirmedRoute.length > 0;
+
+  const omittedForRoutingPolicy =
+    commuteOmittedEstimateOnlyCount !== undefined && commuteOmittedEstimateOnlyCount > 0
+      ? commuteOmittedEstimateOnlyCount
+      : 0;
+  const totalCandidateLocationsScored =
+    omittedForRoutingPolicy > 0 ? areas.length + omittedForRoutingPolicy : areas.length;
 
   return (
     <Stack
@@ -102,18 +155,81 @@ export const AreaSearchResultsColumn = ({
         Results
       </Heading>
       {!loading && hasSearched && hasAreas ? (
-        <Text fontSize="sm" color="fg.muted" role="status" aria-live="polite">
-          Search complete: {areas.length} area{areas.length === 1 ? '' : 's'} ranked (best first
-          {hasRouteSplit ? '; confirmed routes listed before estimate-only' : ''}). Top match:{' '}
-          <Text as="span" fontWeight="medium" color="fg">
-            {areas[0]?.displayName ?? ''}
-          </Text>{' '}
-          (score {String(areas[0]?.score ?? '')}
-          {areas[0] !== undefined && commuteRankTierFromArea(areas[0]) === 1
-            ? ', estimate-only commute'
-            : ''}
-          ).
-        </Text>
+        <Stack gap={3}>
+          <HStack gap={3} flexWrap="wrap" align="flex-end">
+            <Box minW={{ base: '100%', sm: '200px' }} flex={{ base: '1 1 100%', sm: '1 1 200px' }}>
+              <Text fontSize="xs" fontWeight="medium" color="fg.muted" mb={1}>
+                Sort by
+              </Text>
+              <NativeSelect.Root size="sm">
+                <NativeSelect.Field
+                  value={sortKey}
+                  onChange={(e) => {
+                    setSortKey(e.currentTarget.value as AreaSortKey);
+                  }}
+                  aria-label="Sort areas by column"
+                >
+                  <option value="headline">Headline score</option>
+                  <option value="affordability">Affordability</option>
+                  <option value="commute">Commute</option>
+                  <option value="schools">Schools</option>
+                  <option value="crime">Crime</option>
+                  <option value="priceTrend">Price momentum</option>
+                  <option value="sizeFit">Size fit</option>
+                </NativeSelect.Field>
+                <NativeSelect.Indicator />
+              </NativeSelect.Root>
+            </Box>
+            <Box minW={{ base: '100%', sm: '160px' }} flex={{ base: '1 1 100%', sm: '0 0 160px' }}>
+              <Text fontSize="xs" fontWeight="medium" color="fg.muted" mb={1}>
+                Order
+              </Text>
+              <NativeSelect.Root size="sm">
+                <NativeSelect.Field
+                  value={sortDirection}
+                  onChange={(e) => {
+                    setSortDirection(e.currentTarget.value as SortDirection);
+                  }}
+                  aria-label="Sort direction"
+                >
+                  <option value="desc">High to low (best first)</option>
+                  <option value="asc">Low to high (worst first)</option>
+                </NativeSelect.Field>
+                <NativeSelect.Indicator />
+              </NativeSelect.Root>
+            </Box>
+          </HStack>
+          <Text fontSize="sm" color="fg.muted" role="status" aria-live="polite">
+            Search complete: {visibleAreas.length} area{visibleAreas.length === 1 ? '' : 's'} shown
+            {hiddenCount > 0 ? <> ({String(hiddenCount)} hidden)</> : null} — sorted by{' '}
+            {sortKey === 'headline' ? 'headline score' : sortKey}
+            {sortDirection === 'desc' ? ', best first' : ', worst first'}
+            {hasRouteSplit ? '; confirmed routes listed before estimate-only' : ''}.
+            {omittedForRoutingPolicy > 0 ? (
+              <>
+                {' '}
+                {totalCandidateLocationsScored} candidate locations were scored in total;{' '}
+                {omittedForRoutingPolicy} had estimate-only commute and are excluded from this
+                ranking (see alert below)—not because of low score.
+              </>
+            ) : null}{' '}
+            {topDisplayArea !== undefined ? (
+              <>
+                Top in this view:{' '}
+                <Text as="span" fontWeight="medium" color="fg">
+                  {topDisplayArea.displayName}
+                </Text>{' '}
+                (score {String(topDisplayArea.score)}
+                {commuteRankTierFromArea(topDisplayArea) === 1 ? ', estimate-only commute' : ''}).
+              </>
+            ) : null}
+          </Text>
+          {hiddenCount > 0 ? (
+            <Button size="xs" variant="outline" onClick={onShowAllHiddenAreas}>
+              Show hidden areas again ({String(hiddenCount)})
+            </Button>
+          ) : null}
+        </Stack>
       ) : null}
       {!loading && hasSearched && hasAreas && dataQualitySummary !== null ? (
         <SearchDataQualityPanel summary={dataQualitySummary} />
@@ -131,10 +247,62 @@ export const AreaSearchResultsColumn = ({
               {commuteOmittedEstimateOnlyCount}{' '}
               {commuteOmittedEstimateOnlyCount === 1 ? 'area had' : 'areas had'} no confirmed
               network-routed journey (TfL or OpenRouteService) while others did, so{' '}
-              {commuteOmittedEstimateOnlyCount === 1 ? 'it was' : 'they were'} omitted. Rankings
-              here use routed journey times only—not straight-line guesses after a routing API
-              attempt.
+              {commuteOmittedEstimateOnlyCount === 1 ? 'it was' : 'they were'} omitted from the
+              ranked list below. This is not “low score”—we avoid mixing real journey times with
+              straight-line estimates when any candidate has a confirmed route. Rankings here use
+              routed journey times only.
             </Alert.Description>
+            {commuteOmittedEstimateOnlyAreas !== undefined &&
+            commuteOmittedEstimateOnlyAreas.length > 0 ? (
+              <Text as="p" fontSize="sm" fontWeight="semibold" color="fg" mt={3} lineHeight="short">
+                <Text as="span" fontWeight="normal" color="fg.muted">
+                  Omitted areas:{' '}
+                </Text>
+                {commuteOmittedEstimateOnlyAreas.map((a) => a.displayName).join(' · ')}
+              </Text>
+            ) : null}
+            {commuteOmittedEstimateOnlyAreas !== undefined &&
+            commuteOmittedEstimateOnlyAreas.length > 0 ? (
+              <Box
+                mt={3}
+                borderWidth="1px"
+                borderColor="gray.200"
+                rounded="md"
+                p={3}
+                maxH="280px"
+                overflowY="auto"
+              >
+                <Text fontSize="xs" fontWeight="semibold" color="fg.muted" mb={2}>
+                  Per-area scores (still computed; not in headline list)
+                </Text>
+                <Stack as="ul" gap={2} fontSize="sm" listStyleType="none" pl={0}>
+                  {commuteOmittedEstimateOnlyAreas.map((a) => {
+                    const model =
+                      typeof a.metadata?.commuteModel === 'string' ? a.metadata.commuteModel : '—';
+                    const mins =
+                      typeof a.metadata?.commuteJourneyMinutes === 'number'
+                        ? a.metadata.commuteJourneyMinutes
+                        : undefined;
+                    return (
+                      <Box
+                        as="li"
+                        key={a.id}
+                        borderBottomWidth="1px"
+                        borderColor="gray.200"
+                        pb={2}
+                        _last={{ borderBottomWidth: 0, pb: 0 }}
+                      >
+                        <Text fontWeight="medium">{a.displayName}</Text>
+                        <Text color="fg.muted" fontSize="xs">
+                          Headline score {String(a.score)} · commute model {model}
+                          {mins !== undefined ? ` · ${String(mins)} min (estimate)` : ''}
+                        </Text>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            ) : null}
           </Alert.Content>
         </Alert.Root>
       ) : null}
@@ -280,7 +448,23 @@ export const AreaSearchResultsColumn = ({
           </Box>
         </Stack>
       ) : null}
-      {hasAreas ? (
+      {!loading && hasSearched && hasAreas && !hasVisibleAreas ? (
+        <Alert.Root status="info" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Every area is hidden from this view</Alert.Title>
+            <Alert.Description fontSize="sm">
+              Use{' '}
+              <Text as="span" fontWeight="medium">
+                Show hidden areas again
+              </Text>{' '}
+              above, or pick a new search — hidden rows stay out of the list and map until you
+              restore them.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
+      ) : null}
+      {hasAreas && hasVisibleAreas ? (
         <Stack gap={6}>
           {withConfirmedRoute.length > 0 ? (
             <Stack gap={3}>
@@ -303,6 +487,9 @@ export const AreaSearchResultsColumn = ({
                       onSelectArea={(id) => {
                         onSelectArea(id, 'list');
                       }}
+                      onHideFromList={() => {
+                        onHideArea(a.id);
+                      }}
                       compare={{
                         isInCompare: compareIds.includes(a.id),
                         onToggle: () => {
@@ -318,7 +505,7 @@ export const AreaSearchResultsColumn = ({
           ) : null}
           {withoutConfirmedRoute.length > 0 ? (
             <Stack gap={3}>
-              {hasRouteSplit || withoutConfirmedRoute.length === areas.length ? (
+              {hasRouteSplit || withoutConfirmedRoute.length === visibleAreas.length ? (
                 <Stack gap={1}>
                   <Heading as="h3" size="sm" fontWeight="semibold" color="fg.muted">
                     No confirmed route (estimate only)
@@ -345,6 +532,9 @@ export const AreaSearchResultsColumn = ({
                       onSelectArea={(id) => {
                         onSelectArea(id, 'list');
                       }}
+                      onHideFromList={() => {
+                        onHideArea(a.id);
+                      }}
                       compare={{
                         isInCompare: compareIds.includes(a.id),
                         onToggle: () => {
@@ -360,7 +550,96 @@ export const AreaSearchResultsColumn = ({
           ) : null}
         </Stack>
       ) : null}
-      {showTrustStack ? (
+      {hasAreas && fullCandidateListSorted.length > 0 ? (
+        <Box as="details" borderWidth="1px" borderColor="gray.200" rounded="md" p={3} bg="white">
+          <Box as="summary" cursor="pointer" fontWeight="semibold" fontSize="sm">
+            Full candidate list ({fullCandidateListSorted.length} rows) — includes areas not in the
+            main ranking
+          </Box>
+          <Text fontSize="xs" color="fg.muted" mt={2} mb={3}>
+            Same sort as above. Rows that were dropped from the headline list (for example
+            estimate-only commute when others had routed journeys) appear with a note in the last
+            column.
+          </Text>
+          <Box overflowX="auto">
+            <Box as="table" width="100%" fontSize="xs" style={{ borderCollapse: 'collapse' }}>
+              <Box as="thead">
+                <Box as="tr" borderBottomWidth="1px" borderColor="gray.200">
+                  {(
+                    [
+                      'Area',
+                      'Headline',
+                      'Aff.',
+                      'Commute',
+                      'Schools',
+                      'Crime',
+                      'Mom.',
+                      'Fit',
+                      'In main list',
+                    ] as const
+                  ).map((h) => (
+                    <Box
+                      key={h}
+                      as="th"
+                      textAlign="left"
+                      py={2}
+                      pr={2}
+                      fontWeight="semibold"
+                      color="fg.muted"
+                    >
+                      {h}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              <Box as="tbody">
+                {fullCandidateListSorted.map((a) => {
+                  const inMain = areas.some((x) => x.id === a.id);
+                  const b = a.breakdown;
+                  return (
+                    <Box
+                      as="tr"
+                      key={a.id}
+                      borderBottomWidth="1px"
+                      borderColor="gray.100"
+                      _last={{ borderBottomWidth: 0 }}
+                    >
+                      <Box as="td" py={2} pr={2} whiteSpace="nowrap" fontWeight="medium">
+                        {a.displayName}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(a.score)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(b.affordability)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(b.commute)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(b.schools)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(b.crime)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(b.priceTrend)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} fontFamily="mono">
+                        {String(b.sizeFit)}
+                      </Box>
+                      <Box as="td" py={2} pr={2} color="fg.muted">
+                        {inMain ? 'Yes' : 'No — omitted from headline list'}
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      ) : null}
+      {showTrustStack && hasVisibleAreas ? (
         <Suspense
           fallback={
             <Text fontSize="sm" color="fg.muted">
@@ -370,7 +649,7 @@ export const AreaSearchResultsColumn = ({
         >
           <ResultsMapLazy
             workplace={workplace}
-            areas={areas}
+            areas={[...withConfirmedRoute, ...withoutConfirmedRoute]}
             selectedAreaId={selectedAreaId}
             onSelectArea={onSelectArea}
           />

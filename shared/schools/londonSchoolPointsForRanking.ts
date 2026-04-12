@@ -3,10 +3,12 @@ import type { LondonSchoolSeed } from './londonSchoolSeeds';
 import { LONDON_SCHOOL_SEEDS } from './londonSchoolSeeds';
 import { LONDON_STATE_SCHOOL_ESTABLISHMENT_SAMPLE } from './londonStateSchoolEstablishmentSample';
 import { mergePerformanceIntoSchoolSeeds } from './mergePerformanceIntoSchoolSeeds';
+import { SOUTH_EAST_COMMUTER_SCHOOL_SEEDS } from './southEastCommuterSchoolSeeds';
 
 const BASE_LONDON_SCHOOL_POINTS_FOR_RANKING = [
   ...LONDON_SCHOOL_SEEDS,
   ...LONDON_STATE_SCHOOL_ESTABLISHMENT_SAMPLE,
+  ...SOUTH_EAST_COMMUTER_SCHOOL_SEEDS,
 ] as const;
 
 const hasUrn = (p: LondonSchoolSeed): boolean =>

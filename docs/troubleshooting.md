@@ -60,3 +60,15 @@ Add a dated entry when you hit a non-obvious issue and fix it. Short bullets are
 - **Symptom:** Need per-search **distribution** of crime subscores (min/max/spread) when tuning normalization.
 - **Cause:** N/A — optional diagnostics.
 - **Fix:** Set **`HOUSING_FINDER_SCORING_DIAGNOSTICS=1`** for `SearchAreasFunction` in **`sam/env.local.json`** (or deployed env). Logs one JSON line per search: `crime_score_search_diagnostics`. See [scoring-behaviour.md](./scoring-behaviour.md). Leave unset in production unless investigating.
+
+### 2026-04-12 — TfL rate limits (429) or uneven journey success across many candidates
+
+- **Symptom:** Some areas fall back to straight-line commute while others get TfL routes; HTTP **429** in logs.
+- **Cause:** Journey Planner is called **once per candidate** (serialized); bursts and retries can still hit fair-use limits.
+- **Fix:** Optional **`TFL_JOURNEY_MIN_INTERVAL_MS`** on `SearchAreasFunction` (default **450** ms minimum gap between completed TfL HTTP calls; **`0`** disables). See **`sam/env.json.example`**. Increase spacing if needed; watch Lambda **timeout** on large grids.
+
+### 2026-04-12 — TfL journey cache TTL
+
+- **Symptom:** Want to reuse Journey Planner results longer across searches on the same warm Lambda (or disable caching for debugging).
+- **Cause:** N/A — tuning.
+- **Fix:** **`TFL_JOURNEY_CACHE_TTL_MS`** on `SearchAreasFunction` (milliseconds; default **900000** = **15 min** if unset; **1 min**–**24 h** clamp; **`0`** disables success caching). See **`sam/env.json.example`**. Successful journeys only; failures are never cached.

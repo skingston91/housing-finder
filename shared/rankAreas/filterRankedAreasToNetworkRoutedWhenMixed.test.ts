@@ -61,6 +61,8 @@ describe('filterRankedAreasToNetworkRoutedWhenMixed', () => {
     expect(out.areas).toHaveLength(1);
     expect(out.areas[0]?.id).toBe('a');
     expect(out.omittedEstimateOnly).toBe(1);
+    expect(out.omittedEstimateOnlyRows).toHaveLength(1);
+    expect(out.omittedEstimateOnlyRows[0]?.id).toBe('b');
   });
 
   it('keeps all rows when only proxy commute models (no successful route anywhere)', () => {

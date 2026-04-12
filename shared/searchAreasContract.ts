@@ -136,4 +136,9 @@ export interface SearchAreasResponse {
    * from `areas` so the list does not mix routed times with proxies.
    */
   readonly commuteOmittedEstimateOnlyCount?: number;
+  /**
+   * Full rows for candidates omitted from `areas` for that reason (same scores as computed for the
+   * full candidate set, before headline-only cohort recalculation). Empty when the count is zero.
+   */
+  readonly commuteOmittedEstimateOnlyAreas?: readonly RankedAreaDto[];
 }

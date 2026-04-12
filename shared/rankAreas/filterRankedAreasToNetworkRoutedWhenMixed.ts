@@ -7,6 +7,16 @@ export interface RankedAreasRoutingCredentials {
   readonly openRouteService?: { readonly apiKey: string };
 }
 
+const sortLikeHeadlineList = (rows: readonly RankedAreaDto[]): RankedAreaDto[] =>
+  [...rows].sort((a, b) => {
+    const ta = typeof a.metadata?.commuteRankTier === 'number' ? a.metadata.commuteRankTier : 0;
+    const tb = typeof b.metadata?.commuteRankTier === 'number' ? b.metadata.commuteRankTier : 0;
+    if (ta !== tb) {
+      return ta - tb;
+    }
+    return b.score - a.score;
+  });
+
 /**
  * True when this search **could** use TfL (transit) or ORS (drive/cycle/walk), i.e. credentials
  * were passed into {@link buildRankedAreas}.
@@ -35,9 +45,13 @@ export const filterRankedAreasToNetworkRoutedWhenMixed = (
   rows: readonly RankedAreaDto[],
   body: SearchAreasRequestBody,
   options?: RankedAreasRoutingCredentials,
-): { areas: readonly RankedAreaDto[]; omittedEstimateOnly: number } => {
+): {
+  areas: readonly RankedAreaDto[];
+  omittedEstimateOnly: number;
+  omittedEstimateOnlyRows: readonly RankedAreaDto[];
+} => {
   if (!routingApiExpectedForSearch(body, options)) {
-    return { areas: rows, omittedEstimateOnly: 0 };
+    return { areas: rows, omittedEstimateOnly: 0, omittedEstimateOnlyRows: [] };
   }
 
   const networkRouted: RankedAreaDto[] = [];
@@ -52,8 +66,12 @@ export const filterRankedAreasToNetworkRoutedWhenMixed = (
   }
 
   if (networkRouted.length === 0 || proxy.length === 0) {
-    return { areas: rows, omittedEstimateOnly: 0 };
+    return { areas: rows, omittedEstimateOnly: 0, omittedEstimateOnlyRows: [] };
   }
 
-  return { areas: networkRouted, omittedEstimateOnly: proxy.length };
+  return {
+    areas: networkRouted,
+    omittedEstimateOnly: proxy.length,
+    omittedEstimateOnlyRows: sortLikeHeadlineList(proxy),
+  };
 };

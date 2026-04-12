@@ -106,6 +106,37 @@ describe('fetchTflTransitJourney', () => {
     expect(secondUrl).toContain('nationalSearch=true');
   });
 
+  it('retries with nationalSearch when local journeys fail client filters (no_journey_after_filters)', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ journeys: [{ duration: 1800 }] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            journeys: [{ duration: 1800 }, { duration: 1800 }],
+          }),
+          { status: 200 },
+        ),
+      );
+    const r = await fetchTflTransitJourney(
+      51.526,
+      0.022,
+      51.5,
+      -0.09,
+      fetchImpl,
+      { appKey: 'key' },
+      { requireMultipleJourneys: true, includeAlternativeRoutes: true },
+    );
+    expect(r.minutes).toBe(30);
+    expect(r.nationalSearchUsed).toBe(true);
+    expect(r.failureCode).toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const secondUrl = String(fetchImpl.mock.calls[1]?.[0]);
+    expect(secondUrl).toContain('nationalSearch=true');
+  });
+
   it('does not retry national search when the first response already has journeys', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(
@@ -155,8 +186,8 @@ describe('fetchTflTransitJourney', () => {
     expect(r.minutes).toBeNull();
     expect(r.failureCode).toBe('http_error');
     expect(r.httpStatus).toBe(429);
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
-  }, 15_000);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  }, 25_000);
 
   it('includes a short TfL error body snippet when HTTP is non-success', async () => {
     const fetchImpl = vi.fn(() =>
@@ -166,7 +197,8 @@ describe('fetchTflTransitJourney', () => {
     expect(r.failureCode).toBe('http_error');
     expect(r.httpStatus).toBe(429);
     expect(r.tflHttpErrorBody).toBe('Invalid app_key is provided.');
-  }, 15_000);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  }, 25_000);
 
   it('falls back to modes without national-rail after http error', async () => {
     const fetchImpl = vi
@@ -317,6 +349,24 @@ describe('fetchTflTransitJourney', () => {
     expect(r.failureCode).toBe('no_journey_after_filters');
     expect(r.tflRawJourneyCount).toBe(1);
     expect(r.tflQualifyingJourneyCount).toBe(1);
+  });
+
+  it('prefers startDateTime/arrivalDateTime over duration so live commutes are not mis-scaled', async () => {
+    const payload = {
+      journeys: [
+        {
+          duration: 114,
+          startDateTime: '2026-04-13T08:30:00+01:00',
+          arrivalDateTime: '2026-04-13T10:24:00+01:00',
+          legs: [],
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+    const r = await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, { appKey: 'k' });
+    expect(r.minutes).toBe(114);
   });
 
   it('uses median of first three journeys when TfL returns three options', async () => {

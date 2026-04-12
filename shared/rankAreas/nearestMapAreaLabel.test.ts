@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { LONDON_BOROUGH_MEDIANS } from '../affordability/londonBoroughMedians';
+import { medianRowsForAreaDiscovery } from '../affordability/medianRowsForAreaDiscovery';
 
 import { nearestMapAreaDisplayName } from './nearestMapAreaLabel';
 
@@ -18,5 +19,10 @@ describe('nearestMapAreaDisplayName', () => {
     const name = nearestMapAreaDisplayName(51.5255, -0.0875, LONDON_BOROUGH_MEDIANS, 0.25);
     expect(name).not.toBe('Shoreditch');
     expect(LONDON_BOROUGH_MEDIANS.some((b) => b.boroughName === name)).toBe(true);
+  });
+
+  it('uses a South East commuter label when median rows include outer anchors', () => {
+    const rows = medianRowsForAreaDiscovery(LONDON_BOROUGH_MEDIANS);
+    expect(nearestMapAreaDisplayName(50.8225, -0.1373, rows)).toBe('Brighton & Hove');
   });
 });

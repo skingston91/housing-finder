@@ -1,4 +1,5 @@
 import { affordabilityLandRegistryAttribution } from '../affordability/affordabilityAttribution';
+import { medianRowsForAreaDiscovery } from '../affordability/medianRowsForAreaDiscovery';
 import { ukhpiAveragePriceKeyForPropertyTypes } from '../affordability/ukhpiAveragePriceKey';
 import { normalizeYoYPctToScores } from '../affordability/priceTrendScoreFromYoY';
 import { resolveLondonBoroughMedianRows } from '../affordability/resolveLondonBoroughMedianRows';
@@ -43,8 +44,13 @@ import {
   type VisibleCohortRecalculationContext,
 } from './applyVisibleCohortScoreRecalculation';
 import { filterRankedAreasToNetworkRoutedWhenMixed } from './filterRankedAreasToNetworkRoutedWhenMixed';
-import type { SearchCandidate } from './workplaceGridCandidates';
-import { resolveSearchCandidates } from './workplaceGridCandidates';
+import { retryTflFallbackCommutesWhenMixed } from './retryTflFallbackCommutesWhenMixed';
+import {
+  capSearchCandidatesStratifiedByWorkplace,
+  MAX_TRANSIT_TFL_ROUTING_CANDIDATES,
+  resolveSearchCandidates,
+  type SearchCandidate,
+} from './workplaceGridCandidates';
 
 /** Cap months per area to limit police.uk calls (each month = one request). */
 const MAX_CRIME_MONTHS = 6;
@@ -53,14 +59,32 @@ const MAX_CRIME_MONTHS = 6;
 const POLICE_UK_MAX_CONCURRENT = 3;
 
 /**
- * TfL fair use: **one** Journey Planner call at a time per search.
- * Parallel calls (e.g. one per grid cell) plus internal retries easily trigger HTTP 429; a single `curl` is only one request.
+ * TfL fair use: **one** Journey Planner call at a time per search, plus optional minimum spacing
+ * between completed TfL HTTP calls (`TFL_JOURNEY_MIN_INTERVAL_MS`, default **450** ms; **`0`** disables).
  */
 const TFL_JOURNEY_MAX_CONCURRENT = 1;
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const parseTflJourneyMinIntervalMs = (): number => {
+  const raw = process.env.TFL_JOURNEY_MIN_INTERVAL_MS?.trim();
+  if (raw === undefined || raw === '') {
+    return 450;
+  }
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) {
+    return 450;
+  }
+  return Math.min(20_000, n);
+};
 
 export interface BuildRankedAreasResult {
   readonly areas: readonly RankedAreaDto[];
   readonly commuteOmittedEstimateOnlyCount?: number;
+  readonly commuteOmittedEstimateOnlyAreas?: readonly RankedAreaDto[];
 }
 
 export interface BuildRankedAreasOptions {
@@ -120,12 +144,24 @@ export const buildRankedAreas = async (
   options?: BuildRankedAreasOptions,
 ): Promise<BuildRankedAreasResult> => {
   const monthsYm = recentMonthsYm(body.crime.windowMonths, MAX_CRIME_MONTHS);
-  const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
+  const { mode: candidateMode, candidates: resolvedCandidates } = resolveSearchCandidates(body);
+  const tflAppKeyForCap = options === undefined ? '' : (options.tfl?.appKey ?? '').trim();
+  const candidates =
+    body.commute.mode === 'transit' &&
+    tflAppKeyForCap !== '' &&
+    resolvedCandidates.length > MAX_TRANSIT_TFL_ROUTING_CANDIDATES
+      ? capSearchCandidatesStratifiedByWorkplace(
+          body.workplace,
+          resolvedCandidates,
+          MAX_TRANSIT_TFL_ROUTING_CANDIDATES,
+        )
+      : resolvedCandidates;
 
   const medianResolution = await resolveLondonBoroughMedianRows(fetchImpl, {
     live: options?.useLiveUkhpiMedians === true,
     propertyTypes: body.propertyTypes,
   });
+  const medianRowsForRanking = medianRowsForAreaDiscovery(medianResolution.rows);
 
   const priceKey = ukhpiAveragePriceKeyForPropertyTypes(body.propertyTypes);
   const yoyPctByBoroughId =
@@ -145,37 +181,55 @@ export const buildRankedAreas = async (
 
   const includePriceTrendInComposite = body.scoring?.includePriceTrendInComposite === true;
 
+  const tflMinIntervalMs = parseTflJourneyMinIntervalMs();
+  let lastTflRequestCompletedAt = 0;
+
   const limitPoliceUk = createAsyncLimiter(POLICE_UK_MAX_CONCURRENT);
   const limitTflJourney = createAsyncLimiter(TFL_JOURNEY_MAX_CONCURRENT);
   const fetchForSearch: typeof fetch = (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     if (url.includes('api.tfl.gov.uk')) {
-      return limitTflJourney(() => fetchImpl(input, init));
+      return limitTflJourney(async () => {
+        const now = Date.now();
+        if (tflMinIntervalMs > 0 && lastTflRequestCompletedAt > 0) {
+          const elapsed = now - lastTflRequestCompletedAt;
+          if (elapsed < tflMinIntervalMs) {
+            await sleep(tflMinIntervalMs - elapsed);
+          }
+        }
+        try {
+          return await fetchImpl(input, init);
+        } finally {
+          lastTflRequestCompletedAt = Date.now();
+        }
+      });
     }
     return fetchImpl(input, init);
   };
   const schoolsPerformanceAcademicYear = resolveSchoolsPerformanceAcademicYearForMetadata();
 
-  const intermediate = await Promise.all(
+  const intermediateFirstPass = await Promise.all(
     candidates.map(async (c: SearchCandidate) => {
-      const { total, monthsSucceeded, policeUk } = await weightedCrimeForPoint(
-        c.latitude,
-        c.longitude,
-        monthsYm,
-        body.crime.categoryWeights,
-        fetchImpl,
-        limitPoliceUk,
-      );
       const base = scoreAffordabilitySchoolsDimensions(
         body,
         c.latitude,
         c.longitude,
-        medianResolution.rows,
+        medianRowsForRanking,
       );
-      const commuteRes = await resolveCommuteScore(body, c.latitude, c.longitude, fetchForSearch, {
-        tfl: options?.tfl,
-        openRouteService: options?.openRouteService,
-      });
+      const [{ total, monthsSucceeded, policeUk }, commuteRes] = await Promise.all([
+        weightedCrimeForPoint(
+          c.latitude,
+          c.longitude,
+          monthsYm,
+          body.crime.categoryWeights,
+          fetchImpl,
+          limitPoliceUk,
+        ),
+        resolveCommuteScore(body, c.latitude, c.longitude, fetchForSearch, {
+          tfl: options?.tfl,
+          openRouteService: options?.openRouteService,
+        }),
+      ]);
       return {
         c,
         base,
@@ -186,6 +240,16 @@ export const buildRankedAreas = async (
         policeUk,
       };
     }),
+  );
+
+  const intermediate = await retryTflFallbackCommutesWhenMixed(
+    intermediateFirstPass,
+    body,
+    fetchForSearch,
+    {
+      tfl: options?.tfl,
+      openRouteService: options?.openRouteService,
+    },
   );
 
   const crimeInputs = intermediate.map((row) => ({
@@ -266,7 +330,7 @@ export const buildRankedAreas = async (
         });
     const displayName =
       candidateMode === 'workplace-grid'
-        ? buildMapStyleAreaHeading(body.workplace, c, medianResolution.rows)
+        ? buildMapStyleAreaHeading(body.workplace, c, medianRowsForRanking)
         : c.displayName;
     return {
       id: c.id,
@@ -410,11 +474,11 @@ export const buildRankedAreas = async (
     };
   });
 
-  const { areas: commuteFiltered, omittedEstimateOnly } = filterRankedAreasToNetworkRoutedWhenMixed(
-    rows,
-    body,
-    options,
-  );
+  const {
+    areas: commuteFiltered,
+    omittedEstimateOnly,
+    omittedEstimateOnlyRows,
+  } = filterRankedAreasToNetworkRoutedWhenMixed(rows, body, options);
 
   const monthsSucceededByIndex = intermediate.map((row) => row.monthsSucceeded);
   const commuteRawScores = intermediate.map((row) => row.commuteRes.score);
@@ -435,14 +499,17 @@ export const buildRankedAreas = async (
     cohortCtx,
   );
 
+  const combinedForDisambiguation = [...cohortAdjusted, ...omittedEstimateOnlyRows];
+  const disambiguatedCombined = disambiguateDuplicateAreaDisplayNames(combinedForDisambiguation);
+  const cohortDisambiguated = disambiguatedCombined.slice(0, cohortAdjusted.length);
+  const omittedDisambiguated = disambiguatedCombined.slice(cohortAdjusted.length);
+
   logCrimeScoreSearchDiagnostics(
-    cohortAdjusted.map((r) => r.breakdown.crime),
-    { candidateCount: cohortAdjusted.length },
+    cohortDisambiguated.map((r) => r.breakdown.crime),
+    { candidateCount: cohortDisambiguated.length },
   );
 
-  const withUniqueNames = disambiguateDuplicateAreaDisplayNames(cohortAdjusted);
-
-  const sorted = [...withUniqueNames].sort((a, b) => {
+  const sorted = [...cohortDisambiguated].sort((a, b) => {
     const ta = typeof a.metadata?.commuteRankTier === 'number' ? a.metadata.commuteRankTier : 0;
     const tb = typeof b.metadata?.commuteRankTier === 'number' ? b.metadata.commuteRankTier : 0;
     if (ta !== tb) {
@@ -453,6 +520,11 @@ export const buildRankedAreas = async (
 
   return {
     areas: sorted,
-    ...(omittedEstimateOnly > 0 ? { commuteOmittedEstimateOnlyCount: omittedEstimateOnly } : {}),
+    ...(omittedEstimateOnly > 0
+      ? {
+          commuteOmittedEstimateOnlyCount: omittedEstimateOnly,
+          commuteOmittedEstimateOnlyAreas: omittedDisambiguated,
+        }
+      : {}),
   };
 };

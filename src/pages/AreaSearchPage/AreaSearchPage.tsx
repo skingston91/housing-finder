@@ -31,8 +31,14 @@ export const AreaSearchPage = () => {
   const previousSelectionRef = useRef<string | null | undefined>(undefined);
   const cardAnchorRefs = useRef(new Map<string, HTMLElement>());
   const [hasSearched, setHasSearched] = useState(false);
+  /** Bumps when a new ranked list is applied so the results column remounts (fresh sort UI). */
+  const [resultsGeneration, setResultsGeneration] = useState(0);
+  const [hiddenAreaIds, setHiddenAreaIds] = useState<readonly string[]>([]);
   const [commuteOmittedEstimateOnlyCount, setCommuteOmittedEstimateOnlyCount] = useState<
     number | undefined
+  >(undefined);
+  const [commuteOmittedEstimateOnlyAreas, setCommuteOmittedEstimateOnlyAreas] = useState<
+    readonly RankedArea[] | undefined
   >(undefined);
   const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
   const copyLinkTimeoutRef = useRef<number | null>(null);
@@ -61,6 +67,20 @@ export const AreaSearchPage = () => {
   useEffect(() => {
     setCompareIds((prev) => prev.filter((id) => areas.some((a) => a.id === id)));
   }, [areas]);
+
+  useEffect(() => {
+    setHiddenAreaIds([]);
+  }, [areas]);
+
+  const hideArea = useCallback((id: string) => {
+    setHiddenAreaIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setCompareIds((p) => p.filter((x) => x !== id));
+    setSelectedAreaId((cur) => (cur === id ? null : cur));
+  }, []);
+
+  const showAllHiddenAreas = useCallback(() => {
+    setHiddenAreaIds([]);
+  }, []);
 
   useEffect(() => {
     if (areas.length === 0) {
@@ -165,7 +185,10 @@ export const AreaSearchPage = () => {
   const handleResetSearch = useCallback(() => {
     setForm(defaultFormState());
     setAreas([]);
+    setResultsGeneration((g) => g + 1);
+    setHiddenAreaIds([]);
     setCommuteOmittedEstimateOnlyCount(undefined);
+    setCommuteOmittedEstimateOnlyAreas(undefined);
     setError(null);
     setHasSearched(false);
     setGeocodeError(null);
@@ -241,6 +264,8 @@ export const AreaSearchPage = () => {
       const ranked = await httpAreaDiscoveryAdapter.findRankedAreas(criteria);
       setAreas(ranked.areas);
       setCommuteOmittedEstimateOnlyCount(ranked.commuteOmittedEstimateOnlyCount);
+      setCommuteOmittedEstimateOnlyAreas(ranked.commuteOmittedEstimateOnlyAreas);
+      setResultsGeneration((g) => g + 1);
       setHasSearched(true);
       focusResultsRegion();
     } catch (e) {
@@ -248,6 +273,8 @@ export const AreaSearchPage = () => {
       setError(msg);
       setAreas([]);
       setCommuteOmittedEstimateOnlyCount(undefined);
+      setCommuteOmittedEstimateOnlyAreas(undefined);
+      setResultsGeneration((g) => g + 1);
       setHasSearched(true);
       focusResultsRegion();
     } finally {
@@ -337,6 +364,7 @@ export const AreaSearchPage = () => {
             </Box>
 
             <AreaSearchResultsColumn
+              key={resultsGeneration}
               resultsRegionRef={resultsRegionRef}
               selectionLiveMessage={selectionLiveMessage}
               loading={loading}
@@ -344,8 +372,12 @@ export const AreaSearchPage = () => {
               hasSearched={hasSearched}
               includePriceTrendInComposite={form.includePriceTrendInComposite}
               commuteOmittedEstimateOnlyCount={commuteOmittedEstimateOnlyCount}
+              commuteOmittedEstimateOnlyAreas={commuteOmittedEstimateOnlyAreas}
               dataQualitySummary={dataQualitySummary}
               areas={areas}
+              hiddenAreaIds={hiddenAreaIds}
+              onHideArea={hideArea}
+              onShowAllHiddenAreas={showAllHiddenAreas}
               compareAreas={compareAreas}
               compareIds={compareIds}
               selectedAreaId={selectedAreaId}

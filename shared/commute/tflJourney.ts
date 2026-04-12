@@ -8,11 +8,31 @@ const MODES_WITH_NATIONAL_RAIL =
 const MODES_WITHOUT_NATIONAL_RAIL = 'tube,bus,dlr,tram,overground,elizabeth-line,walking';
 
 /** Backoff before retrying timeout or 5xx (not 429). */
-const RETRY_DELAY_MS = 450;
-/** TfL often returns 429 under burst load; wait longer before a single retry. */
-const RETRY_DELAY_AFTER_429_MS = 2000;
-const CACHE_TTL_SUCCESS_MS = 5 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 500;
+const RETRY_DELAY_MS = 750;
+/** TfL often returns 429 under burst load; wait longer before retries. */
+const RETRY_DELAY_AFTER_429_MS = 2800;
+/** Third attempt after **429** only (still 429 after second try). */
+const RETRY_DELAY_AFTER_429_AGAIN_MS = 5200;
+/** Default when `TFL_JOURNEY_CACHE_TTL_MS` unset: timetable-style results change slowly vs search latency. */
+const DEFAULT_CACHE_TTL_SUCCESS_MS = 15 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 2500;
+
+const parseTflJourneyCacheTtlMs = (): number => {
+  const raw = process.env.TFL_JOURNEY_CACHE_TTL_MS?.trim();
+  if (raw === undefined || raw === '') {
+    return DEFAULT_CACHE_TTL_SUCCESS_MS;
+  }
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) {
+    return DEFAULT_CACHE_TTL_SUCCESS_MS;
+  }
+  if (n === 0) {
+    return 0;
+  }
+  const min = 60 * 1000;
+  const max = 24 * 60 * 60 * 1000;
+  return Math.min(max, Math.max(min, n));
+};
 
 /** TfL only requires **`app_key`** as a query parameter; do not send `app_id` (deprecated per TfL). */
 export interface TflApiCredentials {
@@ -266,7 +286,31 @@ const countNonWalkingLegs = (journey: Record<string, unknown>): number => {
   return n;
 };
 
+/**
+ * Prefer wall-clock span from TfL’s journey timestamps when present. Live Journey Planner
+ * responses include `startDateTime` and `arrivalDateTime`; those match the route summary users
+ * see. The numeric `duration` field is not consistently documented as seconds vs minutes in
+ * Swagger — using timestamps avoids mis-scaling (e.g. ~90 min commutes showing as ~1.5 min).
+ */
+const journeyDurationMinutesFromDateTimes = (journey: Record<string, unknown>): number | null => {
+  const start = journey.startDateTime;
+  const end = journey.arrivalDateTime;
+  if (typeof start !== 'string' || typeof end !== 'string') {
+    return null;
+  }
+  const t0 = Date.parse(start);
+  const t1 = Date.parse(end);
+  if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 < t0) {
+    return null;
+  }
+  return (t1 - t0) / 60000;
+};
+
 const journeyDurationMinutes = (journey: Record<string, unknown>): number | null => {
+  const fromWallClock = journeyDurationMinutesFromDateTimes(journey);
+  if (fromWallClock !== null) {
+    return fromWallClock;
+  }
   const d = journey.duration;
   if (typeof d !== 'number' || !Number.isFinite(d) || d < 0) {
     return null;
@@ -666,6 +710,10 @@ const fetchTflJsonWithRetries = async (
       r = await fetchTflJsonOnce(u, fetchImpl, timeoutMs);
     }
   }
+  if (!r.ok && r.httpStatus === 429) {
+    await delay(RETRY_DELAY_AFTER_429_AGAIN_MS);
+    r = await fetchTflJsonOnce(u, fetchImpl, timeoutMs);
+  }
   return r;
 };
 
@@ -756,7 +804,9 @@ const fetchTflTransitJourneyUncached = async (
     }
     r = fallback;
   }
-  if (r.failureCode !== 'empty_journeys') {
+  const shouldTryNationalSearch =
+    r.failureCode === 'empty_journeys' || r.failureCode === 'no_journey_after_filters';
+  if (!shouldTryNationalSearch) {
     return { ...r, nationalSearchUsed: false };
   }
 
@@ -776,9 +826,14 @@ const fetchTflTransitJourneyUncached = async (
 
 /**
  * Public-transit journey duration in **minutes** from TfL, with optional preferences and filters.
- * Retries: **timeout** or **429 / 502 / 503 / 504** once after a delay (**longer** after **429**); **empty journeys** then **`nationalSearch=true`**;
- * **http errors** once with modes **without national-rail** (in case the key/API rejects that mode).
- * **Successful** responses are cached (TTL + size cap); **failures are not** cached.
+ * Retries: **timeout** or **429 / 502 / 503 / 504** — first retry after a short delay (**longer** after **429**);
+ * if still **429**, a **third** attempt after a longer wait. **`nationalSearch=true`** when the first
+ * response has **empty journeys** or **no_journey_after_filters** (journeys present but all excluded by
+ * client-side filters such as `requireMultipleJourneys` — national search often surfaces more options,
+ * e.g. longer rail commutes into London);
+ * **http errors** (non-429) may retry with modes **without national-rail** (in case the key/API rejects that mode).
+ * **Successful** responses (usable journey minutes) are cached (**TTL** + size cap; default **15 min**,
+ * override **`TFL_JOURNEY_CACHE_TTL_MS`**; **`0`** disables). **Failures** are not cached.
  */
 export const fetchTflTransitJourney = async (
   fromLat: number,
@@ -791,12 +846,14 @@ export const fetchTflTransitJourney = async (
   timeoutMs = 15_000,
 ): Promise<TflTransitJourneyResult> => {
   const now = Date.now();
+  const cacheTtlMs = parseTflJourneyCacheTtlMs();
   const merged = mergeTflPlannerDeparturePrefs(prefs, now);
   const key = cacheKey(fromLat, fromLng, toLat, toLng, merged);
   const hit = journeyCache.get(key);
   if (
+    cacheTtlMs > 0 &&
     hit !== undefined &&
-    now - hit.storedAt < CACHE_TTL_SUCCESS_MS &&
+    now - hit.storedAt < cacheTtlMs &&
     hit.result.minutes !== null
   ) {
     journeyCache.delete(key);
@@ -815,7 +872,7 @@ export const fetchTflTransitJourney = async (
     timeoutMs,
   );
 
-  if (result.minutes !== null) {
+  if (cacheTtlMs > 0 && result.minutes !== null) {
     journeyCache.set(key, { storedAt: now, result });
     while (journeyCache.size > MAX_CACHE_ENTRIES) {
       const firstKey = journeyCache.keys().next().value;

@@ -97,5 +97,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     ...(ranked.commuteOmittedEstimateOnlyCount !== undefined
       ? { commuteOmittedEstimateOnlyCount: ranked.commuteOmittedEstimateOnlyCount }
       : {}),
+    ...(ranked.commuteOmittedEstimateOnlyAreas !== undefined
+      ? { commuteOmittedEstimateOnlyAreas: ranked.commuteOmittedEstimateOnlyAreas }
+      : {}),
   });
 };

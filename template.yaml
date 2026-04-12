@@ -112,10 +112,10 @@ Resources:
       CodeUri: ./
       Handler: lambda/search-areas.handler
       Runtime: nodejs22.x
-      # Transit + TfL is **one HTTP call per candidate** (serialized for fair use; see TFL_JOURNEY_MAX_CONCURRENT).
-      # With up to 12 grid cells, crime months, and optional live UK HPI, **30s** often times out → API returns 502.
-      Timeout: 120
-      MemorySize: 512
+      # Transit+TfL: Journey Planner is **one HTTP call at a time** + optional **TFL_JOURNEY_MIN_INTERVAL_MS** spacing.
+      # Code caps transit grids at **48** stratified candidates when TfL is configured (see `MAX_TRANSIT_TFL_ROUTING_CANDIDATES`).
+      Timeout: 300
+      MemorySize: 1024
       Environment:
         Variables:
           TFL_APP_KEY: !Ref TflAppKey

@@ -22,6 +22,8 @@ export interface AreaResultCardProps {
   readonly area: RankedArea;
   readonly isSelected?: boolean;
   readonly onSelectArea?: (id: string) => void;
+  /** Removes this row from the visible list (does not change server ranking). */
+  readonly onHideFromList?: () => void;
   readonly compare?: {
     readonly isInCompare: boolean;
     readonly onToggle: () => void;
@@ -333,6 +335,7 @@ export const AreaResultCard = ({
   area,
   isSelected = false,
   onSelectArea,
+  onHideFromList,
   compare,
 }: AreaResultCardProps) => {
   const meta = area.metadata;
@@ -397,33 +400,48 @@ export const AreaResultCard = ({
               </Badge>
             </HStack>
           </HStack>
-          {compare !== undefined ? (
-            <Button
-              size="xs"
-              variant={compare.isInCompare ? 'solid' : 'outline'}
-              colorPalette="gray"
-              alignSelf="flex-start"
-              onClick={(e) => {
-                e.stopPropagation();
-                compare.onToggle();
-              }}
-              disabled={compare.limitReached && !compare.isInCompare}
-              title={
-                compare.limitReached && !compare.isInCompare
-                  ? 'Remove an area from compare first (maximum 3).'
-                  : undefined
-              }
-              aria-label={
-                compare.limitReached && !compare.isInCompare
-                  ? 'Compare is full, remove an area first'
-                  : compare.isInCompare
-                    ? 'Remove from compare'
-                    : 'Add to compare'
-              }
-            >
-              {compare.isInCompare ? 'In compare' : 'Compare'}
-            </Button>
-          ) : null}
+          <HStack gap={2} flexWrap="wrap" alignSelf="flex-start">
+            {compare !== undefined ? (
+              <Button
+                size="xs"
+                variant={compare.isInCompare ? 'solid' : 'outline'}
+                colorPalette="gray"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  compare.onToggle();
+                }}
+                disabled={compare.limitReached && !compare.isInCompare}
+                title={
+                  compare.limitReached && !compare.isInCompare
+                    ? 'Remove an area from compare first (maximum 3).'
+                    : undefined
+                }
+                aria-label={
+                  compare.limitReached && !compare.isInCompare
+                    ? 'Compare is full, remove an area first'
+                    : compare.isInCompare
+                      ? 'Remove from compare'
+                      : 'Add to compare'
+                }
+              >
+                {compare.isInCompare ? 'In compare' : 'Compare'}
+              </Button>
+            ) : null}
+            {onHideFromList !== undefined ? (
+              <Button
+                size="xs"
+                variant="ghost"
+                colorPalette="gray"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHideFromList();
+                }}
+                aria-label={`Hide ${area.displayName} from this list`}
+              >
+                Hide
+              </Button>
+            ) : null}
+          </HStack>
           <Text fontSize="sm" color="fg.muted">
             {areaProvenanceDescription(area.metadata)} Lat {area.centroidLatitude.toFixed(3)}, Lng{' '}
             {area.centroidLongitude.toFixed(3)}

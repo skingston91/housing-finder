@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LondonBoroughMedianRow } from '../affordability/londonBoroughMedians';
 import { LONDON_BOROUGH_MEDIANS } from '../affordability/londonBoroughMedians';
 import { clearLondonBoroughMedianCache } from '../affordability/resolveLondonBoroughMedianRows';
+import { clearStreetCrimesCache } from '../policeUk/streetCrimes';
 import { UKHPI_REGION_SLUG_BY_BOROUGH_ID } from '../affordability/ukhpiRegionSlugByBoroughId';
 import { clearOrsDirectionsCache } from '../commute/orsDirections';
 import { clearTflJourneyCache } from '../commute/tflJourney';
@@ -11,6 +12,7 @@ import type { SearchAreasRequestBody } from '../searchAreasContract';
 import { CRIME_SCORE_WHEN_POLICE_UNAVAILABLE } from '../crime/crimeScoreWhenPoliceUnavailable';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { buildRankedAreas } from './buildRankedAreas';
+import { MAX_SEARCH_CANDIDATES } from './workplaceGridCandidates';
 
 const ukhpiSlug = (row: LondonBoroughMedianRow): string => {
   const s = UKHPI_REGION_SLUG_BY_BOROUGH_ID[row.id];
@@ -34,6 +36,7 @@ describe('buildRankedAreas', () => {
     clearTflJourneyCache();
     clearOrsDirectionsCache();
     clearLondonBoroughMedianCache();
+    clearStreetCrimesCache();
   });
 
   it('ranks areas using mocked police.uk responses', async () => {
@@ -64,7 +67,7 @@ describe('buildRankedAreas', () => {
     expect(first?.metadata?.futureTransportDataLastReviewed).toBe('2026-04-03');
     expect(typeof first?.breakdown.sizeFit).toBe('number');
     expect(first?.metadata?.sizeFitModel).toBe('not-requested');
-    expect(fetchImpl.mock.calls.length).toBe(12);
+    expect(fetchImpl.mock.calls.length).toBe(MAX_SEARCH_CANDIDATES);
   });
 
   it('marks partial when some months fail and averages successful months only', async () => {

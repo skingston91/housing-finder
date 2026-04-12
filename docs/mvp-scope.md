@@ -27,7 +27,7 @@ The following is **implemented and documented** for anonymous London-first area 
 | **Commute**       | Straight-line proxy by mode; **transit** can use **TfL Journey Planner** when `TFL_APP_KEY` is set on `SearchAreasFunction` (`shared/commute/tflJourney.ts`; TfL uses **app_key** only)           |
 | **Schools**       | Phase-aware distance to **seeds + expanded** London sample (`shared/schools/`, `gias-open-data-sample-performance-seed-prototype` metadata) with a prototype performance blend from seed metadata |
 | **Crime**         | data.police.uk street-level, weighted categories (`shared/policeUk/`, `shared/rankAreas/buildRankedAreas.ts`)                                                                                     |
-| **Candidates**    | Workplace grid inside London bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                                                                                    |
+| **Candidates**    | Workplace grid inside South East England bounds + fallback named centroids (`shared/rankAreas/workplaceGridCandidates.ts`)                                                                        |
 | **Quality**       | `npm run verify` (lint, format, tsc, tests, Vite build); SAM build separate (`npm run sam:build`)                                                                                                 |
 
 Phase 1 is **not** a substitute for conveyancing, school admissions, or routing; it is a **transparent composite** for exploration.

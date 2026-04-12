@@ -11,6 +11,8 @@ import type { AreaSearchCriteria } from '@/domain/criteria/types';
 export interface RankedAreasSearchResult {
   readonly areas: readonly RankedArea[];
   readonly commuteOmittedEstimateOnlyCount?: number;
+  /** Candidates scored but excluded from `areas` when headline list uses routed journeys only. */
+  readonly commuteOmittedEstimateOnlyAreas?: readonly RankedArea[];
 }
 
 export interface AreaDiscoveryPort {

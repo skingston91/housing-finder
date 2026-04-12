@@ -1,5 +1,6 @@
 import { affordabilityLandRegistryAttribution } from './affordability/affordabilityAttribution';
 import { LONDON_BOROUGH_MEDIANS } from './affordability/londonBoroughMedians';
+import { medianRowsForAreaDiscovery } from './affordability/medianRowsForAreaDiscovery';
 import { plannedTransportProximityForPoint } from './futureTransport/plannedTransportProximityForPoint';
 import type { RankedAreaDto, SearchAreasRequestBody } from './searchAreasContract';
 import { estimateStraightLineCommuteMinutes } from './commute/commuteScoreFromStraightLine';
@@ -35,13 +36,14 @@ export const generateStubRankedAreas = (
   const seed = body.maxPriceGbp % 97;
   const schoolsPerformanceAcademicYear = resolveSchoolsPerformanceAcademicYearForMetadata();
   const sizeFitMinM2 = body.sizeFit?.minFloorAreaM2;
+  const medianRows = medianRowsForAreaDiscovery(LONDON_BOROUGH_MEDIANS);
 
   const prepared = Array.from({ length: n }, (_, i) => {
     const c = candidates[i];
     if (!c) {
       throw new Error('stub: index out of range');
     }
-    const dims = scoreNonCrimeDimensions(body, c.latitude, c.longitude);
+    const dims = scoreNonCrimeDimensions(body, c.latitude, c.longitude, medianRows);
     return { c, dims };
   });
 
@@ -89,7 +91,7 @@ export const generateStubRankedAreas = (
     });
     const displayName =
       candidateMode === 'workplace-grid'
-        ? buildMapStyleAreaHeading(body.workplace, c, LONDON_BOROUGH_MEDIANS)
+        ? buildMapStyleAreaHeading(body.workplace, c, medianRows)
         : c.displayName;
     const plannedTransport = plannedTransportProximityForPoint(c.latitude, c.longitude);
     return {
