@@ -34,6 +34,10 @@ For **TfL / ORS / Mapbox** on Lambdas locally, use **`sam/env.json`** (required 
 - **SAM local Lambdas:** **`TFL_APP_KEY`**, **`ORS_API_KEY`**, **`MAPBOX_ACCESS_TOKEN`**, etc. go under the right function objects in **`sam/env.json`** — not root `.env`.
 - For production, use **SAM deploy parameters**, **AWS console env**, or **Secrets Manager**.
 
+## Configuration and fail-fast
+
+Prefer **clear failures** (explicit messages, non-zero exits, HTTP 4xx when misconfigured) over **silent wrong behaviour** that is hard to debug. Keep **Vite** env (`VITE_*` only) separate from **Lambda** env (`sam/env.json`). The repo encodes this for automation in [`.cursor/rules/fail-fast-configuration.mdc`](../.cursor/rules/fail-fast-configuration.mdc).
+
 ## Serverless API locally (AWS SAM)
 
 Handlers live in [`lambda/`](../lambda/) and deploy via **AWS SAM** ([`template.yaml`](../template.yaml)).
