@@ -47,8 +47,8 @@ describe('createHttpAreaDiscoveryAdapter', () => {
     expect(body?.workplace.label).toBe('HQ');
     expect(body?.crime.categoryWeights.burglary).toBe(1);
 
-    expect(ranked).toHaveLength(1);
-    expect(ranked[0]?.id).toBe('a1');
-    expect(ranked[0]?.metadata?.policeUk).toBe('ok');
+    expect(ranked.areas).toHaveLength(1);
+    expect(ranked.areas[0]?.id).toBe('a1');
+    expect(ranked.areas[0]?.metadata?.policeUk).toBe('ok');
   });
 });

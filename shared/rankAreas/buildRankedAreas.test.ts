@@ -49,7 +49,7 @@ describe('buildRankedAreas', () => {
       ),
     );
 
-    const areas = await buildRankedAreas(minimalBody, fetchImpl, undefined);
+    const { areas } = await buildRankedAreas(minimalBody, fetchImpl, undefined);
     expect(areas.length).toBeGreaterThan(0);
     const first = areas[0];
     expect(first).toBeDefined();
@@ -99,7 +99,7 @@ describe('buildRankedAreas', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const areas = await buildRankedAreas(
+    const { areas } = await buildRankedAreas(
       { ...minimalBody, crime: { ...minimalBody.crime, windowMonths: 6 } },
       fetchImpl,
       undefined,
@@ -131,7 +131,7 @@ describe('buildRankedAreas', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const areas = await buildRankedAreas(minimalBody, fetchImpl, undefined);
+    const { areas } = await buildRankedAreas(minimalBody, fetchImpl, undefined);
     expect(areas.length).toBeGreaterThan(0);
     expect(areas[0]?.metadata?.policeUk).toBe('error');
     expect(areas[0]?.metadata?.crimeDataAvailable).toBe(0);
@@ -147,7 +147,7 @@ describe('buildRankedAreas', () => {
         }),
       ),
     );
-    const areas = await buildRankedAreas(
+    const { areas } = await buildRankedAreas(
       { ...minimalBody, sizeFit: { minFloorAreaM2: 95 } },
       fetchImpl,
       undefined,
@@ -195,7 +195,7 @@ describe('buildRankedAreas', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const areas = await buildRankedAreas(body, fetchImpl, {
+    const { areas } = await buildRankedAreas(body, fetchImpl, {
       tfl: { appKey: 'test-key' },
     });
     expect(areas.length).toBeGreaterThan(0);
@@ -239,7 +239,7 @@ describe('buildRankedAreas', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const areas = await buildRankedAreas(minimalBody, fetchImpl, {
+    const { areas } = await buildRankedAreas(minimalBody, fetchImpl, {
       openRouteService: { apiKey: 'ors-test' },
     });
     expect(areas.length).toBeGreaterThan(0);
@@ -289,7 +289,7 @@ describe('buildRankedAreas', () => {
       return Promise.resolve(new Response('{}', { status: 404 }));
     }) as typeof fetch;
 
-    const areas = await buildRankedAreas(minimalBody, fetchImpl, {
+    const { areas } = await buildRankedAreas(minimalBody, fetchImpl, {
       useLiveUkhpiMedians: true,
     });
     expect(areas.length).toBeGreaterThan(0);

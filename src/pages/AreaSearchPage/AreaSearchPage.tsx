@@ -30,6 +30,9 @@ export const AreaSearchPage = () => {
   const previousSelectionRef = useRef<string | null | undefined>(undefined);
   const cardAnchorRefs = useRef(new Map<string, HTMLElement>());
   const [hasSearched, setHasSearched] = useState(false);
+  const [commuteOmittedEstimateOnlyCount, setCommuteOmittedEstimateOnlyCount] = useState<
+    number | undefined
+  >(undefined);
   const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
   const copyLinkTimeoutRef = useRef<number | null>(null);
   const resultsRegionRef = useRef<HTMLDivElement | null>(null);
@@ -161,6 +164,7 @@ export const AreaSearchPage = () => {
   const handleResetSearch = useCallback(() => {
     setForm(defaultFormState());
     setAreas([]);
+    setCommuteOmittedEstimateOnlyCount(undefined);
     setError(null);
     setHasSearched(false);
     setGeocodeError(null);
@@ -216,13 +220,15 @@ export const AreaSearchPage = () => {
     setLoading(true);
     try {
       const ranked = await httpAreaDiscoveryAdapter.findRankedAreas(criteria);
-      setAreas(ranked);
+      setAreas(ranked.areas);
+      setCommuteOmittedEstimateOnlyCount(ranked.commuteOmittedEstimateOnlyCount);
       setHasSearched(true);
       focusResultsRegion();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Search failed';
       setError(msg);
       setAreas([]);
+      setCommuteOmittedEstimateOnlyCount(undefined);
       setHasSearched(true);
       focusResultsRegion();
     } finally {
@@ -318,6 +324,7 @@ export const AreaSearchPage = () => {
               error={error}
               hasSearched={hasSearched}
               includePriceTrendInComposite={form.includePriceTrendInComposite}
+              commuteOmittedEstimateOnlyCount={commuteOmittedEstimateOnlyCount}
               areas={areas}
               compareAreas={compareAreas}
               compareIds={compareIds}

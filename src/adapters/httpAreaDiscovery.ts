@@ -7,7 +7,7 @@ import { disambiguateDuplicateAreaDisplayNames } from '@shared/rankAreas/disambi
 import { postSearchAreas } from '@/services/searchAreasClient';
 
 import { areaSearchCriteriaToRequestBody, rankedAreaDtosToDomain } from './mapSearchAreasContract';
-import type { AreaDiscoveryPort } from './ports';
+import type { AreaDiscoveryPort, RankedAreasSearchResult } from './ports';
 
 export type SearchAreasPoster = (body: SearchAreasRequestBody) => Promise<SearchAreasResponse>;
 
@@ -32,10 +32,15 @@ const applyMapStyleHeadings = (
 };
 
 export const createHttpAreaDiscoveryAdapter = (post: SearchAreasPoster): AreaDiscoveryPort => ({
-  async findRankedAreas(criteria: AreaSearchCriteria): Promise<readonly RankedArea[]> {
+  async findRankedAreas(criteria: AreaSearchCriteria): Promise<RankedAreasSearchResult> {
     const body = areaSearchCriteriaToRequestBody(criteria);
     const res = await post(body);
-    return applyMapStyleHeadings(body, rankedAreaDtosToDomain(res.areas));
+    return {
+      areas: applyMapStyleHeadings(body, rankedAreaDtosToDomain(res.areas)),
+      ...(res.commuteOmittedEstimateOnlyCount !== undefined
+        ? { commuteOmittedEstimateOnlyCount: res.commuteOmittedEstimateOnlyCount }
+        : {}),
+    };
   },
 });
 

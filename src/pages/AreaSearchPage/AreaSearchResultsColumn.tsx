@@ -31,6 +31,8 @@ export interface AreaSearchResultsColumnProps {
   readonly hasSearched: boolean;
   /** When true and the API did not blend momentum into the composite, the results banner explains why. */
   readonly includePriceTrendInComposite: boolean;
+  /** Candidates dropped because commute used straight-line fallback while others had routed journeys. */
+  readonly commuteOmittedEstimateOnlyCount?: number;
   readonly areas: readonly RankedArea[];
   readonly compareAreas: readonly RankedArea[];
   readonly compareIds: readonly string[];
@@ -52,6 +54,7 @@ export const AreaSearchResultsColumn = ({
   error,
   hasSearched,
   includePriceTrendInComposite,
+  commuteOmittedEstimateOnlyCount,
   areas,
   compareAreas,
   compareIds,
@@ -108,6 +111,26 @@ export const AreaSearchResultsColumn = ({
             : ''}
           ).
         </Text>
+      ) : null}
+      {!loading &&
+      hasSearched &&
+      hasAreas &&
+      commuteOmittedEstimateOnlyCount !== undefined &&
+      commuteOmittedEstimateOnlyCount > 0 ? (
+        <Alert.Root status="info" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Estimate-only commute rows excluded from this list</Alert.Title>
+            <Alert.Description fontSize="sm">
+              {commuteOmittedEstimateOnlyCount}{' '}
+              {commuteOmittedEstimateOnlyCount === 1 ? 'area had' : 'areas had'} no confirmed
+              network-routed journey (TfL or OpenRouteService) while others did, so{' '}
+              {commuteOmittedEstimateOnlyCount === 1 ? 'it was' : 'they were'} omitted. Rankings
+              here use routed journey times only—not straight-line guesses after a routing API
+              attempt.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
       ) : null}
       {!loading &&
       hasSearched &&

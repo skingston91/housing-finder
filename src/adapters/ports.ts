@@ -8,8 +8,13 @@
 import type { RankedArea } from '@/domain/area/types';
 import type { AreaSearchCriteria } from '@/domain/criteria/types';
 
+export interface RankedAreasSearchResult {
+  readonly areas: readonly RankedArea[];
+  readonly commuteOmittedEstimateOnlyCount?: number;
+}
+
 export interface AreaDiscoveryPort {
-  findRankedAreas(criteria: AreaSearchCriteria): Promise<readonly RankedArea[]>;
+  findRankedAreas(criteria: AreaSearchCriteria): Promise<RankedAreasSearchResult>;
 }
 
 export interface GeocodedWorkplace {

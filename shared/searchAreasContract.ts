@@ -130,4 +130,10 @@ export interface RankedAreaDto {
 
 export interface SearchAreasResponse {
   readonly areas: readonly RankedAreaDto[];
+  /**
+   * When TfL or OpenRouteService was used and at least one candidate had a **confirmed**
+   * network-routed journey, estimate-only rows (straight-line after an API attempt) are **omitted**
+   * from `areas` so the list does not mix routed times with proxies.
+   */
+  readonly commuteOmittedEstimateOnlyCount?: number;
 }

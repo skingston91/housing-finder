@@ -37,6 +37,7 @@ import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
 import { logCrimeScoreSearchDiagnostics } from './crimeScoreSearchDiagnostics';
 import { buildMapStyleAreaHeading } from './buildMapStyleAreaHeading';
 import { disambiguateDuplicateAreaDisplayNames } from './disambiguateDuplicateAreaDisplayNames';
+import { filterRankedAreasToNetworkRoutedWhenMixed } from './filterRankedAreasToNetworkRoutedWhenMixed';
 import type { SearchCandidate } from './workplaceGridCandidates';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
 
@@ -51,6 +52,11 @@ const POLICE_UK_MAX_CONCURRENT = 3;
  * Parallel calls (e.g. one per grid cell) plus internal retries easily trigger HTTP 429; a single `curl` is only one request.
  */
 const TFL_JOURNEY_MAX_CONCURRENT = 1;
+
+export interface BuildRankedAreasResult {
+  readonly areas: readonly RankedAreaDto[];
+  readonly commuteOmittedEstimateOnlyCount?: number;
+}
 
 export interface BuildRankedAreasOptions {
   /** When set, **transit** commute uses TfL Journey Planner. */
@@ -107,7 +113,7 @@ export const buildRankedAreas = async (
   body: SearchAreasRequestBody,
   fetchImpl: typeof fetch,
   options?: BuildRankedAreasOptions,
-): Promise<readonly RankedAreaDto[]> => {
+): Promise<BuildRankedAreasResult> => {
   const monthsYm = recentMonthsYm(body.crime.windowMonths, MAX_CRIME_MONTHS);
   const { mode: candidateMode, candidates } = resolveSearchCandidates(body);
 
@@ -401,9 +407,15 @@ export const buildRankedAreas = async (
     };
   });
 
-  const withUniqueNames = disambiguateDuplicateAreaDisplayNames(rows);
+  const { areas: commuteFiltered, omittedEstimateOnly } = filterRankedAreasToNetworkRoutedWhenMixed(
+    rows,
+    body,
+    options,
+  );
 
-  return [...withUniqueNames].sort((a, b) => {
+  const withUniqueNames = disambiguateDuplicateAreaDisplayNames(commuteFiltered);
+
+  const sorted = [...withUniqueNames].sort((a, b) => {
     const ta = typeof a.metadata?.commuteRankTier === 'number' ? a.metadata.commuteRankTier : 0;
     const tb = typeof b.metadata?.commuteRankTier === 'number' ? b.metadata.commuteRankTier : 0;
     if (ta !== tb) {
@@ -411,4 +423,9 @@ export const buildRankedAreas = async (
     }
     return b.score - a.score;
   });
+
+  return {
+    areas: sorted,
+    ...(omittedEstimateOnly > 0 ? { commuteOmittedEstimateOnlyCount: omittedEstimateOnly } : {}),
+  };
 };

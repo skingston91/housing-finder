@@ -17,6 +17,7 @@ Set **`HOUSING_FINDER_SCORING_DIAGNOSTICS=1`** on **SearchAreasFunction** (e.g. 
 ## Commute (TfL / ORS)
 
 - **Routed journey:** Higher confidence; **fallback** after TfL or ORS failure uses straight-line time with **proxy and API-failure penalties** (`shared/commute/commuteScoreNetworkRoutingBonus.ts`).
+- **No mixing routed vs proxy:** When TfL or ORS credentials are in use and **at least one** candidate has a **network-routed** model (`tfl-unified-api` / `openrouteservice-directions`), **estimate-only** rows (e.g. `tfl-fallback-straight-line`) are **dropped** from the returned list so ranking does not compare real journey times with straight-line guesses (`shared/rankAreas/filterRankedAreasToNetworkRoutedWhenMixed.ts`). If **no** candidate has a routed journey, all-proxy results are still returned. The API may set **`commuteOmittedEstimateOnlyCount`**.
 - **Fairness:** Results sort by **`commuteRankTier`** (estimate-only group second), then headline score. **`commuteRoutingConfidence`** and **`commuteModel`** distinguish routed vs fallback.
 - **TfL debugging:** Metadata can include **`commuteTflFailureCode`**, **`commuteTflRawJourneyCount`**, **`commuteTflQualifyingJourneyCount`** (see `shared/commute/tflJourney.ts`).
 

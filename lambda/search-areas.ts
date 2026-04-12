@@ -61,10 +61,11 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
           ...(orsApiKey ? { openRouteService: { apiKey: orsApiKey } as const } : {}),
         }
       : undefined;
-  const areas = await buildRankedAreas(parsed.value, globalThis.fetch, {
+  const ranked = await buildRankedAreas(parsed.value, globalThis.fetch, {
     ...routing,
     useLiveUkhpiMedians,
   });
+  const areas = ranked.areas;
   const tflFallbackAreas = areas.filter(
     (a) => a.metadata?.commuteModel === 'tfl-fallback-straight-line',
   ).length;
@@ -91,5 +92,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }),
     );
   }
-  return jsonResponse(200, { areas });
+  return jsonResponse(200, {
+    areas,
+    ...(ranked.commuteOmittedEstimateOnlyCount !== undefined
+      ? { commuteOmittedEstimateOnlyCount: ranked.commuteOmittedEstimateOnlyCount }
+      : {}),
+  });
 };
