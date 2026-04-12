@@ -140,7 +140,16 @@ const commuteSummary = (metadata: RankedArea['metadata']): string => {
       metadata.commuteTflPlannerSummary.trim() !== ''
         ? ` Requested planner slot: ${metadata.commuteTflPlannerSummary.trim()}`
         : '';
-    return ` Commute (transit) fell back to straight-line time after TfL could not supply a usable journey.${detail}${slot}${straightLineProxyPenaltySentence(metadata)}`;
+    const raw = metadata.commuteTflRawJourneyCount;
+    const qual = metadata.commuteTflQualifyingJourneyCount;
+    const counts =
+      typeof raw === 'number' &&
+      Number.isFinite(raw) &&
+      typeof qual === 'number' &&
+      Number.isFinite(qual)
+        ? ` TfL returned ${String(raw)} journey option(s) before filters; ${String(qual)} passed your filters (see score details).`
+        : '';
+    return ` Commute (transit) fell back to straight-line time after TfL could not supply a usable journey.${detail}${slot}${counts}${straightLineProxyPenaltySentence(metadata)}`;
   }
   if (metadata.commuteModel === 'openrouteservice-directions') {
     const bonus =
@@ -266,6 +275,30 @@ export const resultsUseStraightLineCommute = (areas: readonly RankedArea[]): boo
   return false;
 };
 
+const MIN_TRANSIT_AREAS_FOR_TFL_CONSTRAINT_BANNER = 3;
+const TFL_FALLBACK_SHARE_WARN_THRESHOLD = 0.4;
+
+/**
+ * True when the search used **transit** and a large share of candidates used **TfL → straight-line fallback**
+ * (no usable journey after filters, empty list, timeout, HTTP error, etc.). Often means planner filters are tight;
+ * consider relaxing avoided lines or the “two routes” requirement.
+ */
+export const manyTransitAreasHitTflFallback = (
+  areas: readonly RankedArea[],
+  options?: { readonly minTransitAreas?: number; readonly fallbackShareThreshold?: number },
+): boolean => {
+  const minN = options?.minTransitAreas ?? MIN_TRANSIT_AREAS_FOR_TFL_CONSTRAINT_BANNER;
+  const threshold = options?.fallbackShareThreshold ?? TFL_FALLBACK_SHARE_WARN_THRESHOLD;
+  const transit = areas.filter((a) => a.metadata?.commuteRequestMode === 'transit');
+  if (transit.length < minN) {
+    return false;
+  }
+  const fallback = transit.filter(
+    (a) => a.metadata?.commuteModel === 'tfl-fallback-straight-line',
+  ).length;
+  return fallback / transit.length >= threshold;
+};
+
 export const firstLandRegistryOglAttribution = (
   areas: readonly RankedArea[],
 ): string | undefined => {
@@ -332,10 +365,10 @@ export const areaProvenanceDescription = (metadata: RankedArea['metadata']): str
       metadata.candidateMode === 'workplace-grid'
         ? ' Candidates are sampled on a grid around your workplace (Greater London).'
         : '';
-    return `Crime uses anonymised street-level data from data.police.uk near this point.${grid} ${proxyBlock(metadata)}`;
+    return `Crime uses anonymised street-level data from data.police.uk near this point.${grid} Within this search, crime ranks areas relative to each other (not an absolute city-wide scale). ${proxyBlock(metadata)}`;
   }
   if (metadata.policeUk === 'partial') {
-    return `Crime uses data.police.uk for the months that loaded; some months failed (see card detail). ${proxyBlock(metadata)}`;
+    return `Crime uses data.police.uk for the months that loaded; some months failed (see card detail). Within this search, crime ranks areas relative to each other (not an absolute city-wide scale). ${proxyBlock(metadata)}`;
   }
   if (metadata.policeUk === 'error') {
     return `Crime score used a fallback because the police.uk request failed. ${proxyBlock(metadata)}`;

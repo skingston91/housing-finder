@@ -49,6 +49,10 @@ export interface CommuteScoreResult {
   readonly tflPlannerSummary?: string;
   /** How transit duration was aggregated from TfL’s journey list. */
   readonly tflJourneyDurationMethod?: 'median-first-three-qualifying';
+  /** TfL `journeys` array length before client-side filters (success or structured failure). */
+  readonly commuteTflRawJourneyCount?: number;
+  /** Journeys passing filters; on failure often **0** or **1** when “need two routes” blocks. */
+  readonly commuteTflQualifyingJourneyCount?: number;
   /** First qualifying journey leg summary from TfL (transit success). */
   readonly commuteTflRouteSummary?: string;
   /** HTTP status when TfL returned an error response (transit fallback). */
@@ -109,16 +113,17 @@ export const resolveCommuteScore = async (
     );
     if (tflRes.minutes !== null) {
       const alt = tflRes.alternativeJourneyMinutes;
-      const baseScore = commuteScoreFromDurationEstimate(tflRes.minutes, maxM);
+      const durationTierScore = commuteScoreFromDurationEstimate(tflRes.minutes, maxM);
+      const withNetworkBonus = applyNetworkRoutingCommuteBonus(durationTierScore);
       const reliability = applyCommuteReliabilityAdjustments({
-        baseScore,
+        baseScore: withNetworkBonus,
         transitDisruptionHint: tflRes.disruptionHint,
         primaryJourneyMinutes: tflRes.minutes,
         alternativeJourneyMinutes: alt,
       });
       const tflPlannerSummary = formatTflPlannerSlotSummary(plannerPrefs, Date.now());
       return {
-        score: applyNetworkRoutingCommuteBonus(reliability.score),
+        score: reliability.score,
         model: 'tfl-unified-api',
         commuteNetworkRoutingBonusApplied: COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS,
         journeyMinutes: Math.round(tflRes.minutes * 10) / 10,
@@ -136,6 +141,12 @@ export const resolveCommuteScore = async (
         ...(tflRes.nationalSearchUsed === true ? { transitNationalSearchUsed: true } : {}),
         ...(tflRes.routeSummary !== undefined && tflRes.routeSummary.trim() !== ''
           ? { commuteTflRouteSummary: tflRes.routeSummary.trim() }
+          : {}),
+        ...(tflRes.tflRawJourneyCount !== undefined
+          ? { commuteTflRawJourneyCount: tflRes.tflRawJourneyCount }
+          : {}),
+        ...(tflRes.tflQualifyingJourneyCount !== undefined
+          ? { commuteTflQualifyingJourneyCount: tflRes.tflQualifyingJourneyCount }
           : {}),
       };
     }
@@ -178,6 +189,12 @@ export const resolveCommuteScore = async (
           : {}),
       ...(tflRes.tflHttpErrorBody !== undefined && tflRes.tflHttpErrorBody.trim() !== ''
         ? { commuteTflHttpErrorBody: tflRes.tflHttpErrorBody.trim() }
+        : {}),
+      ...(tflRes.tflRawJourneyCount !== undefined
+        ? { commuteTflRawJourneyCount: tflRes.tflRawJourneyCount }
+        : {}),
+      ...(tflRes.tflQualifyingJourneyCount !== undefined
+        ? { commuteTflQualifyingJourneyCount: tflRes.tflQualifyingJourneyCount }
         : {}),
     };
   }

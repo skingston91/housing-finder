@@ -98,6 +98,8 @@ describe('fetchTflTransitJourney', () => {
     });
     expect(r.minutes).toBe(30);
     expect(r.failureCode).toBeUndefined();
+    expect(r.tflRawJourneyCount).toBe(1);
+    expect(r.tflQualifyingJourneyCount).toBe(1);
     expect(r.nationalSearchUsed).toBe(true);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     const secondUrl = String(fetchImpl.mock.calls[1]?.[0]);
@@ -112,6 +114,8 @@ describe('fetchTflTransitJourney', () => {
     );
     const r = await fetchTflTransitJourney(51.5, -0.1, 51.52, -0.08, fetchImpl, { appKey: 'k' });
     expect(r.minutes).toBe(10);
+    expect(r.tflRawJourneyCount).toBe(1);
+    expect(r.tflQualifyingJourneyCount).toBe(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const firstCall = fetchImpl.mock.calls[0] as [string] | undefined;
     const firstUrl = String(firstCall?.[0]);
@@ -255,8 +259,64 @@ describe('fetchTflTransitJourney', () => {
     );
     // Only the non–Victoria journey qualifies; median of one option is that duration.
     expect(r.minutes).toBe(15);
+    expect(r.tflRawJourneyCount).toBe(2);
+    expect(r.tflQualifyingJourneyCount).toBe(1);
     expect(r.durationMethod).toBe('median-first-three-qualifying');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports raw vs qualifying counts when filters remove all journeys', async () => {
+    const payload = {
+      journeys: [
+        {
+          duration: 600,
+          legs: [
+            {
+              mode: { id: 'tube' },
+              routeOptions: [{ lineIdentifier: { id: 'victoria' } }],
+            },
+          ],
+        },
+      ],
+    };
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+    const r = await fetchTflTransitJourney(
+      51.5,
+      -0.1,
+      51.52,
+      -0.08,
+      fetchImpl,
+      { appKey: 'k' },
+      { avoidLineIds: ['victoria'] },
+    );
+    expect(r.minutes).toBeNull();
+    expect(r.failureCode).toBe('no_journey_after_filters');
+    expect(r.tflRawJourneyCount).toBe(1);
+    expect(r.tflQualifyingJourneyCount).toBe(0);
+  });
+
+  it('reports qualifying count when two routes are required but only one qualifies', async () => {
+    const payload = {
+      journeys: [{ duration: 600, legs: [{ mode: { id: 'tube' } }] }],
+    };
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+    const r = await fetchTflTransitJourney(
+      51.5,
+      -0.1,
+      51.52,
+      -0.08,
+      fetchImpl,
+      { appKey: 'k' },
+      { requireMultipleJourneys: true },
+    );
+    expect(r.minutes).toBeNull();
+    expect(r.failureCode).toBe('no_journey_after_filters');
+    expect(r.tflRawJourneyCount).toBe(1);
+    expect(r.tflQualifyingJourneyCount).toBe(1);
   });
 
   it('uses median of first three journeys when TfL returns three options', async () => {

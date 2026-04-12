@@ -3,6 +3,7 @@ import type { AreaSearchCriteria } from '@/domain/criteria/types';
 import { LONDON_BOROUGH_MEDIANS } from '@shared/affordability/londonBoroughMedians';
 import type { SearchAreasRequestBody, SearchAreasResponse } from '@shared/searchAreasContract';
 import { buildMapStyleAreaHeading } from '@shared/rankAreas/buildMapStyleAreaHeading';
+import { disambiguateDuplicateAreaDisplayNames } from '@shared/rankAreas/disambiguateDuplicateAreaDisplayNames';
 import { postSearchAreas } from '@/services/searchAreasClient';
 
 import { areaSearchCriteriaToRequestBody, rankedAreaDtosToDomain } from './mapSearchAreasContract';
@@ -13,8 +14,8 @@ export type SearchAreasPoster = (body: SearchAreasRequestBody) => Promise<Search
 const applyMapStyleHeadings = (
   body: SearchAreasRequestBody,
   areas: readonly RankedArea[],
-): readonly RankedArea[] =>
-  areas.map((area) => {
+): readonly RankedArea[] => {
+  const withHeadings = areas.map((area) => {
     if (area.metadata?.candidateMode !== 'workplace-grid') {
       return area;
     }
@@ -27,6 +28,8 @@ const applyMapStyleHeadings = (
       ),
     };
   });
+  return disambiguateDuplicateAreaDisplayNames(withHeadings);
+};
 
 export const createHttpAreaDiscoveryAdapter = (post: SearchAreasPoster): AreaDiscoveryPort => ({
   async findRankedAreas(criteria: AreaSearchCriteria): Promise<readonly RankedArea[]> {

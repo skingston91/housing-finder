@@ -3,8 +3,10 @@ import { ukhpiAveragePriceKeyForPropertyTypes } from '../affordability/ukhpiAver
 import { normalizeYoYPctToScores } from '../affordability/priceTrendScoreFromYoY';
 import { resolveLondonBoroughMedianRows } from '../affordability/resolveLondonBoroughMedianRows';
 import { resolveLondonBoroughYoYPctByBoroughId } from '../affordability/resolveLondonBoroughYoY';
-import { CRIME_SCORE_WHEN_POLICE_UNAVAILABLE } from '../crime/crimeScoreWhenPoliceUnavailable';
-import { crimeScoreFromWeightedMonthlyAvg } from '../crime/crimeScoreFromWeightedMonthlyAvg';
+import {
+  applyCrimeMonthCompleteness,
+  crimeScoresNormalizedAmongCandidates,
+} from '../crime/crimeScoresNormalizedAmongCandidates';
 import { recentMonthsYm } from '../crime/recentMonthsYm';
 import { commuteRankTierForModel } from '../commute/commuteRankTier';
 import { resolveCommuteScore } from '../commute/resolveCommuteScore';
@@ -32,7 +34,9 @@ import {
 } from '../sizeFit/resolveTypicalFloorM2ForBorough';
 import { sizeFitHeadroomRatio } from '../sizeFit/sizeFitHeadroomRatio';
 import { scoreAffordabilitySchoolsDimensions } from './areaDimensionScores';
+import { logCrimeScoreSearchDiagnostics } from './crimeScoreSearchDiagnostics';
 import { buildMapStyleAreaHeading } from './buildMapStyleAreaHeading';
+import { disambiguateDuplicateAreaDisplayNames } from './disambiguateDuplicateAreaDisplayNames';
 import type { SearchCandidate } from './workplaceGridCandidates';
 import { resolveSearchCandidates } from './workplaceGridCandidates';
 
@@ -151,11 +155,6 @@ export const buildRankedAreas = async (
         fetchImpl,
         limitPoliceUk,
       );
-      const avg = monthsSucceeded > 0 ? total / monthsSucceeded : 0;
-      const crime =
-        policeUk === 'error'
-          ? CRIME_SCORE_WHEN_POLICE_UNAVAILABLE
-          : crimeScoreFromWeightedMonthlyAvg(avg);
       const base = scoreAffordabilitySchoolsDimensions(
         body,
         c.latitude,
@@ -170,14 +169,29 @@ export const buildRankedAreas = async (
         c,
         base,
         commuteRes,
-        crime,
-        total,
+        crimeWeightedSum: total,
         monthsYmLen: monthsYm.length,
         monthsSucceeded,
         policeUk,
       };
     }),
   );
+
+  const crimeInputs = intermediate.map((row) => ({
+    weightedAvgPerMonth:
+      row.monthsSucceeded > 0 ? row.crimeWeightedSum / row.monthsSucceeded : null,
+    policeUk: row.policeUk,
+  }));
+  const crimeScoresAfterNorm = crimeScoresNormalizedAmongCandidates(crimeInputs);
+  const crimeScoresFinal = crimeScoresAfterNorm.map((score, i) => {
+    const row = intermediate[i];
+    if (row === undefined) {
+      return score;
+    }
+    return applyCrimeMonthCompleteness(score, row.monthsSucceeded, monthsYm.length);
+  });
+
+  logCrimeScoreSearchDiagnostics(crimeScoresFinal, { candidateCount: intermediate.length });
 
   const rawYoyList = intermediate.map((row) => {
     const v = yoyPctByBoroughId.get(row.base.affordabilityBoroughId);
@@ -213,8 +227,11 @@ export const buildRankedAreas = async (
     sizeFitVals.length >= 2 &&
     Math.min(...sizeFitVals) < Math.max(...sizeFitVals);
 
+  const usePriceTrendInComposite = includePriceTrendInComposite && priceTrendHasSpread;
+
   const rows: RankedAreaDto[] = intermediate.map((row, i) => {
-    const { c, base, commuteRes, crime, total, monthsYmLen, monthsSucceeded, policeUk } = row;
+    const { c, base, commuteRes, crimeWeightedSum, monthsYmLen, monthsSucceeded, policeUk } = row;
+    const crime = crimeScoresFinal[i] ?? 50;
     const plannedTransport = plannedTransportProximityForPoint(c.latitude, c.longitude);
     const rawYoyPct = rawYoyList[i] ?? null;
     const ptScore = priceTrendScores[i];
@@ -230,7 +247,7 @@ export const buildRankedAreas = async (
       priceTrend,
       sizeFit,
     };
-    const score = includePriceTrendInComposite
+    const score = usePriceTrendInComposite
       ? compositeScoreWithPriceTrend(breakdown)
       : compositeScore({
           affordability: breakdown.affordability,
@@ -250,13 +267,16 @@ export const buildRankedAreas = async (
       score,
       breakdown,
       metadata: {
-        crimeWeightedTotal: total,
+        crimeWeightedTotal: crimeWeightedSum,
         crimeMonthsRequested: body.crime.windowMonths,
         crimeMonthsUsed: monthsSucceeded,
         crimeMonthsRequestedCap: monthsYmLen,
         crimeWindowCapMonths: MAX_CRIME_MONTHS,
         policeUk,
         crimeDataAvailable: policeUk === 'error' ? 0 : 1,
+        crimeNormalizedAmongCandidates: 1,
+        crimeCompletenessRatio:
+          monthsYmLen > 0 ? Math.round((monthsSucceeded / monthsYmLen) * 1000) / 1000 : 0,
         ...(policeUk === 'partial' ? { crimeMonthsPartial: monthsYmLen - monthsSucceeded } : {}),
         dataPoliceUk: 'Contains police.uk data © UK law enforcement; locations approximate.',
         candidateMode,
@@ -271,6 +291,11 @@ export const buildRankedAreas = async (
           : {}),
         landRegistryOgl: affordabilityLandRegistryAttribution(medianResolution.priceSource),
         commuteModel: commuteRes.model,
+        commuteRoutingConfidence:
+          commuteRes.model === 'tfl-fallback-straight-line' ||
+          commuteRes.model === 'openrouteservice-fallback-straight-line'
+            ? 'low'
+            : 'high',
         commuteRankTier: commuteRankTierForModel(commuteRes.model),
         commuteMaxMinutes: body.commute.maxMinutes,
         commuteRequestMode: body.commute.mode,
@@ -322,6 +347,12 @@ export const buildRankedAreas = async (
         ...(commuteRes.tflJourneyDurationMethod !== undefined
           ? { commuteTflDurationMethod: commuteRes.tflJourneyDurationMethod }
           : {}),
+        ...(commuteRes.commuteTflRawJourneyCount !== undefined
+          ? { commuteTflRawJourneyCount: commuteRes.commuteTflRawJourneyCount }
+          : {}),
+        ...(commuteRes.commuteTflQualifyingJourneyCount !== undefined
+          ? { commuteTflQualifyingJourneyCount: commuteRes.commuteTflQualifyingJourneyCount }
+          : {}),
         schoolsProximityModel: 'haversine-walk-estimate',
         schoolsModel: resolveSchoolsRankingMetadataModel(),
         schoolsDataAttribution: resolveSchoolsDataAttribution(),
@@ -337,6 +368,7 @@ export const buildRankedAreas = async (
           ? { priceTrendYoyPct: rawYoyPct }
           : {}),
         priceTrendIncludedInComposite: includePriceTrendInComposite ? 1 : 0,
+        priceTrendAppliedToComposite: usePriceTrendInComposite ? 1 : 0,
         futureTransportModel: plannedTransport.model,
         futureTransportNearestKm: Math.round(plannedTransport.nearestKm * 1000) / 1000,
         futureTransportNearestScheme: plannedTransport.schemeLabel,
@@ -369,7 +401,9 @@ export const buildRankedAreas = async (
     };
   });
 
-  return [...rows].sort((a, b) => {
+  const withUniqueNames = disambiguateDuplicateAreaDisplayNames(rows);
+
+  return [...withUniqueNames].sort((a, b) => {
     const ta = typeof a.metadata?.commuteRankTier === 'number' ? a.metadata.commuteRankTier : 0;
     const tb = typeof b.metadata?.commuteRankTier === 'number' ? b.metadata.commuteRankTier : 0;
     if (ta !== tb) {

@@ -11,7 +11,11 @@ describe('normalizeSizeFitRatiosToScores', () => {
     expect(normalizeSizeFitRatiosToScores([null, null])).toEqual([50, 50]);
   });
 
-  it('uses 50 when all ratios equal', () => {
-    expect(normalizeSizeFitRatiosToScores([1.1, 1.1])).toEqual([50, 50]);
+  it('uses absolute headroom when cohort has no spread (equal ratios)', () => {
+    expect(normalizeSizeFitRatiosToScores([1.1, 1.1])).toEqual([55, 55]);
+  });
+
+  it('maps a single candidate by absolute headroom', () => {
+    expect(normalizeSizeFitRatiosToScores([1.2])).toEqual([60]);
   });
 });

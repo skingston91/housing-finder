@@ -1,6 +1,7 @@
 import { Alert, Badge, Box, Button, Card, Heading, HStack, Stack, Text } from '@chakra-ui/react';
 import type { RankedArea } from '@/domain/area/types';
 
+import { formatCommuteJourneyDurationForDisplay } from '@shared/commute/formatCommuteJourneyDurationForDisplay';
 import { formatIsoDateUtcUkLong } from '@shared/futureTransport/formatIsoDateUtcUkLong';
 import { schoolsDimensionExplanationLine } from '@shared/schools/schoolsDimensionExplanation';
 
@@ -93,6 +94,15 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
       value: commuteModelDisplayLabel(m.commuteModel),
     });
   }
+  if (m.commuteRoutingConfidence === 'low' || m.commuteRoutingConfidence === 'high') {
+    rows.push({
+      label: 'Commute routing confidence',
+      value:
+        m.commuteRoutingConfidence === 'low'
+          ? 'Low — estimate or API fallback (see commute subscore notes)'
+          : 'High — network-routed journey time used',
+    });
+  }
   if (m.commuteRankTier === 1) {
     rows.push({
       label: 'Commute route confirmation',
@@ -122,6 +132,18 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
     rows.push({
       label: 'TfL route (first qualifying option)',
       value: m.commuteTflRouteSummary.trim(),
+    });
+  }
+  if (typeof m.commuteTflRawJourneyCount === 'number') {
+    rows.push({
+      label: 'TfL routes (found before your filters)',
+      value: String(m.commuteTflRawJourneyCount),
+    });
+  }
+  if (typeof m.commuteTflQualifyingJourneyCount === 'number') {
+    rows.push({
+      label: 'TfL routes (after your filters)',
+      value: String(m.commuteTflQualifyingJourneyCount),
     });
   }
   const tflHttpStatusForDetails = parseCommuteTflHttpStatusFromMetadata(m);
@@ -154,13 +176,13 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
           : 'Estimated journey time';
     rows.push({
       label: journeyLabel,
-      value: `${String(m.commuteJourneyMinutes)} min`,
+      value: formatCommuteJourneyDurationForDisplay(m.commuteJourneyMinutes),
     });
   }
   if (typeof m.commuteAlternativeJourneyMinutes === 'number') {
     rows.push({
       label: 'Second acceptable route (approx.)',
-      value: `${String(m.commuteAlternativeJourneyMinutes)} min`,
+      value: formatCommuteJourneyDurationForDisplay(m.commuteAlternativeJourneyMinutes),
     });
   }
   if (typeof m.commuteTflDisruptionHint === 'string' && m.commuteTflDisruptionHint.trim() !== '') {
@@ -182,7 +204,7 @@ const ResultScoreDetails = ({ area }: { area: RankedArea }) => {
   ) {
     rows.push({
       label: 'Commute reliability scale',
-      value: `Score multiplied by ${m.commuteReliabilityFactor.toFixed(3)} (disruption or route volatility).`,
+      value: `Commute subscore (bar above) already includes ×${m.commuteReliabilityFactor.toFixed(3)} for disruption or route volatility.`,
     });
   }
   if (
@@ -325,6 +347,10 @@ export const AreaResultCard = ({
   const schoolsLine = schoolsDimensionExplanationLine(meta);
   const commuteLine = commuteDimensionExplanationLine(meta);
   const priceTrendLine = priceTrendDimensionExplanationLine(meta);
+  const priceTrendBarLabel =
+    meta?.priceTrendAppliedToComposite === 0
+      ? 'Price momentum (not in headline total — data unavailable or no spread)'
+      : 'Price momentum (UK HPI YoY, relative)';
   const noConfirmedRoute = commuteRankTierFromArea(area) === 1;
 
   return (
@@ -475,12 +501,18 @@ export const AreaResultCard = ({
                 </Alert.Content>
               </Alert.Root>
             ) : null}
-            <ScoreBar label="Crime (higher is better)" value={area.breakdown.crime} />
             <Stack gap={1}>
-              <ScoreBar
-                label="Price momentum (UK HPI YoY, relative)"
-                value={area.breakdown.priceTrend}
-              />
+              <ScoreBar label="Crime (higher is better)" value={area.breakdown.crime} />
+              {area.breakdown.crime === 0 &&
+              meta?.policeUk !== 'error' &&
+              meta?.policeUk !== undefined ? (
+                <Text fontSize="xs" color="fg.muted" lineHeight="short">
+                  0 means the weakest relative score in this search (not missing data).
+                </Text>
+              ) : null}
+            </Stack>
+            <Stack gap={1}>
+              <ScoreBar label={priceTrendBarLabel} value={area.breakdown.priceTrend} />
               <Text fontSize="xs" color="fg.muted" lineHeight="short">
                 {priceTrendLine ?? 'Relative momentum among candidates; not a forecast.'}
               </Text>
@@ -497,7 +529,7 @@ export const AreaResultCard = ({
                     meta,
                   )}
                   {meta?.sizeFitHasSpread === 0
-                    ? ' All candidates tie at 50 — same headroom ratio in this search (or missing data).'
+                    ? ' Same headroom ratio for every candidate — subscores use the absolute headroom curve (not spread-based ranking within this batch).'
                     : ''}
                 </Text>
               </Stack>

@@ -16,6 +16,7 @@
 
 - Subscores (0–100) per dimension: **affordability**, **commute**, **schools**, **crime** — composed in `buildRankedAreas` from police.uk, optional UK HPI / TfL / ORS, and school distance samples.
 - **Composite** score: weighted average via `compositeScore()` in [`shared/scoring/compositeScore.ts`](../shared/scoring/compositeScore.ts), re-exported from `src/domain/scoring/compositeScore.ts` for the app. Tune weights in one place; document methodology here when we move beyond uniform defaults.
+- **Behaviour reference** (crime pipeline, TfL fallback fairness, momentum in/out of headline, optional crime diagnostics): [`docs/scoring-behaviour.md`](./scoring-behaviour.md).
 
 ## Multi–workplace (future)
 

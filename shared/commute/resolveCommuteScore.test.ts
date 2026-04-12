@@ -62,7 +62,7 @@ describe('resolveCommuteScore', () => {
     expect(r.model).toBe('tfl-unified-api');
     expect(r.transitDisruptionHint).toBeDefined();
     expect(r.commuteReliabilityFactor).toBeCloseTo(0.92, 5);
-    expect(r.score).toBe(100);
+    expect(r.score).toBe(92);
     expect(r.commuteNetworkRoutingBonusApplied).toBe(COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS);
   });
 
@@ -87,7 +87,7 @@ describe('resolveCommuteScore', () => {
     // Median of 20 and 35 min = 27.5 min primary for scoring
     expect(r.journeyMinutes).toBe(27.5);
     expect(r.commuteReliabilityFactor).toBeCloseTo(0.97, 5);
-    expect(r.score).toBe(100);
+    expect(r.score).toBe(97);
     expect(r.commuteNetworkRoutingBonusApplied).toBe(COMMUTE_SCORE_NETWORK_ROUTING_BONUS_POINTS);
     expect(r.tflJourneyDurationMethod).toBe('median-first-three-qualifying');
     expect(r.tflPlannerSummary).toMatch(/TfL|08:30|timetable/i);

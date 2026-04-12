@@ -13,9 +13,19 @@ describe('commuteDimensionExplanationLine', () => {
       commuteMaxMinutes: 60,
     });
     expect(line).toContain('Straight-line');
-    expect(line).toContain('20.0 min');
+    expect(line).toContain('~20 min');
     expect(line).toContain('60 min budget');
     expect(line).toMatch(/100/);
+  });
+
+  it('notes reliability factor when present', () => {
+    const line = commuteDimensionExplanationLine({
+      commuteModel: 'tfl-unified-api',
+      commuteJourneyMinutes: 20,
+      commuteMaxMinutes: 60,
+      commuteReliabilityFactor: 0.92,
+    });
+    expect(line).toMatch(/reliability ×0\.920/);
   });
 
   it('notes network-route bonus when present', () => {
@@ -36,6 +46,15 @@ describe('commuteDimensionExplanationLine', () => {
       commuteStraightLineProxyPenaltyApplied: 15,
     });
     expect(line).toContain('-15 straight-line proxy');
+  });
+
+  it('shows sub-minute journeys in seconds', () => {
+    const line = commuteDimensionExplanationLine({
+      commuteModel: 'tfl-unified-api',
+      commuteJourneyMinutes: 0.4,
+      commuteMaxMinutes: 60,
+    });
+    expect(line).toContain('~24 sec');
   });
 
   it('notes routing API failure extra penalty when present', () => {
@@ -69,5 +88,16 @@ describe('priceTrendDimensionExplanationLine', () => {
         priceTrendHasSpread: 0,
       }),
     ).toMatch(/tie at 50/);
+  });
+
+  it('notes when momentum is excluded from the headline total', () => {
+    expect(
+      priceTrendDimensionExplanationLine({
+        priceTrendModel: 'ukhpi-borough-yoy',
+        priceTrendYoyPct: 3,
+        priceTrendHasSpread: 1,
+        priceTrendAppliedToComposite: 0,
+      }),
+    ).toMatch(/Not in headline total/);
   });
 });

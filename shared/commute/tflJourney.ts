@@ -58,6 +58,10 @@ export type TflTransitFailureCode =
 
 export interface TflTransitJourneyResult {
   readonly minutes: number | null;
+  /** Journeys returned by TfL before client-side filters (avoid lines, leg limits, etc.). */
+  readonly tflRawJourneyCount?: number;
+  /** Journeys passing filters; on failure often **0** or **1** when “need two routes” blocked. */
+  readonly tflQualifyingJourneyCount?: number;
   readonly failureCode?: TflTransitFailureCode;
   readonly httpStatus?: number;
   /** Sanitized first line of TfL’s response body when `failureCode` is `http_error` (debugging). */
@@ -322,6 +326,14 @@ interface JourneyPickOk {
   readonly alternativeJourneyMinutes?: number;
   readonly disruptionHint?: string;
   readonly routeSummary?: string;
+  readonly rawJourneyCount: number;
+  readonly qualifyingJourneyCount: number;
+}
+
+interface JourneyPickErr {
+  readonly error: TflTransitFailureCode;
+  readonly rawJourneyCount: number;
+  readonly qualifyingJourneyCount: number;
 }
 
 const MAX_ROUTE_SUMMARY_CHARS = 480;
@@ -405,10 +417,11 @@ const medianMinutes = (values: readonly number[]): number => {
 const selectJourney = (
   json: Record<string, unknown>,
   prefs: TflTransitPlannerPreferences | undefined,
-): JourneyPickOk | { error: TflTransitFailureCode } => {
+): JourneyPickOk | JourneyPickErr => {
   const journeys = parseJourneysRecords(json);
+  const rawJourneyCount = journeys.length;
   if (journeys.length === 0) {
-    return { error: 'empty_journeys' };
+    return { error: 'empty_journeys', rawJourneyCount: 0, qualifyingJourneyCount: 0 };
   }
 
   const avoid = new Set(
@@ -447,10 +460,18 @@ const selectJourney = (
   }
 
   if (qualifying.length === 0) {
-    return { error: 'no_journey_after_filters' };
+    return {
+      error: 'no_journey_after_filters',
+      rawJourneyCount,
+      qualifyingJourneyCount: 0,
+    };
   }
   if (needMulti && qualifying.length < 2) {
-    return { error: 'no_journey_after_filters' };
+    return {
+      error: 'no_journey_after_filters',
+      rawJourneyCount,
+      qualifyingJourneyCount: qualifying.length,
+    };
   }
 
   const aggregateSlice = qualifying.slice(0, Math.min(3, qualifying.length));
@@ -462,11 +483,19 @@ const selectJourney = (
     }
   }
   if (durations.length === 0) {
-    return { error: 'invalid_payload' };
+    return {
+      error: 'invalid_payload',
+      rawJourneyCount,
+      qualifyingJourneyCount: qualifying.length,
+    };
   }
   const mins = medianMinutes(durations);
   if (!Number.isFinite(mins)) {
-    return { error: 'invalid_payload' };
+    return {
+      error: 'invalid_payload',
+      rawJourneyCount,
+      qualifyingJourneyCount: qualifying.length,
+    };
   }
 
   let alternativeJourneyMinutes: number | undefined;
@@ -496,6 +525,8 @@ const selectJourney = (
     minutes: mins,
     alternativeJourneyMinutes,
     disruptionHint,
+    rawJourneyCount,
+    qualifyingJourneyCount: qualifying.length,
     ...(routeSummary !== undefined && routeSummary.length > 0 ? { routeSummary } : {}),
   };
 };
@@ -645,7 +676,12 @@ const outcomeFromJson = (
 ): TflTransitJourneyResult => {
   const picked = selectJourney(json, prefs);
   if ('error' in picked) {
-    return { minutes: null, failureCode: picked.error };
+    return {
+      minutes: null,
+      failureCode: picked.error,
+      tflRawJourneyCount: picked.rawJourneyCount,
+      tflQualifyingJourneyCount: picked.qualifyingJourneyCount,
+    };
   }
   return {
     minutes: picked.minutes,
@@ -653,6 +689,8 @@ const outcomeFromJson = (
     alternativeJourneyMinutes: picked.alternativeJourneyMinutes,
     disruptionHint: picked.disruptionHint,
     durationMethod: 'median-first-three-qualifying',
+    tflRawJourneyCount: picked.rawJourneyCount,
+    tflQualifyingJourneyCount: picked.qualifyingJourneyCount,
     ...(picked.routeSummary !== undefined ? { routeSummary: picked.routeSummary } : {}),
   };
 };

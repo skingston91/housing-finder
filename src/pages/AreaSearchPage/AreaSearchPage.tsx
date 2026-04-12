@@ -317,6 +317,7 @@ export const AreaSearchPage = () => {
               loading={loading}
               error={error}
               hasSearched={hasSearched}
+              includePriceTrendInComposite={form.includePriceTrendInComposite}
               areas={areas}
               compareAreas={compareAreas}
               compareIds={compareIds}

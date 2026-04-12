@@ -13,6 +13,7 @@ import {
   firstSchoolsPerformanceYearHint,
   firstSchoolsDataAttribution,
   hasCrimeMetadataDetails,
+  manyTransitAreasHitTflFallback,
   resultsUseStraightLineCommute,
 } from './searchResultsAttribution';
 
@@ -177,5 +178,32 @@ describe('searchResultsAttribution', () => {
     expect(anyPoliceUkCrimeFetchPartial([area({ policeUk: 'partial' })])).toBe(true);
     expect(firstCrimeDataPartialNote([area({ policeUk: 'ok' })])).toBeUndefined();
     expect(firstCrimeDataPartialNote([area({ policeUk: 'partial' })])).toMatch(/some months/);
+  });
+
+  it('manyTransitAreasHitTflFallback is false below minimum transit count', () => {
+    expect(
+      manyTransitAreasHitTflFallback(
+        [
+          area({ commuteRequestMode: 'transit', commuteModel: 'tfl-fallback-straight-line' }),
+          area({ commuteRequestMode: 'transit', commuteModel: 'tfl-fallback-straight-line' }),
+        ],
+        { minTransitAreas: 3 },
+      ),
+    ).toBe(false);
+  });
+
+  it('manyTransitAreasHitTflFallback is true when TfL fallback dominates transit rows', () => {
+    const tfl = (model: string) => area({ commuteRequestMode: 'transit', commuteModel: model });
+    expect(
+      manyTransitAreasHitTflFallback(
+        [
+          tfl('tfl-fallback-straight-line'),
+          tfl('tfl-fallback-straight-line'),
+          tfl('tfl-unified-api'),
+          tfl('tfl-fallback-straight-line'),
+        ],
+        { minTransitAreas: 3, fallbackShareThreshold: 0.4 },
+      ),
+    ).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ import { resolveSchoolsDataAttribution } from './schools/resolveSchoolsDataAttri
 import { resolveSchoolsPerformanceAcademicYearForMetadata } from './schools/resolveSchoolsPerformanceAcademicYearForMetadata';
 import { resolveSchoolsRankingMetadataModel } from './schools/resolveSchoolsRankingMetadataModel';
 import { buildMapStyleAreaHeading } from './rankAreas/buildMapStyleAreaHeading';
+import { disambiguateDuplicateAreaDisplayNames } from './rankAreas/disambiguateDuplicateAreaDisplayNames';
 import { resolveSearchCandidates } from './rankAreas/workplaceGridCandidates';
 import { LONDON_EPC_MEDIAN_GENERATED_ISO } from './sizeFit/londonBoroughEpcMedianFloorM2.generated';
 import { normalizeSizeFitRatiosToScores } from './sizeFit/normalizeSizeFitRatiosToScores';
@@ -65,7 +66,7 @@ export const generateStubRankedAreas = (
     sizeFitVals.length >= 2 &&
     Math.min(...sizeFitVals) < Math.max(...sizeFitVals);
 
-  return prepared.map((row, i) => {
+  const rows = prepared.map((row, i) => {
     const { c, dims } = row;
     const base = 45 + ((seed + i * 7) % 40);
     const crime = Math.min(100, base + 10 - (i % 6));
@@ -157,4 +158,5 @@ export const generateStubRankedAreas = (
       },
     };
   });
+  return disambiguateDuplicateAreaDisplayNames(rows);
 };

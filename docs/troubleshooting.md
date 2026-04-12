@@ -54,3 +54,9 @@ Add a dated entry when you hit a non-obvious issue and fix it. Short bullets are
 - **Symptom:** Invoke returns 500; logs show `SyntaxError: Unexpected token 'export'` for `*.js` in `/var/task`.
 - **Cause:** esbuild was emitting **ESM** while the Lambda loader treated the file as **CommonJS** (no `package.json` with `"type": "module"` in the artifact).
 - **Fix:** Use **`Format: cjs`** under `Metadata.BuildProperties` in `template.yaml`, then `sam build` again.
+
+### 2026-04-12 — Crime subscores look “flat” in logs / debugging ranking
+
+- **Symptom:** Need per-search **distribution** of crime subscores (min/max/spread) when tuning normalization.
+- **Cause:** N/A — optional diagnostics.
+- **Fix:** Set **`HOUSING_FINDER_SCORING_DIAGNOSTICS=1`** for `SearchAreasFunction` in **`sam/env.local.json`** (or deployed env). Logs one JSON line per search: `crime_score_search_diagnostics`. See [scoring-behaviour.md](./scoring-behaviour.md). Leave unset in production unless investigating.

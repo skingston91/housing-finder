@@ -14,6 +14,7 @@ import {
 import {
   anyPoliceUkCrimeFetchFailed,
   anyPoliceUkCrimeFetchPartial,
+  manyTransitAreasHitTflFallback,
   resultsUseStraightLineCommute,
 } from './searchResultsAttribution';
 
@@ -28,6 +29,8 @@ export interface AreaSearchResultsColumnProps {
   readonly loading: boolean;
   readonly error: string | null;
   readonly hasSearched: boolean;
+  /** When true and the API did not blend momentum into the composite, the results banner explains why. */
+  readonly includePriceTrendInComposite: boolean;
   readonly areas: readonly RankedArea[];
   readonly compareAreas: readonly RankedArea[];
   readonly compareIds: readonly string[];
@@ -48,6 +51,7 @@ export const AreaSearchResultsColumn = ({
   loading,
   error,
   hasSearched,
+  includePriceTrendInComposite,
   areas,
   compareAreas,
   compareIds,
@@ -104,6 +108,52 @@ export const AreaSearchResultsColumn = ({
             : ''}
           ).
         </Text>
+      ) : null}
+      {!loading &&
+      hasSearched &&
+      hasAreas &&
+      includePriceTrendInComposite &&
+      areas[0]?.metadata?.priceTrendAppliedToComposite === 0 ? (
+        <Alert.Root status="info" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Price momentum not included in the headline total</Alert.Title>
+            <Alert.Description fontSize="sm">
+              You asked to include price momentum, but it is not blended into the composite for this
+              run: UK HPI data may be unavailable, or every candidate tied on the same YoY so there
+              was nothing to rank. The momentum bar on each card still shows the neutral or relative
+              score for context.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
+      ) : null}
+      {!loading && hasSearched && hasAreas && manyTransitAreasHitTflFallback(areas) ? (
+        <Alert.Root status="warning" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Many transit rows used TfL fallback</Alert.Title>
+            <Alert.Description fontSize="sm">
+              Transport for London did not return a usable journey for a large share of candidates
+              (straight-line estimates with commute penalties). Your filters may be excluding every
+              option—try relaxing avoided lines, the “two routes” requirement, or leg limits—or
+              check TfL keys and rate limits. See each card for failure codes and route counts
+              before vs after your filters.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
+      ) : null}
+      {!loading && hasSearched && hasAreas && hasRouteSplit ? (
+        <Alert.Root status="info" variant="subtle">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Why some areas are “estimate only”</Alert.Title>
+            <Alert.Description fontSize="sm">
+              Some areas have no valid routes after applying your filters (avoided lines, minimum
+              route count, and leg limits), so estimates are shown instead. Confirmed routes are
+              listed first; estimate-only rows are sorted after them.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
       ) : null}
       {!loading && hasSearched && hasAreas && anyPoliceUkCrimeFetchFailed(areas) ? (
         <Alert.Root status="warning" variant="subtle">

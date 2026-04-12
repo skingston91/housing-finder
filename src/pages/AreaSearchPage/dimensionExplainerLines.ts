@@ -1,4 +1,5 @@
 import type { RankedArea } from '@/domain/area/types';
+import { formatCommuteJourneyDurationForDisplay } from '@shared/commute/formatCommuteJourneyDurationForDisplay';
 
 import { commuteModelDisplayLabel } from './commuteModelLabels';
 
@@ -19,7 +20,7 @@ export const commuteDimensionExplanationLine = (
   const label = commuteModelDisplayLabel(model);
   const bits: string[] = [label];
   if (mins !== undefined) {
-    bits.push(`~${mins.toFixed(1)} min`);
+    bits.push(formatCommuteJourneyDurationForDisplay(mins));
   }
   if (maxM !== undefined) {
     bits.push(`vs ${String(maxM)} min budget`);
@@ -56,6 +57,15 @@ export const commuteDimensionExplanationLine = (
       `-${String(metadata.commuteRoutingApiFailureExtraPenaltyApplied)} no confirmed route (routing API failed)`,
     );
   }
+  if (
+    typeof metadata.commuteReliabilityFactor === 'number' &&
+    Number.isFinite(metadata.commuteReliabilityFactor) &&
+    metadata.commuteReliabilityFactor < 1
+  ) {
+    bits.push(
+      `reliability ×${metadata.commuteReliabilityFactor.toFixed(3)} (included in commute subscore above)`,
+    );
+  }
   return bits.join(' · ');
 };
 
@@ -68,22 +78,26 @@ export const priceTrendDimensionExplanationLine = (
   if (!metadata) {
     return null;
   }
+  const notInHeadline =
+    metadata.priceTrendAppliedToComposite === 0
+      ? ' Not in headline total — YoY data was unavailable or all candidates tied, so momentum is not blended into the composite for this search.'
+      : '';
   if (metadata.stub === 1) {
-    return 'Demo ranking: price momentum fixed at neutral 50.';
+    return `Demo ranking: price momentum fixed at neutral 50.${notInHeadline}`;
   }
   const model = metadata.priceTrendModel;
   if (model === 'unavailable' || model === undefined) {
-    return 'UK HPI YoY not loaded for this search — neutral 50 (enable live UK HPI on the API for relative momentum).';
+    return `UK HPI YoY not loaded for this search — neutral 50 (enable live UK HPI on the API for relative momentum).${notInHeadline}`;
   }
   if (model === 'ukhpi-borough-yoy') {
     const yoy = metadata.priceTrendYoyPct;
     const hasSpread = metadata.priceTrendHasSpread === 1;
     if (typeof yoy === 'number' && Number.isFinite(yoy)) {
       return hasSpread
-        ? `Borough YoY ≈ ${yoy.toFixed(1)}% — score ranks candidates in this search only.`
-        : `Borough YoY ≈ ${yoy.toFixed(1)}% — all candidates tie at 50 (same or single YoY in this batch).`;
+        ? `Borough YoY ≈ ${yoy.toFixed(1)}% — score ranks candidates in this search only.${notInHeadline}`
+        : `Borough YoY ≈ ${yoy.toFixed(1)}% — all candidates tie at 50 (same or single YoY in this batch).${notInHeadline}`;
     }
-    return 'Neutral 50 — no YoY for this borough or insufficient prior-year data.';
+    return `Neutral 50 — no YoY for this borough or insufficient prior-year data.${notInHeadline}`;
   }
-  return 'Relative momentum among candidates; not a forecast.';
+  return `Relative momentum among candidates; not a forecast.${notInHeadline}`;
 };

@@ -1,6 +1,7 @@
 /**
- * Map average weighted incident count per month → 0–100 (higher = better).
- * Tunable; document changes in docs/architecture.md when adjusting.
+ * Legacy linear map from a single average weighted incident rate → 0–100.
+ * **Ranking** uses {@link crimeScoresNormalizedAmongCandidates} so scores spread within each search.
+ * Kept for tests and any direct call sites that need a fixed scale.
  */
 export const crimeScoreFromWeightedMonthlyAvg = (avgWeightedPerMonth: number): number => {
   if (!Number.isFinite(avgWeightedPerMonth) || avgWeightedPerMonth < 0) {
