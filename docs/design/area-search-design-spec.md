@@ -1,7 +1,7 @@
 # Design spec: Area search (phase 1)
 
 **Status:** Implemented (iterate as real data lands).  
-**Reference UX:** [Jitty](https://jitty.com/) — clear hero, generous whitespace, trustworthy filters, scannable results.
+**Reference UX:** clear hero, generous whitespace, trustworthy filters, scannable results.
 
 ## Goals
 
@@ -40,7 +40,7 @@
 - **Local React state** only (no auth): form state (`AreaSearchFormState`), `areas` (domain `RankedArea[]`), `loading`, `error`, `selectedAreaId` (list ↔ map), compare/URL messaging, etc.
 - **URL state:** **Implemented** — criteria serialize to **`q`** (base64url JSON) on the area search route; opening or sharing the URL hydrates the form. Ranked **results** are not stored in the URL (user re-runs search). See [product-decisions.md](../product-decisions.md), `src/pages/AreaSearchPage/areaSearchUrlState.ts`, and [area-search-ux-polish-spec.md](./area-search-ux-polish-spec.md).
 
-## Visual and UX consistency (Jitty-inspired, light)
+## Visual and UX consistency (light shell)
 
 - **Background:** page `gray.50`; **panels** white, `rounded="xl"`, light border/shadow.
 - **Typography:** large tight heading; **muted** secondary copy via `fg.muted` / `gray.600` where semantic token exists.

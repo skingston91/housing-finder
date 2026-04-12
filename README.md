@@ -1,6 +1,6 @@
 # Housing Finder
 
-London-first **area discovery** for buying a home: combine affordability (price / £/m², property type), commute, schools, and crime signals. Inspired by [Jitty](https://jitty.com/) at the UX level; **no commercial listing API** in phase 1.
+London-first **area discovery** for buying a home: combine affordability (price / £/m², property type), commute, schools, and crime signals. **No commercial listing API** in phase 1.
 
 ## Quick start
 

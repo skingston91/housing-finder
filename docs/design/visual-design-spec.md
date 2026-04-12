@@ -1,6 +1,6 @@
 # Visual design spec (housing-finder)
 
-Light, marketing-style shell inspired by [Jitty](https://jitty.com/): plenty of **whitespace**, **clear hierarchy**, **soft neutrals**, **one strong accent** (blue) for primary actions.
+Light, marketing-style shell: plenty of **whitespace**, **clear hierarchy**, **soft neutrals**, **one strong accent** (blue) for primary actions.
 
 ## Surfaces
 

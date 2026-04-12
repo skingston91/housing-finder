@@ -7,7 +7,7 @@
 
 - Preserve **one primary story per viewport band**: hero + criteria, then **ranked areas as the main outcome** — not competing hero treatments in the results column.
 - **Reduce competing focal points**: methodology, commute honesty, map, compare, and alerts follow a clear **reading order** that matches importance (**outcome first**, context second).
-- Keep **Jitty-like** calm shell: whitespace, soft neutrals, **one blue primary** for search; secondary actions (copy link, reset, compare) visually subordinate.
+- Keep a **calm** shell: whitespace, soft neutrals, **one blue primary** for search; secondary actions (copy link, reset, compare) visually subordinate.
 - **Data honesty** without apology loops: short factual lines, collapsible depth; align attribution with `docs/data-sources.md` and `searchResultsAttribution` / `MethodologyPanel`.
 
 ## Non-goals (this iteration)

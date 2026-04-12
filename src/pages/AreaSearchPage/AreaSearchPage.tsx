@@ -244,7 +244,7 @@ export const AreaSearchPage = () => {
                 <Text as="span" fontWeight="medium" color="fg">
                   locations
                 </Text>{' '}
-                first (Jitty-style discovery). Live listing feeds wait on commercial API access.
+                first. Live listing feeds wait on commercial API access.
               </Text>
               <Text fontSize="sm" color="fg.muted">
                 Your search settings update the link in your address bar so you can bookmark or
