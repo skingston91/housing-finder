@@ -104,9 +104,9 @@ export const AreaSearchCriteriaForm = ({
       <Stack gap={1}>
         <Heading size="md">Affordability</Heading>
         <Text fontSize="sm" color="fg.muted">
-          Max price and optional ceiling on £/m². Scores use borough-level UK HPI averages when live
-          data is enabled (averages, not medians or street-level prices)—discovery only, not a
-          valuation.
+          Max price and optional ceiling on price per area (enter as £/m² or £/sq ft; the API uses
+          £/m²). Scores use borough-level UK HPI averages when live data is enabled (averages, not
+          medians or street-level prices)—discovery only, not a valuation.
         </Text>
         <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4}>
           <Stack gap={1}>
@@ -127,25 +127,47 @@ export const AreaSearchCriteriaForm = ({
               aria-label="Maximum price in GBP"
             />
           </Stack>
-          <Stack gap={1}>
-            <Text fontWeight="medium">Max £/m² (optional)</Text>
-            <Input
-              type="number"
-              min={1}
-              placeholder="e.g. 8000"
-              value={form.maxPricePerM2Gbp === '' ? '' : String(form.maxPricePerM2Gbp)}
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === '') {
-                  onChange({ ...form, maxPricePerM2Gbp: '' });
-                  return;
-                }
-                const v = Number(raw);
-                onChange({ ...form, maxPricePerM2Gbp: Number.isFinite(v) ? v : '' });
-              }}
-              aria-label="Maximum price per square metre GBP optional"
-            />
-          </Stack>
+          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr' }} gap={4} alignItems="flex-end">
+            <Stack gap={1}>
+              <Text fontWeight="medium">Max price per area (optional)</Text>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                placeholder={form.maxPricePerM2InputUnit === 'sqft' ? 'e.g. 750' : 'e.g. 8000'}
+                value={form.maxPricePerM2Gbp === '' ? '' : String(form.maxPricePerM2Gbp)}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === '') {
+                    onChange({ ...form, maxPricePerM2Gbp: '' });
+                    return;
+                  }
+                  const v = Number(raw);
+                  onChange({ ...form, maxPricePerM2Gbp: Number.isFinite(v) ? v : '' });
+                }}
+                aria-label="Maximum price per square metre or per square foot optional"
+              />
+            </Stack>
+            <Stack gap={1}>
+              <Text fontWeight="medium">Unit</Text>
+              <NativeSelect.Root>
+                <NativeSelect.Field
+                  value={form.maxPricePerM2InputUnit}
+                  onChange={(e) => {
+                    const u = e.target.value;
+                    if (u === 'sqft' || u === 'm2') {
+                      onChange({ ...form, maxPricePerM2InputUnit: u });
+                    }
+                  }}
+                  aria-label="Unit for maximum price per area"
+                >
+                  <option value="m2">£ per m²</option>
+                  <option value="sqft">£ per sq ft</option>
+                </NativeSelect.Field>
+                <NativeSelect.Indicator />
+              </NativeSelect.Root>
+            </Stack>
+          </Grid>
         </Grid>
       </Stack>
 

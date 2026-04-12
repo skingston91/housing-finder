@@ -17,6 +17,8 @@ export interface AreaSearchFormState {
   /** Empty while the user clears the field to type a new value (avoids `Number('')` → 0). */
   maxPriceGbp: number | '';
   maxPricePerM2Gbp: number | '';
+  /** Input unit for {@link maxPricePerM2Gbp}; API always receives £/m². */
+  maxPricePerM2InputUnit: 'm2' | 'sqft';
   propertyTypes: readonly PropertyType[];
   workplaceLabel: string;
   workplaceLat: number | '';
@@ -91,6 +93,7 @@ export const defaultCrimeWeights = (): Record<string, number> => ({
 export const defaultFormState = (): AreaSearchFormState => ({
   maxPriceGbp: 450_000,
   maxPricePerM2Gbp: '',
+  maxPricePerM2InputUnit: 'm2',
   propertyTypes: ['flat', 'terraced'],
   workplaceLabel: 'Old Street',
   workplaceLat: 51.5255,
@@ -164,7 +167,15 @@ export const buildAreaSearchCriteria = (form: AreaSearchFormState): AreaSearchCr
   }
 
   const phases = [...form.schoolPhases];
-  const maxPricePerM2Gbp = form.maxPricePerM2Gbp === '' ? undefined : form.maxPricePerM2Gbp;
+  let maxPricePerM2Gbp: number | undefined;
+  if (form.maxPricePerM2Gbp !== '') {
+    const raw = form.maxPricePerM2Gbp;
+    if (!Number.isFinite(raw) || raw < 1) {
+      return null;
+    }
+    maxPricePerM2Gbp =
+      form.maxPricePerM2InputUnit === 'sqft' ? Math.round((raw / SQ_FT_TO_SQM) * 100) / 100 : raw;
+  }
   const maxSchool = form.schoolMaxMinutes === '' ? undefined : form.schoolMaxMinutes;
 
   const avoidLineIds = form.transitAvoidLineIds

@@ -58,6 +58,7 @@ interface WireForm {
   readonly v?: unknown;
   readonly maxPriceGbp?: unknown;
   readonly maxPricePerM2Gbp?: unknown;
+  readonly maxPricePerM2InputUnit?: unknown;
   readonly propertyTypes?: unknown;
   readonly workplaceLabel?: unknown;
   readonly workplaceLat?: unknown;
@@ -126,6 +127,14 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
         : null;
   if (maxPricePerM2Gbp === null) {
     return null;
+  }
+
+  let maxPricePerM2InputUnit: 'm2' | 'sqft' = 'm2';
+  if (w.maxPricePerM2InputUnit !== undefined) {
+    if (w.maxPricePerM2InputUnit !== 'm2' && w.maxPricePerM2InputUnit !== 'sqft') {
+      return null;
+    }
+    maxPricePerM2InputUnit = w.maxPricePerM2InputUnit;
   }
 
   const workplaceLat =
@@ -211,6 +220,7 @@ const toFormState = (w: WireForm): AreaSearchFormState | null => {
   return {
     maxPriceGbp: maxPrice,
     maxPricePerM2Gbp,
+    maxPricePerM2InputUnit,
     propertyTypes,
     workplaceLabel: w.workplaceLabel,
     workplaceLat,
@@ -246,6 +256,7 @@ export const encodeAreaSearchQueryParam = (form: AreaSearchFormState): string =>
     v: URL_PARAM_VERSION,
     maxPriceGbp: form.maxPriceGbp,
     maxPricePerM2Gbp: form.maxPricePerM2Gbp,
+    maxPricePerM2InputUnit: form.maxPricePerM2InputUnit,
     propertyTypes: [...form.propertyTypes],
     workplaceLabel: form.workplaceLabel,
     workplaceLat: form.workplaceLat,

@@ -16,6 +16,7 @@ describe('areaSearchUrlState', () => {
     expect(dec).not.toBeNull();
     expect(dec?.maxPriceGbp).toBe(form.maxPriceGbp);
     expect(dec?.workplaceLabel).toBe(form.workplaceLabel);
+    expect(dec?.maxPricePerM2InputUnit).toBe('m2');
     expect(dec?.transitOmitDefaultPlannerDeparture).toBe(false);
     expect(Array.from(dec?.schoolPhases ?? []).sort()).toEqual(
       Array.from(form.schoolPhases).sort(),
@@ -31,6 +32,19 @@ describe('areaSearchUrlState', () => {
     const b = { ...defaultFormState(), workplaceLabel: 'Elsewhere' };
     expect(areaSearchFormsEncodeToSameQueryParam(a, defaultFormState())).toBe(true);
     expect(areaSearchFormsEncodeToSameQueryParam(a, b)).toBe(false);
+  });
+
+  it('round-trips max price density unit per sq ft', () => {
+    const form = {
+      ...defaultFormState(),
+      maxPricePerM2Gbp: 750 as const,
+      maxPricePerM2InputUnit: 'sqft' as const,
+    };
+    const enc = encodeAreaSearchQueryParam(form);
+    const dec = decodeAreaSearchQueryParam(enc);
+    expect(dec).not.toBeNull();
+    expect(dec?.maxPricePerM2Gbp).toBe(750);
+    expect(dec?.maxPricePerM2InputUnit).toBe('sqft');
   });
 
   it('round-trips empty property types (and school phases) so URL sync does not reset mid-edit', () => {

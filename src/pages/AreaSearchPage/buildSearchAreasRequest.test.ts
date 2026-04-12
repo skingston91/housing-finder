@@ -49,4 +49,12 @@ describe('buildSearchAreasRequest', () => {
     form.commuteMaxMinutes = '';
     expect(buildSearchAreasRequest(form)).toBeNull();
   });
+
+  it('converts optional max £/sq ft to £/m² for the API', () => {
+    const form = defaultFormState();
+    form.maxPricePerM2Gbp = 100;
+    form.maxPricePerM2InputUnit = 'sqft';
+    const body = buildSearchAreasRequest(form);
+    expect(body?.maxPricePerM2Gbp).toBeCloseTo(100 / 0.09290304, 2);
+  });
 });
